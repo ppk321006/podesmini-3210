@@ -1,10 +1,20 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { DatabaseUser, Kecamatan, Desa, NKS, WilayahTugas, UbinanData } from "@/types/database";
+import { Database } from "@/types/supabase-db";
+
+// Define types based on our custom database schema
+type DatabaseUser = Database['public']['Tables']['users']['Row'];
+type Kecamatan = Database['public']['Tables']['kecamatan']['Row'];
+type Desa = Database['public']['Tables']['desa']['Row'];
+type NKS = Database['public']['Tables']['nks']['Row'];
+type WilayahTugas = Database['public']['Tables']['wilayah_tugas']['Row'];
+type UbinanData = Database['public']['Tables']['ubinan_data']['Row'];
 
 // Users API
 export const getUsers = async () => {
-  const { data, error } = await supabase.from('users').select('*');
+  const { data, error } = await supabase
+    .from('users')
+    .select('*');
   
   if (error) {
     throw error;
@@ -29,7 +39,10 @@ export const getUserById = async (id: string) => {
 
 // Kecamatan API
 export const getKecamatans = async () => {
-  const { data, error } = await supabase.from('kecamatan').select('*').order('name');
+  const { data, error } = await supabase
+    .from('kecamatan')
+    .select('*')
+    .order('name');
   
   if (error) {
     throw error;
@@ -131,3 +144,6 @@ export const getSubround = async () => {
   
   return data as number;
 };
+
+// Export types for use in other components
+export type { DatabaseUser, Kecamatan, Desa, NKS, WilayahTugas, UbinanData };

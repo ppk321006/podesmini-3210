@@ -1,9 +1,9 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { User } from "@/types/user";
+import { User, UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DatabaseUser } from "@/types/database";
+import { Database } from "@/types/supabase-db";
 
 interface AuthContextType {
   user: User | null;
@@ -64,14 +64,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       if (data) {
-        const dbUser = data as DatabaseUser;
+        const dbUser = data as Database['public']['Tables']['users']['Row'];
         
         // Convert database user to our User type
         const appUser: User = {
           id: dbUser.id,
           username: dbUser.username,
           name: dbUser.name,
-          role: dbUser.role,
+          role: dbUser.role as UserRole,
           pmlId: dbUser.pml_id || undefined
         };
         

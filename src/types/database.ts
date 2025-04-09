@@ -1,6 +1,8 @@
 
-export type KomoditasType = 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar';
-export type VerificationStatus = 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak';
+import { Database } from './supabase-db';
+
+export type KomoditasType = Database['public']['Enums']['komoditas_type'];
+export type VerificationStatus = Database['public']['Enums']['verification_status'];
 
 export interface DatabaseUser {
   id: string;
