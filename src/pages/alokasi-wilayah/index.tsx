@@ -129,10 +129,19 @@ export default function AlokasiWilayahPage() {
     return wilayahTugasList.some(w => w.nks_id === nksId);
   };
   
-  // Get NKS details by ID
+  // Get NKS details by ID - Fix for TypeScript errors
   const getNKSDetails = (nksId: string) => {
-    const nks = nksList.find(n => n.id === nksId) || { code: "-" };
-    return nks;
+    const nks = nksList.find(n => n.id === nksId);
+    if (nks) return nks;
+    // Return fallback with all required properties
+    return { 
+      code: "-", 
+      desa_id: "", 
+      target_padi: 0, 
+      target_palawija: 0,
+      id: "",
+      created_at: ""
+    };
   };
   
   // Get desa name by ID
