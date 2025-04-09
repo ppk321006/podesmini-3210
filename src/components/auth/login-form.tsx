@@ -15,13 +15,14 @@ import {
 import { UserRound, KeyRound } from "lucide-react";
 
 export function LoginForm() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("admin"); // Pre-fill with admin username
+  const [password, setPassword] = useState("admin123"); // Pre-fill with admin password
   const [isOpen, setIsOpen] = useState(false);
   const { login, isLoading, isAuthenticated, logout } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Submitting login form with:", username, password);
     await login(username, password);
     if (!isLoading) {
       setIsOpen(false);

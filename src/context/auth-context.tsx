@@ -51,6 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
+      console.log("Attempting login with:", username, password);
+      
       // Query the users table for the given username and password
       const { data, error } = await supabase
         .from('users')
@@ -60,11 +62,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
       
       if (error) {
+        console.error("Login error:", error);
         throw new Error("Username atau password salah");
       }
       
       if (data) {
         const dbUser = data;
+        console.log("Login successful, user data:", dbUser);
         
         // Convert database user to our User type
         const appUser: User = {
