@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       if (data) {
-        const dbUser = data as Database['public']['Tables']['users']['Row'];
+        const dbUser = data;
         
         // Convert database user to our User type
         const appUser: User = {

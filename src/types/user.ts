@@ -1,10 +1,5 @@
 
-export enum UserRole {
-  ADMIN = "admin",
-  PML = "pml",
-  PPL = "ppl",
-  VIEWER = "viewer",
-}
+export type UserRole = 'admin' | 'pml' | 'ppl' | 'viewer';
 
 export interface User {
   id: string;
