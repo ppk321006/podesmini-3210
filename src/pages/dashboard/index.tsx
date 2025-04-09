@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -6,7 +5,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { UserRole } from "@/types/user";
 import { AlertCircle, CheckCircle2, Clock, FileBarChart } from "lucide-react";
 
-// Mock data for charts and progress
 const subroundData = [
   { name: "Januari", padi: 65, palawija: 40 },
   { name: "Februari", padi: 70, palawija: 45 },
@@ -25,7 +23,6 @@ const palawijaData = [
 export default function DashboardPage() {
   const { user, isAuthenticated } = useAuth();
   
-  // Calculate current subround based on month
   const currentMonth = new Date().getMonth() + 1;
   let currentSubround = 1;
   if (currentMonth >= 5 && currentMonth <= 8) {
@@ -79,7 +76,6 @@ export default function DashboardPage() {
       );
     }
     
-    // Basic stats cards that everyone can see
     const commonContent = (
       <>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -166,7 +162,6 @@ export default function DashboardPage() {
       </>
     );
     
-    // Admin-specific content
     if (user.role === UserRole.ADMIN) {
       return (
         <div className="space-y-6">
@@ -247,7 +242,6 @@ export default function DashboardPage() {
       );
     }
     
-    // PML-specific content
     if (user.role === UserRole.PML) {
       return (
         <div className="space-y-6">
@@ -285,7 +279,6 @@ export default function DashboardPage() {
       );
     }
     
-    // PPL-specific content
     if (user.role === UserRole.PPL) {
       return (
         <div className="space-y-6">
@@ -331,7 +324,6 @@ export default function DashboardPage() {
       );
     }
     
-    // Viewer-specific content
     return (
       <div className="space-y-6">
         {commonContent}
