@@ -1,7 +1,9 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { UserRole, User } from "@/types/user";
+import { User } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { DatabaseUser } from "@/types/database";
 
 interface AuthContextType {
   user: User | null;
@@ -49,70 +51,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      // This is just a mock implementation until we connect to Supabase
-      // In reality, this would be an API call to validate credentials
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Query the users table for the given username and password
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
       
-      // Mock user - replace with actual authentication
-      if (username === "admin" && password === "admin") {
-        const mockUser: User = {
-          id: "1",
-          username: "admin",
-          role: UserRole.ADMIN,
-          name: "Administrator",
-        };
-        
-        setUser(mockUser);
-        localStorage.setItem("simonita_user", JSON.stringify(mockUser));
-        toast.success("Login berhasil!");
-        return;
+      if (error) {
+        throw new Error("Username atau password salah");
       }
       
-      if (username === "pml" && password === "pml") {
-        const mockUser: User = {
-          id: "2",
-          username: "pml",
-          role: UserRole.PML,
-          name: "Petugas PML",
+      if (data) {
+        const dbUser = data as DatabaseUser;
+        
+        // Convert database user to our User type
+        const appUser: User = {
+          id: dbUser.id,
+          username: dbUser.username,
+          name: dbUser.name,
+          role: dbUser.role,
+          pmlId: dbUser.pml_id || undefined
         };
         
-        setUser(mockUser);
-        localStorage.setItem("simonita_user", JSON.stringify(mockUser));
+        setUser(appUser);
+        localStorage.setItem("simonita_user", JSON.stringify(appUser));
         toast.success("Login berhasil!");
         return;
+      } else {
+        throw new Error("Username atau password salah");
       }
-      
-      if (username === "ppl" && password === "ppl") {
-        const mockUser: User = {
-          id: "3",
-          username: "ppl",
-          role: UserRole.PPL,
-          name: "Petugas PPL",
-          pmlId: "2",
-        };
-        
-        setUser(mockUser);
-        localStorage.setItem("simonita_user", JSON.stringify(mockUser));
-        toast.success("Login berhasil!");
-        return;
-      }
-      
-      if (username === "viewer" && password === "viewer") {
-        const mockUser: User = {
-          id: "4",
-          username: "viewer",
-          role: UserRole.VIEWER,
-          name: "Peninjau",
-        };
-        
-        setUser(mockUser);
-        localStorage.setItem("simonita_user", JSON.stringify(mockUser));
-        toast.success("Login berhasil!");
-        return;
-      }
-      
-      // If none of the above conditions are met, throw an error
-      throw new Error("Username atau password salah");
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
