@@ -10,6 +10,7 @@ import DashboardPage from "./pages/dashboard";
 import PetugasPage from "./pages/petugas";
 import WilayahPage from "./pages/wilayah";
 import AlokasiWilayahPage from "./pages/alokasi-wilayah";
+import AlokasiPetugasPage from "./pages/alokasi-petugas";
 import NotFoundPage from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/input-data" element={<div className="p-8 text-center">Halaman Input Data (akan dikembangkan)</div>} />
               <Route path="/wilayah" element={<WilayahPage />} />
               <Route path="/alokasi-wilayah" element={<AlokasiWilayahPage />} />
+              <Route path="/alokasi-petugas" element={<AlokasiPetugasPage />} />
               <Route path="/verifikasi" element={<div className="p-8 text-center">Halaman Verifikasi Data (akan dikembangkan)</div>} />
               <Route path="/profil" element={<div className="p-8 text-center">Halaman Profil (akan dikembangkan)</div>} />
               <Route path="/pengaturan" element={<div className="p-8 text-center">Halaman Pengaturan (akan dikembangkan)</div>} />

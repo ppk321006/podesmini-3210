@@ -66,6 +66,20 @@ export const getDesasByKecamatan = async (kecamatanId: string) => {
   return data as Desa[];
 };
 
+export const getDesaById = async (desaId: string) => {
+  const { data, error } = await supabase
+    .from('desa')
+    .select('*, kecamatan:kecamatan_id(*)')
+    .eq('id', desaId)
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
 // NKS API
 export const getNKSByDesa = async (desaId: string) => {
   const { data, error } = await supabase
@@ -80,38 +94,52 @@ export const getNKSByDesa = async (desaId: string) => {
   return data as NKS[];
 };
 
+export const getNKSDetails = async (nksId: string) => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select('*, desa:desa_id(*)')
+    .eq('id', nksId)
+    .single();
+    
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
 // Wilayah Tugas API
 export const getWilayahTugasByPML = async (pmlId: string) => {
   const { data, error } = await supabase
     .from('wilayah_tugas')
-    .select()
+    .select('*, nks:nks_id(*), ppl:ppl_id(*)')
     .eq('pml_id', pmlId);
   
   if (error) {
     throw error;
   }
   
-  return data as WilayahTugas[];
+  return data;
 };
 
 export const getWilayahTugasByPPL = async (pplId: string) => {
   const { data, error } = await supabase
     .from('wilayah_tugas')
-    .select()
+    .select('*, nks:nks_id(*), pml:pml_id(*)')
     .eq('ppl_id', pplId);
   
   if (error) {
     throw error;
   }
   
-  return data as WilayahTugas[];
+  return data;
 };
 
 // Ubinan Data API
 export const getUbinanDataByPPL = async (pplId: string) => {
   const { data, error } = await supabase
     .from('ubinan_data')
-    .select()
+    .select('*, nks:nks_id(*)')
     .eq('ppl_id', pplId);
   
   if (error) {
@@ -124,7 +152,7 @@ export const getUbinanDataByPPL = async (pplId: string) => {
 export const getUbinanDataForVerification = async (pmlId: string) => {
   const { data, error } = await supabase
     .from('ubinan_data')
-    .select()
+    .select('*, nks:nks_id(*), ppl:ppl_id(*)')
     .eq('pml_id', pmlId)
     .eq('status', 'sudah_diisi');
   
@@ -143,6 +171,39 @@ export const getSubround = async () => {
   }
   
   return data as unknown as number;
+};
+
+export const getUbinanProgressBySubround = async (subround: number) => {
+  const { data, error } = await supabase.rpc('get_ubinan_progress_by_subround', { subround_param: subround });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getUbinanProgressByYear = async (year: number = new Date().getFullYear()) => {
+  const { data, error } = await supabase.rpc('get_ubinan_progress_by_year', { year_param: year });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getNKSByKomoditas = async (komoditas: string) => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select('*')
+    .or(`target_${komoditas.toLowerCase()}=gt.0`);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as NKS[];
 };
 
 // Export types for use in other components

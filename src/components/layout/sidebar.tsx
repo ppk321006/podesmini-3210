@@ -10,6 +10,7 @@ import {
   Map,
   Home,
   User,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -74,6 +75,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
       title: "Alokasi Wilayah",
       icon: Map,
       href: "/wilayah",
+      allowedRoles: [UserRole.ADMIN],
+    },
+    {
+      title: "Alokasi Petugas",
+      icon: Workflow,
+      href: "/alokasi-petugas",
       allowedRoles: [UserRole.ADMIN],
     },
     {

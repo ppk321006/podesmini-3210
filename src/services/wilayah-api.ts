@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Kecamatan, Desa, NKS, WilayahTugas, Petugas } from "@/types/database-schema";
 
@@ -196,4 +195,93 @@ export const createWilayahTugas = async (
   }
   
   return data;
+};
+
+// Additional API functions for Alokasi Petugas
+export const getPPLList = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 'ppl')
+      .order('name');
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching PPL list:', error);
+    throw error;
+  }
+};
+
+export const getUnassignedNKS = async () => {
+  try {
+    const { data: allNKS, error: nksError } = await supabase
+      .from('nks')
+      .select('*');
+    
+    if (nksError) throw nksError;
+    
+    const { data: assignedNKS, error: wilayahError } = await supabase
+      .from('wilayah_tugas')
+      .select('nks_id');
+      
+    if (wilayahError) throw wilayahError;
+    
+    const assignedIds = assignedNKS.map(item => item.nks_id);
+    
+    return allNKS.filter(nks => !assignedIds.includes(nks.id));
+  } catch (error) {
+    console.error('Error fetching unassigned NKS:', error);
+    throw error;
+  }
+};
+
+export const assignPPLToNKS = async (nksId: string, pplId: string, pmlId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('wilayah_tugas')
+      .insert([
+        { nks_id: nksId, ppl_id: pplId, pml_id: pmlId }
+      ]);
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error assigning PPL to NKS:', error);
+    throw error;
+  }
+};
+
+export const getNKSByPPL = async (pplId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('wilayah_tugas')
+      .select(`
+        nks_id,
+        nks:nks_id(id, code, desa_id, desa:desa_id(id, name, kecamatan_id, kecamatan:kecamatan_id(id, name)))
+      `)
+      .eq('ppl_id', pplId);
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching NKS by PPL:', error);
+    throw error;
+  }
+};
+
+export const removePPLAssignment = async (nksId: string, pplId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('wilayah_tugas')
+      .delete()
+      .match({ nks_id: nksId, ppl_id: pplId });
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error removing PPL assignment:', error);
+    throw error;
+  }
 };
