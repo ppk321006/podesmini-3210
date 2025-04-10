@@ -18,6 +18,24 @@ export interface NKS {
   target_palawija: number;
   created_at: string;
   subround?: number;
+  komoditas_palawija?: string | null;
+}
+
+export interface Segmen {
+  id: string;
+  code: string;
+  desa_id: string;
+  target_padi: number;
+  created_at: string;
+}
+
+export interface SampelKRT {
+  id: string;
+  nama: string;
+  status: 'Utama' | 'Cadangan';
+  nks_id: string | null;
+  segmen_id: string | null;
+  created_at: string;
 }
 
 export interface WilayahTugas {

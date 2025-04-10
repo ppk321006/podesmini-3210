@@ -56,6 +56,7 @@ export type Database = {
           created_at: string | null
           desa_id: string
           id: string
+          komoditas_palawija: string | null
           subround: number
           target_padi: number
           target_palawija: number
@@ -65,6 +66,7 @@ export type Database = {
           created_at?: string | null
           desa_id: string
           id?: string
+          komoditas_palawija?: string | null
           subround?: number
           target_padi?: number
           target_palawija?: number
@@ -74,6 +76,7 @@ export type Database = {
           created_at?: string | null
           desa_id?: string
           id?: string
+          komoditas_palawija?: string | null
           subround?: number
           target_padi?: number
           target_palawija?: number
@@ -81,6 +84,80 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "nks_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
+            referencedRelation: "desa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sampel_krt: {
+        Row: {
+          created_at: string | null
+          id: string
+          nama: string
+          nks_id: string | null
+          segmen_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nama: string
+          nks_id?: string | null
+          segmen_id?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nama?: string
+          nks_id?: string | null
+          segmen_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sampel_krt_nks_id_fkey"
+            columns: ["nks_id"]
+            isOneToOne: false
+            referencedRelation: "nks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sampel_krt_segmen_id_fkey"
+            columns: ["segmen_id"]
+            isOneToOne: false
+            referencedRelation: "segmen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      segmen: {
+        Row: {
+          code: string
+          created_at: string | null
+          desa_id: string
+          id: string
+          target_padi: number
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          desa_id: string
+          id?: string
+          target_padi?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          desa_id?: string
+          id?: string
+          target_padi?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segmen_desa_id_fkey"
             columns: ["desa_id"]
             isOneToOne: false
             referencedRelation: "desa"

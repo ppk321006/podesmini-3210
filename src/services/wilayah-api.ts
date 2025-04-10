@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData } from "@/types/database-schema";
+import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData, Segmen, SampelKRT } from "@/types/database-schema";
 
 // Kecamatan APIs
 export const getKecamatanList = async (): Promise<Kecamatan[]> => {
@@ -84,17 +84,19 @@ export const getNKSList = async (desaId?: string): Promise<NKS[]> => {
 
 export const createNKS = async (
   code: string, 
-  desaId: string, 
-  targetPadi: number, 
-  targetPalawija: number
+  desaId: string,
+  targetPalawija: number,
+  komoditasPalawija: string,
+  subround: number
 ): Promise<NKS> => {
   const { data, error } = await supabase
     .from('nks')
     .insert({ 
       code, 
-      desa_id: desaId, 
-      target_padi: targetPadi, 
-      target_palawija: targetPalawija 
+      desa_id: desaId,
+      target_palawija: targetPalawija,
+      komoditas_palawija: komoditasPalawija,
+      subround
     })
     .select()
     .single();
@@ -105,6 +107,168 @@ export const createNKS = async (
   }
   
   return data;
+};
+
+export const updateNKS = async (
+  id: string, 
+  updates: Partial<NKS>
+): Promise<NKS> => {
+  const { data, error } = await supabase
+    .from('nks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error updating NKS:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteNKS = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('nks')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error("Error deleting NKS:", error);
+    throw error;
+  }
+};
+
+// Segmen APIs
+export const getSegmenList = async (desaId?: string): Promise<Segmen[]> => {
+  let query = supabase.from('segmen').select('*').order('code');
+  
+  if (desaId) {
+    query = query.eq('desa_id', desaId);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error("Error fetching Segmen:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const createSegmen = async (
+  code: string, 
+  desaId: string, 
+  targetPadi: number
+): Promise<Segmen> => {
+  const { data, error } = await supabase
+    .from('segmen')
+    .insert({ 
+      code, 
+      desa_id: desaId, 
+      target_padi: targetPadi
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error creating Segmen:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const updateSegmen = async (
+  id: string, 
+  updates: Partial<Segmen>
+): Promise<Segmen> => {
+  const { data, error } = await supabase
+    .from('segmen')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error updating Segmen:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteSegmen = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('segmen')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error("Error deleting Segmen:", error);
+    throw error;
+  }
+};
+
+// Sampel KRT APIs
+export const getSampelKRTList = async (nksId?: string, segmenId?: string): Promise<SampelKRT[]> => {
+  let query = supabase.from('sampel_krt').select('*').order('nama');
+  
+  if (nksId) {
+    query = query.eq('nks_id', nksId);
+  }
+  
+  if (segmenId) {
+    query = query.eq('segmen_id', segmenId);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error("Error fetching Sampel KRT:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const createSampelKRT = async (
+  nama: string,
+  status: 'Utama' | 'Cadangan',
+  nksId?: string,
+  segmenId?: string
+): Promise<SampelKRT> => {
+  const { data, error } = await supabase
+    .from('sampel_krt')
+    .insert({ 
+      nama, 
+      status,
+      nks_id: nksId,
+      segmen_id: segmenId
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Error creating Sampel KRT:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteSampelKRT = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('sampel_krt')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error("Error deleting Sampel KRT:", error);
+    throw error;
+  }
 };
 
 // Additional NKS API for getting details
@@ -445,6 +609,42 @@ export const updateUbinanVerification = async (
   return data;
 };
 
+// Get full details of NKS with assignments
+export const getNKSWithAssignments = async (): Promise<any[]> => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select(`
+      *,
+      desa:desa_id(id, name, kecamatan:kecamatan_id(id, name)),
+      wilayah_tugas(id, pml_id, ppl_id, pml:pml_id(id, name), ppl:ppl_id(id, name))
+    `);
+  
+  if (error) {
+    console.error("Error fetching NKS with assignments:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+// Get full details of Segmen with assignments
+export const getSegmenWithAssignments = async (): Promise<any[]> => {
+  const { data, error } = await supabase
+    .from('segmen')
+    .select(`
+      *,
+      desa:desa_id(id, name, kecamatan:kecamatan_id(id, name))
+    `);
+  
+  if (error) {
+    console.error("Error fetching Segmen with assignments:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+// Get current subround
 export const getSubround = async () => {
   const { data, error } = await supabase.rpc('get_subround');
   
