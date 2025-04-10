@@ -18,7 +18,13 @@ export interface NKS {
   target_palawija: number;
   created_at: string;
   subround?: number;
-  komoditas_palawija?: string | null;
+}
+
+export interface NKSKomoditas {
+  id: string;
+  nks_id: string;
+  komoditas: string;
+  created_at: string;
 }
 
 export interface Segmen {
@@ -27,6 +33,7 @@ export interface Segmen {
   desa_id: string;
   target_padi: number;
   created_at: string;
+  bulan?: number;
 }
 
 export interface SampelKRT {
@@ -71,4 +78,31 @@ export interface UbinanData {
   updated_at: string;
   nks?: NKS;
   ppl?: Petugas;
+}
+
+export interface ProgressReport {
+  id: string;
+  ppl_id: string;
+  target_count: number;
+  completed_count: number;
+  verified_count: number;
+  rejected_count: number;
+  year: number;
+  month: number;
+  created_at: string;
+  updated_at: string;
+  ppl?: Petugas;
+}
+
+export interface AllocationStatus {
+  type: 'nks' | 'segmen';
+  id: string;
+  code: string;
+  desa_id: string;
+  desa_name: string;
+  kecamatan_name: string;
+  kecamatan_id: string;
+  is_allocated: boolean;
+  ppl_id: string | null;
+  pml_id: string | null;
 }

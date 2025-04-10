@@ -1,5 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData, Segmen, SampelKRT } from "@/types/database-schema";
+import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData, Segmen, SampelKRT, NKSKomoditas, AllocationStatus, ProgressReport } from "@/types/database-schema";
 
 // Kecamatan APIs
 export const getKecamatanList = async (): Promise<Kecamatan[]> => {
@@ -86,16 +87,16 @@ export const createNKS = async (
   code: string, 
   desaId: string,
   targetPalawija: number,
-  komoditasPalawija: string,
+  komoditasList: string[],
   subround: number
 ): Promise<NKS> => {
+  // Create NKS entry first
   const { data, error } = await supabase
     .from('nks')
     .insert({ 
       code, 
       desa_id: desaId,
       target_palawija: targetPalawija,
-      komoditas_palawija: komoditasPalawija,
       subround
     })
     .select()
@@ -106,12 +107,44 @@ export const createNKS = async (
     throw error;
   }
   
+  // Now add komoditas entries
+  if (komoditasList.length > 0) {
+    const komoditasInserts = komoditasList.map(komoditas => ({
+      nks_id: data.id,
+      komoditas
+    }));
+    
+    const { error: komoditasError } = await supabase
+      .from('nks_komoditas')
+      .insert(komoditasInserts);
+    
+    if (komoditasError) {
+      console.error("Error creating komoditas entries:", komoditasError);
+      throw komoditasError;
+    }
+  }
+  
+  return data;
+};
+
+export const getNKSKomoditas = async (nksId: string): Promise<NKSKomoditas[]> => {
+  const { data, error } = await supabase
+    .from('nks_komoditas')
+    .select('*')
+    .eq('nks_id', nksId);
+  
+  if (error) {
+    console.error("Error fetching NKS komoditas:", error);
+    throw error;
+  }
+  
   return data;
 };
 
 export const updateNKS = async (
   id: string, 
-  updates: Partial<NKS>
+  updates: Partial<NKS>,
+  komoditasList?: string[]
 ): Promise<NKS> => {
   const { data, error } = await supabase
     .from('nks')
@@ -125,10 +158,51 @@ export const updateNKS = async (
     throw error;
   }
   
+  if (komoditasList) {
+    // Delete old komoditas entries
+    const { error: deleteError } = await supabase
+      .from('nks_komoditas')
+      .delete()
+      .eq('nks_id', id);
+      
+    if (deleteError) {
+      console.error("Error deleting old komoditas entries:", deleteError);
+      throw deleteError;
+    }
+    
+    // Insert new komoditas entries
+    const komoditasInserts = komoditasList.map(komoditas => ({
+      nks_id: id,
+      komoditas
+    }));
+    
+    if (komoditasInserts.length > 0) {
+      const { error: komoditasError } = await supabase
+        .from('nks_komoditas')
+        .insert(komoditasInserts);
+      
+      if (komoditasError) {
+        console.error("Error creating komoditas entries:", komoditasError);
+        throw komoditasError;
+      }
+    }
+  }
+  
   return data;
 };
 
 export const deleteNKS = async (id: string): Promise<void> => {
+  // Delete related komoditas entries first (cascade should handle this but just to be safe)
+  const { error: komoditasError } = await supabase
+    .from('nks_komoditas')
+    .delete()
+    .eq('nks_id', id);
+  
+  if (komoditasError) {
+    console.error("Error deleting NKS komoditas:", komoditasError);
+    throw komoditasError;
+  }
+  
   const { error } = await supabase
     .from('nks')
     .delete()
@@ -161,14 +235,16 @@ export const getSegmenList = async (desaId?: string): Promise<Segmen[]> => {
 export const createSegmen = async (
   code: string, 
   desaId: string, 
-  targetPadi: number
+  targetPadi: number,
+  bulan?: number
 ): Promise<Segmen> => {
   const { data, error } = await supabase
     .from('segmen')
     .insert({ 
       code, 
       desa_id: desaId, 
-      target_padi: targetPadi
+      target_padi: targetPadi,
+      bulan
     })
     .select()
     .single();
@@ -433,25 +509,32 @@ export const getPPLList = async () => {
   }
 };
 
-export const getUnassignedNKS = async () => {
+// Get allocation status for both NKS and Segmen
+export const getAllocationStatus = async (): Promise<AllocationStatus[]> => {
+  const { data, error } = await supabase
+    .from('allocation_status')
+    .select('*');
+  
+  if (error) {
+    console.error("Error fetching allocation status:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getUnassignedNKSAndSegmen = async () => {
   try {
-    const { data: allNKS, error: nksError } = await supabase
-      .from('nks')
-      .select('*');
+    const { data: allocationStatus, error } = await supabase
+      .from('allocation_status')
+      .select('*')
+      .eq('is_allocated', false);
     
-    if (nksError) throw nksError;
+    if (error) throw error;
     
-    const { data: assignedNKS, error: wilayahError } = await supabase
-      .from('wilayah_tugas')
-      .select('nks_id');
-      
-    if (wilayahError) throw wilayahError;
-    
-    const assignedIds = assignedNKS.map(item => item.nks_id);
-    
-    return allNKS.filter(nks => !assignedIds.includes(nks.id));
+    return allocationStatus;
   } catch (error) {
-    console.error('Error fetching unassigned NKS:', error);
+    console.error('Error fetching unassigned NKS and Segmen:', error);
     throw error;
   }
 };
@@ -611,7 +694,7 @@ export const updateUbinanVerification = async (
 
 // Get full details of NKS with assignments
 export const getNKSWithAssignments = async (): Promise<any[]> => {
-  const { data, error } = await supabase
+  const { data: nksData, error: nksError } = await supabase
     .from('nks')
     .select(`
       *,
@@ -619,12 +702,32 @@ export const getNKSWithAssignments = async (): Promise<any[]> => {
       wilayah_tugas(id, pml_id, ppl_id, pml:pml_id(id, name), ppl:ppl_id(id, name))
     `);
   
-  if (error) {
-    console.error("Error fetching NKS with assignments:", error);
-    throw error;
+  if (nksError) {
+    console.error("Error fetching NKS with assignments:", nksError);
+    throw nksError;
   }
+
+  // Get komoditas for each NKS
+  const nksWithKomoditas = await Promise.all(
+    nksData.map(async (nks) => {
+      const { data: komoditas, error: komoditasError } = await supabase
+        .from('nks_komoditas')
+        .select('*')
+        .eq('nks_id', nks.id);
+        
+      if (komoditasError) {
+        console.error(`Error fetching komoditas for NKS ${nks.id}:`, komoditasError);
+        return { ...nks, komoditas_list: [] };
+      }
+        
+      return { 
+        ...nks, 
+        komoditas_list: komoditas 
+      };
+    })
+  );
   
-  return data;
+  return nksWithKomoditas;
 };
 
 // Get full details of Segmen with assignments
@@ -642,6 +745,85 @@ export const getSegmenWithAssignments = async (): Promise<any[]> => {
   }
   
   return data;
+};
+
+// Progress reporting
+export const getProgressReports = async (): Promise<ProgressReport[]> => {
+  const { data, error } = await supabase
+    .from('progress_report')
+    .select('*, ppl:ppl_id(*)')
+    .order('year', { ascending: false })
+    .order('month', { ascending: false });
+    
+  if (error) {
+    console.error("Error fetching progress reports:", error);
+    throw error;
+  }
+    
+  return data;
+};
+
+export const updateProgressReport = async (
+  pplId: string,
+  year: number,
+  month: number,
+  updates: Partial<ProgressReport>
+): Promise<ProgressReport> => {
+  // Check if report exists
+  const { data: existingReport, error: checkError } = await supabase
+    .from('progress_report')
+    .select('*')
+    .eq('ppl_id', pplId)
+    .eq('year', year)
+    .eq('month', month)
+    .maybeSingle();
+    
+  if (checkError) {
+    console.error("Error checking for existing progress report:", checkError);
+    throw checkError;
+  }
+  
+  if (existingReport) {
+    // Update existing report
+    const { data, error } = await supabase
+      .from('progress_report')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingReport.id)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("Error updating progress report:", error);
+      throw error;
+    }
+      
+    return data;
+  } else {
+    // Create new report
+    const { data, error } = await supabase
+      .from('progress_report')
+      .insert({
+        ppl_id: pplId,
+        year,
+        month,
+        target_count: updates.target_count || 0,
+        completed_count: updates.completed_count || 0,
+        verified_count: updates.verified_count || 0,
+        rejected_count: updates.rejected_count || 0
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("Error creating progress report:", error);
+      throw error;
+    }
+      
+    return data;
+  }
 };
 
 // Get current subround

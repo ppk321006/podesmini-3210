@@ -11,16 +11,17 @@ import { toast } from "sonner";
 import { 
   getPPLList, 
   getPMLList, 
-  getUnassignedNKS, 
   assignPPLToNKS, 
   getNKSByPPL, 
   removePPLAssignment, 
   getNKSDetails, 
   getDesaById,
-  getKecamatanById
+  getKecamatanById,
+  getAllocationStatus
 } from "@/services/wilayah-api";
-import { Desa, Kecamatan, NKS, Petugas } from "@/types/database-schema";
-import { Search, Loader2, AlertCircle, Map, User, X } from "lucide-react";
+import { Desa, Kecamatan, NKS, Petugas, AllocationStatus } from "@/types/database-schema";
+import { Search, Loader2, AlertCircle, Map, User, X, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function AlokasiPetugasPage() {
   const queryClient = useQueryClient();
@@ -29,6 +30,8 @@ export default function AlokasiPetugasPage() {
   const [selectedPPL, setSelectedPPL] = useState<string>("");
   const [selectedPML, setSelectedPML] = useState<string>("");
   const [selectedNKS, setSelectedNKS] = useState<string>("");
+  const [filterType, setFilterType] = useState<"all" | "nks" | "segmen">("all");
+  const [filterAllocated, setFilterAllocated] = useState<"all" | "allocated" | "unallocated">("all");
   
   // Fetch PPL list
   const { data: pplList = [], isLoading: isLoadingPPL } = useQuery({
@@ -42,14 +45,13 @@ export default function AlokasiPetugasPage() {
     queryFn: () => getPMLList(),
   });
   
-  // Fetch unassigned NKS
+  // Fetch allocation status for both NKS and Segmen
   const { 
-    data: unassignedNKS = [], 
-    isLoading: isLoadingNKS, 
-    refetch: refetchUnassignedNKS 
+    data: allocationStatus = [], 
+    isLoading: isLoadingAllocation
   } = useQuery({
-    queryKey: ["wilayah", "unassigned"],
-    queryFn: () => getUnassignedNKS(),
+    queryKey: ["allocation_status"],
+    queryFn: () => getAllocationStatus(),
   });
   
   // Fetch assigned NKS for a PPL
@@ -70,7 +72,7 @@ export default function AlokasiPetugasPage() {
     onSuccess: () => {
       toast.success("PPL berhasil dialokasikan ke NKS");
       queryClient.invalidateQueries({ queryKey: ["wilayah"] });
-      refetchUnassignedNKS();
+      queryClient.invalidateQueries({ queryKey: ["allocation_status"] });
       if (selectedPPL) {
         refetchAssignedNKS();
       }
@@ -89,7 +91,7 @@ export default function AlokasiPetugasPage() {
     onSuccess: () => {
       toast.success("Alokasi PPL berhasil dihapus");
       queryClient.invalidateQueries({ queryKey: ["wilayah"] });
-      refetchUnassignedNKS();
+      queryClient.invalidateQueries({ queryKey: ["allocation_status"] });
       if (selectedPPL) {
         refetchAssignedNKS();
       }
@@ -112,15 +114,27 @@ export default function AlokasiPetugasPage() {
     return pml ? pml.name : "-";
   };
   
-  // Filter NKS by search term
-  const filteredNKS = unassignedNKS.filter(nks => 
-    nks.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter allocation status by search term and filters
+  const filteredAllocationStatus = allocationStatus.filter(item => {
+    const searchMatch = 
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.desa_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.kecamatan_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const typeMatch = filterType === "all" || item.type === filterType;
+    
+    const allocatedMatch = 
+      filterAllocated === "all" || 
+      (filterAllocated === "allocated" && item.is_allocated) || 
+      (filterAllocated === "unallocated" && !item.is_allocated);
+    
+    return searchMatch && typeMatch && allocatedMatch;
+  });
   
   // Handle assigning PPL to NKS
   const handleAssign = () => {
     if (!selectedPPL || !selectedNKS || !selectedPML) {
-      toast.error("Pilih PPL, PML, dan NKS terlebih dahulu");
+      toast.error("Pilih PPL, PML, dan NKS/Segmen terlebih dahulu");
       return;
     }
     
@@ -149,8 +163,9 @@ export default function AlokasiPetugasPage() {
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
-          <TabsTrigger value="allocate">Alokasikan PPL</TabsTrigger>
-          <TabsTrigger value="view">Lihat Alokasi PPL</TabsTrigger>
+          <TabsTrigger value="allocate">Alokasikan Petugas</TabsTrigger>
+          <TabsTrigger value="view">Lihat Alokasi Petugas</TabsTrigger>
+          <TabsTrigger value="status">Status Alokasi</TabsTrigger>
         </TabsList>
         
         <TabsContent value="allocate">
@@ -226,30 +241,78 @@ export default function AlokasiPetugasPage() {
             
             <Card className="md:col-span-1">
               <CardHeader>
-                <CardTitle>Pilih NKS</CardTitle>
-                <CardDescription>Pilih NKS yang akan dialokasikan ke PPL</CardDescription>
+                <CardTitle>Pilih NKS/Segmen</CardTitle>
+                <CardDescription>Pilih NKS atau Segmen yang akan dialokasikan ke PPL</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Cari NKS..."
+                    placeholder="Cari NKS/Segmen..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="flex-1"
                   />
                 </div>
                 
-                {isLoadingNKS ? (
+                <div className="flex flex-wrap gap-2">
+                  <Badge 
+                    variant={filterType === "all" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterType("all")}
+                  >
+                    Semua Tipe
+                  </Badge>
+                  <Badge 
+                    variant={filterType === "nks" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterType("nks")}
+                  >
+                    NKS
+                  </Badge>
+                  <Badge 
+                    variant={filterType === "segmen" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterType("segmen")}
+                  >
+                    Segmen
+                  </Badge>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Badge 
+                    variant={filterAllocated === "all" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterAllocated("all")}
+                  >
+                    Semua Status
+                  </Badge>
+                  <Badge 
+                    variant={filterAllocated === "allocated" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterAllocated("allocated")}
+                  >
+                    Teralokasi
+                  </Badge>
+                  <Badge 
+                    variant={filterAllocated === "unallocated" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterAllocated("unallocated")}
+                  >
+                    Belum Teralokasi
+                  </Badge>
+                </div>
+                
+                {isLoadingAllocation ? (
                   <div className="flex items-center justify-center p-4">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2">Memuat data NKS...</span>
+                    <span className="ml-2">Memuat data...</span>
                   </div>
-                ) : filteredNKS.length === 0 ? (
+                ) : filteredAllocationStatus.length === 0 ? (
                   <div className="flex flex-col items-center justify-center p-4 text-center">
                     <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">
-                      {searchTerm ? "Tidak ada NKS yang sesuai dengan pencarian" : "Semua NKS sudah dialokasikan"}
+                      {searchTerm ? "Tidak ada data yang sesuai dengan pencarian" : "Tidak ada data NKS/Segmen"}
                     </p>
                   </div>
                 ) : (
@@ -257,40 +320,53 @@ export default function AlokasiPetugasPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[80px]">Kode</TableHead>
+                          <TableHead>Tipe</TableHead>
+                          <TableHead>Kode</TableHead>
                           <TableHead>Desa/Kecamatan</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredNKS.slice(0, 10).map((nks) => (
+                        {filteredAllocationStatus.slice(0, 10).map((item) => (
                           <TableRow 
-                            key={nks.id} 
-                            className={selectedNKS === nks.id ? "bg-muted" : undefined}
+                            key={`${item.type}-${item.id}`} 
+                            className={selectedNKS === item.id ? "bg-muted" : undefined}
                           >
-                            <TableCell className="font-medium">{nks.code}</TableCell>
                             <TableCell>
-                              {/* In a real implementation, you would fetch and display desa/kecamatan names */}
-                              Desa/Kecamatan
+                              <Badge variant="outline">
+                                {item.type === 'nks' ? 'NKS' : 'Segmen'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{item.code}</TableCell>
+                            <TableCell>
+                              {item.desa_name} / {item.kecamatan_name}
+                            </TableCell>
+                            <TableCell>
+                              {item.is_allocated ? (
+                                <Badge variant="success" className="bg-green-100 text-green-800">
+                                  Teralokasi
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="bg-red-100 text-red-800">
+                                  Belum Dialokasi
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button 
-                                variant={selectedNKS === nks.id ? "default" : "outline"} 
+                                variant={selectedNKS === item.id ? "default" : "outline"} 
                                 size="sm"
-                                onClick={() => setSelectedNKS(selectedNKS === nks.id ? "" : nks.id)}
+                                disabled={item.is_allocated}
+                                onClick={() => setSelectedNKS(selectedNKS === item.id ? "" : item.id)}
                               >
-                                {selectedNKS === nks.id ? "Terpilih" : "Pilih"}
+                                {selectedNKS === item.id ? "Terpilih" : "Pilih"}
                               </Button>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                    {filteredNKS.length > 10 && (
-                      <div className="p-2 text-center text-sm text-muted-foreground">
-                        Menampilkan 10 dari {filteredNKS.length} NKS
-                      </div>
-                    )}
                   </div>
                 )}
               </CardContent>
@@ -301,103 +377,207 @@ export default function AlokasiPetugasPage() {
         <TabsContent value="view">
           <Card>
             <CardHeader>
-              <CardTitle>Lihat Alokasi PPL</CardTitle>
-              <CardDescription>Pilih PPL untuk melihat alokasi wilayah tugasnya</CardDescription>
+              <CardTitle>Alokasi Petugas PPL</CardTitle>
+              <CardDescription>Lihat alokasi wilayah tugas untuk PPL</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedPPL} onValueChange={setSelectedPPL}>
-                  <SelectTrigger className="w-[300px]">
-                    <SelectValue placeholder="Pilih PPL" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {isLoadingPPL ? (
-                      <div className="flex items-center justify-center p-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="ml-2">Memuat...</span>
-                      </div>
-                    ) : (
-                      pplList.map((ppl) => (
-                        <SelectItem key={ppl.id} value={ppl.id}>
-                          {ppl.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+            <CardContent>
+              <div className="mb-6">
+                <label className="text-sm font-medium mb-2 block">Pilih PPL</label>
+                <div className="max-w-sm">
+                  <Select value={selectedPPL} onValueChange={setSelectedPPL}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih PPL untuk melihat alokasi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingPPL ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="ml-2">Memuat...</span>
+                        </div>
+                      ) : (
+                        pplList.map((ppl) => (
+                          <SelectItem key={ppl.id} value={ppl.id}>
+                            {ppl.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               
-              {selectedPPL && (
-                <div>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Map className="h-5 w-5 text-simonita-green" />
-                    <h3 className="text-lg font-medium">
-                      Wilayah Tugas untuk: {getPPLName(selectedPPL)}
-                    </h3>
+              {!selectedPPL ? (
+                <div className="text-center p-6 bg-muted/20 rounded-lg">
+                  <User className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">Pilih PPL untuk melihat alokasi wilayah</p>
+                </div>
+              ) : isLoadingAssignedNKS ? (
+                <div className="flex items-center justify-center p-6">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  <span>Memuat data alokasi...</span>
+                </div>
+              ) : assignedNKS.length === 0 ? (
+                <div className="text-center p-6 bg-muted/20 rounded-lg">
+                  <Map className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">PPL ini belum memiliki alokasi wilayah</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kode NKS</TableHead>
+                        <TableHead>Desa</TableHead>
+                        <TableHead>Kecamatan</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {assignedNKS.map((item) => (
+                        <TableRow key={item.nks_id}>
+                          <TableCell className="font-medium">{item.nks?.code || "-"}</TableCell>
+                          <TableCell>{item.nks?.desa?.name || "-"}</TableCell>
+                          <TableCell>{item.nks?.desa?.kecamatan?.name || "-"}</TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleRemoveAssignment(item.nks_id, selectedPPL)}
+                            >
+                              <X className="h-4 w-4 mr-1" /> Hapus Alokasi
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="status">
+          <Card>
+            <CardHeader>
+              <CardTitle>Status Alokasi Wilayah</CardTitle>
+              <CardDescription>Pantau status alokasi NKS dan Segmen ke Petugas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari berdasarkan kode, desa, atau kecamatan..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Badge 
+                    variant={filterType === "all" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterType("all")}
+                  >
+                    Semua Tipe
+                  </Badge>
+                  <Badge 
+                    variant={filterType === "nks" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterType("nks")}
+                  >
+                    NKS
+                  </Badge>
+                  <Badge 
+                    variant={filterType === "segmen" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterType("segmen")}
+                  >
+                    Segmen
+                  </Badge>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Badge 
+                    variant={filterAllocated === "all" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterAllocated("all")}
+                  >
+                    Semua Status
+                  </Badge>
+                  <Badge 
+                    variant={filterAllocated === "allocated" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterAllocated("allocated")}
+                  >
+                    Teralokasi
+                  </Badge>
+                  <Badge 
+                    variant={filterAllocated === "unallocated" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setFilterAllocated("unallocated")}
+                  >
+                    Belum Teralokasi
+                  </Badge>
+                </div>
+                
+                {isLoadingAllocation ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <span className="ml-2">Memuat data...</span>
                   </div>
-                  
-                  {isLoadingAssignedNKS ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      <span className="ml-2">Memuat data alokasi...</span>
-                    </div>
-                  ) : assignedNKS.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-8 text-center border rounded-md">
-                      <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">
-                        PPL ini belum memiliki alokasi wilayah tugas
-                      </p>
-                    </div>
-                  ) : (
+                ) : filteredAllocationStatus.length === 0 ? (
+                  <div className="text-center p-8 bg-muted/20 rounded-lg">
+                    <AlertCircle className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">Tidak ada data yang sesuai dengan filter</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Kode NKS</TableHead>
+                          <TableHead>Tipe</TableHead>
+                          <TableHead>Kode</TableHead>
                           <TableHead>Desa</TableHead>
                           <TableHead>Kecamatan</TableHead>
+                          <TableHead>Status Alokasi</TableHead>
+                          <TableHead>PPL</TableHead>
                           <TableHead>PML</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {assignedNKS.map((assignment: any) => (
-                          <TableRow key={assignment.nks_id}>
-                            <TableCell className="font-medium">
-                              {assignment.nks?.code || "-"}
-                            </TableCell>
+                        {filteredAllocationStatus.map((item) => (
+                          <TableRow key={`${item.type}-${item.id}`}>
                             <TableCell>
-                              {assignment.nks?.desa?.name || "-"}
+                              <Badge variant="outline">
+                                {item.type === 'nks' ? 'NKS' : 'Segmen'}
+                              </Badge>
                             </TableCell>
+                            <TableCell className="font-medium">{item.code}</TableCell>
+                            <TableCell>{item.desa_name}</TableCell>
+                            <TableCell>{item.kecamatan_name}</TableCell>
                             <TableCell>
-                              {assignment.nks?.desa?.kecamatan?.name || "-"}
+                              {item.is_allocated ? (
+                                <Badge variant="success" className="bg-green-100 text-green-800">
+                                  <Check className="h-3 w-3 mr-1" /> Teralokasi
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="bg-red-100 text-red-800">
+                                  <X className="h-3 w-3 mr-1" /> Belum Dialokasi
+                                </Badge>
+                              )}
                             </TableCell>
-                            <TableCell>
-                              {/* We would get this from the wilayah_tugas record */}
-                              {getPMLName(assignment.pml_id || "")}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveAssignment(assignment.nks_id, selectedPPL)}
-                                disabled={removeMutation.isPending}
-                              >
-                                {removeMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <X className="h-4 w-4 text-red-500" />
-                                )}
-                                <span className="sr-only">Hapus alokasi</span>
-                              </Button>
-                            </TableCell>
+                            <TableCell>{item.ppl_id ? getPPLName(item.ppl_id) : "-"}</TableCell>
+                            <TableCell>{item.pml_id ? getPMLName(item.pml_id) : "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

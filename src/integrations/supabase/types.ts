@@ -56,7 +56,6 @@ export type Database = {
           created_at: string | null
           desa_id: string
           id: string
-          komoditas_palawija: string | null
           subround: number
           target_padi: number
           target_palawija: number
@@ -66,7 +65,6 @@ export type Database = {
           created_at?: string | null
           desa_id: string
           id?: string
-          komoditas_palawija?: string | null
           subround?: number
           target_padi?: number
           target_palawija?: number
@@ -76,7 +74,6 @@ export type Database = {
           created_at?: string | null
           desa_id?: string
           id?: string
-          komoditas_palawija?: string | null
           subround?: number
           target_padi?: number
           target_palawija?: number
@@ -87,6 +84,82 @@ export type Database = {
             columns: ["desa_id"]
             isOneToOne: false
             referencedRelation: "desa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nks_komoditas: {
+        Row: {
+          created_at: string | null
+          id: string
+          komoditas: string
+          nks_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          komoditas: string
+          nks_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          komoditas?: string
+          nks_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nks_komoditas_nks_id_fkey"
+            columns: ["nks_id"]
+            isOneToOne: false
+            referencedRelation: "nks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      progress_report: {
+        Row: {
+          completed_count: number
+          created_at: string | null
+          id: string
+          month: number
+          ppl_id: string | null
+          rejected_count: number
+          target_count: number
+          updated_at: string | null
+          verified_count: number
+          year: number
+        }
+        Insert: {
+          completed_count?: number
+          created_at?: string | null
+          id?: string
+          month: number
+          ppl_id?: string | null
+          rejected_count?: number
+          target_count: number
+          updated_at?: string | null
+          verified_count?: number
+          year: number
+        }
+        Update: {
+          completed_count?: number
+          created_at?: string | null
+          id?: string
+          month?: number
+          ppl_id?: string | null
+          rejected_count?: number
+          target_count?: number
+          updated_at?: string | null
+          verified_count?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_report_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -135,6 +208,7 @@ export type Database = {
       }
       segmen: {
         Row: {
+          bulan: number | null
           code: string
           created_at: string | null
           desa_id: string
@@ -142,6 +216,7 @@ export type Database = {
           target_padi: number
         }
         Insert: {
+          bulan?: number | null
           code: string
           created_at?: string | null
           desa_id: string
@@ -149,6 +224,7 @@ export type Database = {
           target_padi?: number
         }
         Update: {
+          bulan?: number | null
           code?: string
           created_at?: string | null
           desa_id?: string
@@ -313,7 +389,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      allocation_status: {
+        Row: {
+          code: string | null
+          desa_id: string | null
+          desa_name: string | null
+          id: string | null
+          is_allocated: boolean | null
+          kecamatan_id: string | null
+          kecamatan_name: string | null
+          pml_id: string | null
+          ppl_id: string | null
+          type: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_subround: {

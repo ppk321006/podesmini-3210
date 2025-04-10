@@ -16,7 +16,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Pencil, Trash2, Search, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Filter, Tag, Check } from "lucide-react";
 import { toast } from "sonner";
 import { 
   getKecamatanList, 
@@ -44,7 +44,8 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import { formatDateToLocale } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { formatDateToLocale, monthsIndonesia } from "@/lib/utils";
 
 export default function WilayahPage() {
   const queryClient = useQueryClient();
@@ -105,8 +106,10 @@ export default function WilayahPage() {
   const [selectedDesaId, setSelectedDesaId] = useState("");
   const [newNKSCode, setNewNKSCode] = useState("");
   const [targetPalawija, setTargetPalawija] = useState(0);
-  const [komoditasPalawija, setKomoditasPalawija] = useState("");
+  const [selectedKomoditasList, setSelectedKomoditasList] = useState<string[]>([]);
   const [subroundValue, setSubroundValue] = useState(1);
+  
+  // KRT states for NKS
   const [sampelKRTList, setSampelKRTList] = useState<{nama: string; status: 'Utama' | 'Cadangan'}[]>([]);
   const [newKRTNama, setNewKRTNama] = useState("");
   const [newKRTStatus, setNewKRTStatus] = useState<'Utama' | 'Cadangan'>('Utama');
@@ -137,7 +140,7 @@ export default function WilayahPage() {
       code: string; 
       desaId: string; 
       targetPalawija: number;
-      komoditasPalawija: string;
+      komoditasList: string[];
       subround: number;
       sampelKRTList: {nama: string; status: 'Utama' | 'Cadangan'}[];
     }) => {
@@ -145,7 +148,7 @@ export default function WilayahPage() {
         values.code, 
         values.desaId,
         values.targetPalawija,
-        values.komoditasPalawija,
+        values.komoditasList,
         values.subround
       ).then(nks => {
         // After creating NKS, create sampel KRT entries
@@ -160,7 +163,7 @@ export default function WilayahPage() {
       queryClient.invalidateQueries({ queryKey: ["nks_assignments"] });
       setNewNKSCode("");
       setTargetPalawija(0);
-      setKomoditasPalawija("");
+      setSelectedKomoditasList([]);
       setSampelKRTList([]);
       toast.success("NKS berhasil ditambahkan");
     },
@@ -186,9 +189,7 @@ export default function WilayahPage() {
   // Segmen states and queries
   const [newSegmenCode, setNewSegmenCode] = useState("");
   const [targetPadi, setTargetPadi] = useState(0);
-  const [segmenSampelKRTList, setSegmenSampelKRTList] = useState<{nama: string; status: 'Utama' | 'Cadangan'}[]>([]);
-  const [newSegmenKRTNama, setNewSegmenKRTNama] = useState("");
-  const [newSegmenKRTStatus, setNewSegmenKRTStatus] = useState<'Utama' | 'Cadangan'>('Utama');
+  const [selectedBulan, setSelectedBulan] = useState<number | "">("");
   
   const { data: segmenWithAssignments = [], isLoading: isLoadingSegmenAssignments } = useQuery({
     queryKey: ["segmen_assignments"],
@@ -207,26 +208,21 @@ export default function WilayahPage() {
       code: string; 
       desaId: string; 
       targetPadi: number;
-      sampelKRTList: {nama: string; status: 'Utama' | 'Cadangan'}[];
+      bulan: number;
     }) => {
       return createSegmen(
         values.code, 
         values.desaId,
-        values.targetPadi
-      ).then(segmen => {
-        // After creating Segmen, create sampel KRT entries
-        const promises = values.sampelKRTList.map(krt => 
-          createSampelKRT(krt.nama, krt.status, undefined, segmen.id)
-        );
-        return Promise.all(promises).then(() => segmen);
-      });
+        values.targetPadi,
+        values.bulan
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["segmen", selectedDesaId] });
       queryClient.invalidateQueries({ queryKey: ["segmen_assignments"] });
       setNewSegmenCode("");
       setTargetPadi(0);
-      setSegmenSampelKRTList([]);
+      setSelectedBulan("");
       toast.success("Segmen berhasil ditambahkan");
     },
     onError: (error) => {
@@ -286,8 +282,8 @@ export default function WilayahPage() {
       return;
     }
     
-    if (!komoditasPalawija) {
-      toast.error("Pilih jenis tanaman palawija");
+    if (selectedKomoditasList.length === 0) {
+      toast.error("Pilih minimal satu jenis tanaman palawija");
       return;
     }
     
@@ -300,7 +296,7 @@ export default function WilayahPage() {
       code: newNKSCode,
       desaId: selectedDesaId,
       targetPalawija: targetPalawija,
-      komoditasPalawija: komoditasPalawija,
+      komoditasList: selectedKomoditasList,
       subround: subroundValue,
       sampelKRTList: sampelKRTList
     });
@@ -317,8 +313,8 @@ export default function WilayahPage() {
       return;
     }
     
-    if (segmenSampelKRTList.length < targetPadi * 2) {
-      toast.error(`Anda harus menambahkan minimal ${targetPadi * 2} sampel KRT`);
+    if (selectedBulan === "") {
+      toast.error("Pilih bulan terlebih dahulu");
       return;
     }
     
@@ -326,7 +322,7 @@ export default function WilayahPage() {
       code: newSegmenCode,
       desaId: selectedDesaId,
       targetPadi: targetPadi,
-      sampelKRTList: segmenSampelKRTList
+      bulan: selectedBulan as number
     });
   };
   
@@ -353,27 +349,20 @@ export default function WilayahPage() {
     setNewKRTStatus('Utama');
   };
   
-  const handleAddSegmenKRT = () => {
-    if (!newSegmenKRTNama.trim()) {
-      toast.error("Nama KRT tidak boleh kosong");
-      return;
-    }
-    
-    setSegmenSampelKRTList([...segmenSampelKRTList, { nama: newSegmenKRTNama, status: newSegmenKRTStatus }]);
-    setNewSegmenKRTNama("");
-    setNewSegmenKRTStatus('Utama');
-  };
-  
   const handleRemoveKRT = (index: number) => {
     const newList = [...sampelKRTList];
     newList.splice(index, 1);
     setSampelKRTList(newList);
   };
   
-  const handleRemoveSegmenKRT = (index: number) => {
-    const newList = [...segmenSampelKRTList];
-    newList.splice(index, 1);
-    setSegmenSampelKRTList(newList);
+  const toggleKomoditasSelection = (komoditas: string) => {
+    setSelectedKomoditasList(prevList => {
+      if (prevList.includes(komoditas)) {
+        return prevList.filter(k => k !== komoditas);
+      } else {
+        return [...prevList, komoditas];
+      }
+    });
   };
 
   // Filter functions
@@ -382,8 +371,7 @@ export default function WilayahPage() {
     return (
       item.code.toLowerCase().includes(searchText) || 
       (item.desa?.name && item.desa.name.toLowerCase().includes(searchText)) || 
-      (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText)) ||
-      (item.komoditas_palawija && item.komoditas_palawija.toLowerCase().includes(searchText))
+      (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText))
     );
   });
 
@@ -679,22 +667,22 @@ export default function WilayahPage() {
                     </div>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="komoditas-palawija">Nama Tanaman Palawija</Label>
-                      <Select 
-                        value={komoditasPalawija}
-                        onValueChange={setKomoditasPalawija}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih jenis palawija" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="jagung">Jagung</SelectItem>
-                          <SelectItem value="kedelai">Kedelai</SelectItem>
-                          <SelectItem value="kacang_tanah">Kacang Tanah</SelectItem>
-                          <SelectItem value="ubi_kayu">Ubi Kayu</SelectItem>
-                          <SelectItem value="ubi_jalar">Ubi Jalar</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="mb-2">Nama Tanaman Palawija</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {['jagung', 'kedelai', 'kacang_tanah', 'ubi_kayu', 'ubi_jalar'].map((komoditas) => (
+                          <Badge 
+                            key={komoditas} 
+                            variant={selectedKomoditasList.includes(komoditas) ? "default" : "outline"}
+                            className="cursor-pointer"
+                            onClick={() => toggleKomoditasSelection(komoditas)}
+                          >
+                            {selectedKomoditasList.includes(komoditas) && (
+                              <Check className="mr-1 h-3 w-3" />
+                            )}
+                            {komoditas.replace('_', ' ')}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                     
                     <div className="grid gap-2">
@@ -785,7 +773,7 @@ export default function WilayahPage() {
                       createNKSMutation.isPending || 
                       !newNKSCode.trim() || 
                       !selectedDesaId ||
-                      !komoditasPalawija
+                      selectedKomoditasList.length === 0
                     }
                   >
                     {createNKSMutation.isPending ? "Menyimpan..." : "Simpan"}
@@ -826,7 +814,12 @@ export default function WilayahPage() {
                             <TableCell>{item.desa?.name || '-'}</TableCell>
                             <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
                             <TableCell>{item.subround || '1'}</TableCell>
-                            <TableCell>{item.komoditas_palawija || '-'}</TableCell>
+                            <TableCell>
+                              {item.komoditas_list && item.komoditas_list.length > 0 
+                                ? item.komoditas_list.map(k => k.komoditas).join(', ')
+                                : '-'
+                              }
+                            </TableCell>
                             <TableCell>{item.target_palawija}</TableCell>
                             <TableCell>
                               {item.wilayah_tugas?.length > 0 
@@ -933,6 +926,25 @@ export default function WilayahPage() {
                     </div>
                     
                     <div className="grid gap-2">
+                      <Label htmlFor="bulan-select">Pilih Bulan</Label>
+                      <Select 
+                        value={selectedBulan !== "" ? selectedBulan.toString() : ""} 
+                        onValueChange={(value) => setSelectedBulan(parseInt(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthsIndonesia.map((month) => (
+                            <SelectItem key={month.value} value={month.value.toString()}>
+                              {month.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
                       <Label htmlFor="target-padi">Target Ubinan Padi</Label>
                       <Input
                         id="target-padi"
@@ -942,75 +954,6 @@ export default function WilayahPage() {
                         onChange={(e) => setTargetPadi(parseInt(e.target.value) || 0)}
                       />
                     </div>
-                    
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Nama Kepala Rumahtangga Sampel</Label>
-                        <span className="text-sm text-muted-foreground">
-                          {segmenSampelKRTList.length} dari {targetPadi * 2} KRT
-                        </span>
-                      </div>
-                      
-                      <div className="flex gap-2 items-end mb-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Nama KRT"
-                            value={newSegmenKRTNama}
-                            onChange={(e) => setNewSegmenKRTNama(e.target.value)}
-                          />
-                        </div>
-                        
-                        <div className="w-24">
-                          <Select 
-                            value={newSegmenKRTStatus}
-                            onValueChange={(value: 'Utama' | 'Cadangan') => setNewSegmenKRTStatus(value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Utama">Utama</SelectItem>
-                              <SelectItem value="Cadangan">Cadangan</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <Button type="button" onClick={handleAddSegmenKRT} size="sm">
-                          <Plus className="h-4 w-4 mr-1" /> Tambah
-                        </Button>
-                      </div>
-                      
-                      {segmenSampelKRTList.length > 0 && (
-                        <div className="border rounded-md p-2 max-h-60 overflow-y-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Nama KRT</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="w-[80px]">Aksi</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {segmenSampelKRTList.map((krt, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>{krt.nama}</TableCell>
-                                  <TableCell>{krt.status}</TableCell>
-                                  <TableCell>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleRemoveSegmenKRT(index)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
@@ -1019,7 +962,8 @@ export default function WilayahPage() {
                     disabled={
                       createSegmenMutation.isPending || 
                       !newSegmenCode.trim() || 
-                      !selectedDesaId
+                      !selectedDesaId ||
+                      selectedBulan === ""
                     }
                   >
                     {createSegmenMutation.isPending ? "Menyimpan..." : "Simpan"}
@@ -1045,6 +989,7 @@ export default function WilayahPage() {
                           <TableHead>Kode Segmen</TableHead>
                           <TableHead>Desa</TableHead>
                           <TableHead>Kecamatan</TableHead>
+                          <TableHead>Bulan</TableHead>
                           <TableHead>Target Ubinan Padi</TableHead>
                           <TableHead>Tanggal Dibuat</TableHead>
                           <TableHead>Aksi</TableHead>
@@ -1056,6 +1001,9 @@ export default function WilayahPage() {
                             <TableCell>{item.code}</TableCell>
                             <TableCell>{item.desa?.name || '-'}</TableCell>
                             <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
+                            <TableCell>
+                              {item.bulan ? monthsIndonesia.find(m => m.value === item.bulan)?.label || '-' : '-'}
+                            </TableCell>
                             <TableCell>{item.target_padi}</TableCell>
                             <TableCell>{formatDateToLocale(item.created_at)}</TableCell>
                             <TableCell>
