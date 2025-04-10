@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData, Segmen, SampelKRT, NKSKomoditas, AllocationStatus, ProgressReport } from "@/types/database-schema";
 
@@ -623,7 +622,7 @@ export const getUbinanDataByPPL = async (pplId: string): Promise<UbinanData[]> =
 export const getUbinanDataForVerification = async (pmlId: string): Promise<UbinanData[]> => {
   const { data, error } = await supabase
     .from('ubinan_data')
-    .select('*, nks:nks_id(*), ppl:ppl_id(*)')
+    .select('*, nks:nks_id(*), segmen:segmen_id(*), ppl:ppl_id(*)')
     .eq('pml_id', pmlId);
     
   if (error) {
@@ -635,20 +634,28 @@ export const getUbinanDataForVerification = async (pmlId: string): Promise<Ubina
 };
 
 export const createUbinanData = async (
-  nksId: string,
+  nksId?: string,
+  segmenId?: string,
   pplId: string,
   respondenName: string,
+  sampleStatus: string,
   komoditas: string,
   tanggalUbinan: string,
   beratHasil: number,
   pmlId: string
 ): Promise<UbinanData> => {
+  if (!nksId && !segmenId) {
+    throw new Error("Either NKS ID or Segmen ID is required");
+  }
+
   const { data, error } = await supabase
     .from('ubinan_data')
     .insert({
-      nks_id: nksId,
+      nks_id: nksId || null,
+      segmen_id: segmenId || null,
       ppl_id: pplId,
       responden_name: respondenName,
+      sample_status: sampleStatus,
       komoditas: komoditas,
       tanggal_ubinan: tanggalUbinan,
       berat_hasil: beratHasil,
@@ -855,4 +862,24 @@ export const getUbinanProgressByYear = async (year: number = new Date().getFullY
   }
   
   return data;
+};
+
+// Get Segmen assigned to a PPL
+export const getSegmenByPPL = async (pplId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('wilayah_tugas_segmen')
+      .select(`
+        segmen_id,
+        segmen:segmen_id(id, code, desa_id, desa:desa_id(id, name, kecamatan_id, kecamatan:kecamatan_id(id, name))),
+        pml:pml_id(id, name)
+      `)
+      .eq('ppl_id', pplId);
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching Segmen by PPL:', error);
+    return [];
+  }
 };

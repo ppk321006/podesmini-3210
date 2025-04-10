@@ -14,6 +14,7 @@ import AlokasiWilayahPage from "./pages/alokasi-wilayah";
 import AlokasiPetugasPage from "./pages/alokasi-petugas";
 import ProgressUbinanPage from "./pages/progress-ubinan";
 import InputUbinanPage from "./pages/input-ubinan";
+import VerifikasiPage from "./pages/verifikasi";
 import NotFoundPage from "./pages/not-found";
 
 // Create the QueryClient instance within the App component function
@@ -37,7 +38,7 @@ function App() {
                   <Route path="/wilayah" element={<WilayahPage />} />
                   <Route path="/alokasi-wilayah" element={<AlokasiWilayahPage />} />
                   <Route path="/alokasi-petugas" element={<AlokasiPetugasPage />} />
-                  <Route path="/verifikasi" element={<div className="p-8 text-center">Halaman Verifikasi Data (akan dikembangkan)</div>} />
+                  <Route path="/verifikasi" element={<VerifikasiPage />} />
                   <Route path="/profil" element={<div className="p-8 text-center">Halaman Profil (akan dikembangkan)</div>} />
                   <Route path="/pengaturan" element={<div className="p-8 text-center">Halaman Pengaturan (akan dikembangkan)</div>} />
                 </Route>

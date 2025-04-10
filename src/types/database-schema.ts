@@ -64,9 +64,11 @@ export interface Petugas {
 
 export interface UbinanData {
   id: string;
-  nks_id: string;
+  nks_id: string | null;
+  segmen_id: string | null;
   ppl_id: string;
   responden_name: string;
+  sample_status?: 'Utama' | 'Cadangan';
   komoditas: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar';
   tanggal_ubinan: string;
   berat_hasil: number;
@@ -77,6 +79,7 @@ export interface UbinanData {
   created_at: string;
   updated_at: string;
   nks?: NKS;
+  segmen?: Segmen;
   ppl?: Petugas;
 }
 

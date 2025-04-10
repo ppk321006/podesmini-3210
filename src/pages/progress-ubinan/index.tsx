@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { getProgressReports, getPPLList, getUbinanProgressBySubround, getUbinanProgressByYear } from "@/services/wilayah-api";
 import { getMonthName, monthsIndonesia } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -135,6 +135,47 @@ export default function ProgressUbinanPage() {
     };
   });
 
+  // Calculate progress metrics for summary cards
+  const totalPadiTarget = progressReports.reduce((sum, report) => {
+    // Assuming the report has a field for padi targets
+    // This is a placeholder - update with real data
+    return sum + (report.target_padi || 0);
+  }, 0);
+  
+  const totalPalawijaTarget = progressReports.reduce((sum, report) => {
+    // Assuming the report has a field for palawija targets
+    // This is a placeholder - update with real data
+    return sum + (report.target_palawija || 0);
+  }, 0);
+  
+  const completedPadi = ubinanProgressByYear.reduce((sum, item) => {
+    if (item.komoditas === 'padi') {
+      return sum + Number(item.count);
+    }
+    return sum;
+  }, 0);
+  
+  const completedPalawija = ubinanProgressByYear.reduce((sum, item) => {
+    if (item.komoditas !== 'padi') {
+      return sum + Number(item.count);
+    }
+    return sum;
+  }, 0);
+  
+  const verifiedCount = ubinanProgressByYear.reduce((sum, item) => {
+    if (item.status === 'dikonfirmasi') {
+      return sum + Number(item.count);
+    }
+    return sum;
+  }, 0);
+  
+  const rejectedCount = ubinanProgressByYear.reduce((sum, item) => {
+    if (item.status === 'ditolak') {
+      return sum + Number(item.count);
+    }
+    return sum;
+  }, 0);
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Progress Ubinan</h1>
@@ -170,47 +211,65 @@ export default function ProgressUbinanPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="py-4">
-              <CardTitle className="text-lg">Target Ubinan</CardTitle>
+              <CardTitle className="text-lg">Target Ubinan Padi</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">
-                {progressReports.reduce((sum, report) => sum + report.target_count, 0)}
+              <div className="space-y-2">
+                <p className="text-3xl font-bold">{totalPadiTarget}</p>
+                <Progress 
+                  value={totalPadiTarget > 0 ? (completedPadi / totalPadiTarget) * 100 : 0} 
+                  className="h-2" 
+                />
+                <p className="text-sm text-muted-foreground">
+                  Selesai: {completedPadi} ({totalPadiTarget > 0 ? ((completedPadi / totalPadiTarget) * 100).toFixed(1) : 0}%)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg">Target Ubinan Palawija</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-3xl font-bold">{totalPalawijaTarget}</p>
+                <Progress 
+                  value={totalPalawijaTarget > 0 ? (completedPalawija / totalPalawijaTarget) * 100 : 0} 
+                  className="h-2" 
+                />
+                <p className="text-sm text-muted-foreground">
+                  Selesai: {completedPalawija} ({totalPalawijaTarget > 0 ? ((completedPalawija / totalPalawijaTarget) * 100).toFixed(1) : 0}%)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4 bg-green-50">
+              <CardTitle className="text-lg text-green-700">Ubinan Terverifikasi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-green-700">{verifiedCount}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {(completedPadi + completedPalawija) > 0 ? 
+                  ((verifiedCount / (completedPadi + completedPalawija)) * 100).toFixed(1) : 0}% dari total ubinan
               </p>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg">Ubinan Terselesaikan</CardTitle>
+            <CardHeader className="py-4 bg-red-50">
+              <CardTitle className="text-lg text-red-700">Ubinan Ditolak</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">
-                {progressReports.reduce((sum, report) => sum + report.completed_count, 0)}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg">Ubinan Terverifikasi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">
-                {progressReports.reduce((sum, report) => sum + report.verified_count, 0)}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg">Ubinan Ditolak</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">
-                {progressReports.reduce((sum, report) => sum + report.rejected_count, 0)}
+              <p className="text-3xl font-bold text-red-700">{rejectedCount}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {(completedPadi + completedPalawija) > 0 ? 
+                  ((rejectedCount / (completedPadi + completedPalawija)) * 100).toFixed(1) : 0}% dari total ubinan
               </p>
             </CardContent>
           </Card>

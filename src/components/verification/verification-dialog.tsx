@@ -42,6 +42,9 @@ export function VerificationDialog({ open, onOpenChange, data, onComplete }: Ver
     }
   };
 
+  const allocationType = data.nks_id ? "NKS" : "Segmen";
+  const allocationCode = data.nks_id ? data.nks?.code : data.segmen?.code;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -56,6 +59,16 @@ export function VerificationDialog({ open, onOpenChange, data, onComplete }: Ver
           <div className="grid grid-cols-3 gap-2">
             <div className="font-medium">Nama Responden</div>
             <div className="col-span-2">{data.responden_name}</div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <div className="font-medium">Status Sampel</div>
+            <div className="col-span-2">{data.sample_status || "Tidak ada"}</div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <div className="font-medium">Alokasi</div>
+            <div className="col-span-2">{allocationType}: {allocationCode || "-"}</div>
           </div>
           
           <div className="grid grid-cols-3 gap-2">
