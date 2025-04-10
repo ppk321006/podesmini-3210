@@ -17,6 +17,7 @@ export interface NKS {
   target_padi: number;
   target_palawija: number;
   created_at: string;
+  subround?: number;
 }
 
 export interface WilayahTugas {
@@ -34,4 +35,22 @@ export interface Petugas {
   role: 'admin' | 'pml' | 'ppl' | 'viewer';
   pml_id: string | null;
   created_at: string | null;
+}
+
+export interface UbinanData {
+  id: string;
+  nks_id: string;
+  ppl_id: string;
+  responden_name: string;
+  komoditas: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar';
+  tanggal_ubinan: string;
+  berat_hasil: number;
+  status: 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak';
+  pml_id: string | null;
+  dokumen_diterima: boolean;
+  komentar: string | null;
+  created_at: string;
+  updated_at: string;
+  nks?: NKS;
+  ppl?: Petugas;
 }

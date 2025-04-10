@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Kecamatan, Desa, NKS, WilayahTugas, Petugas } from "@/types/database-schema";
+import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData } from "@/types/database-schema";
 
 // Kecamatan APIs
 export const getKecamatanList = async (): Promise<Kecamatan[]> => {
@@ -356,4 +356,121 @@ export const getPMLList = async (): Promise<Petugas[]> => {
     console.error('Error fetching PML list:', error);
     throw error;
   }
+};
+
+// Ubinan Data APIs
+export const getUbinanDataByPPL = async (pplId: string): Promise<UbinanData[]> => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .select('*, nks:nks_id(*)')
+    .eq('ppl_id', pplId);
+    
+  if (error) {
+    console.error("Error fetching ubinan data by PPL:", error);
+    throw error;
+  }
+    
+  return data;
+};
+
+export const getUbinanDataForVerification = async (pmlId: string): Promise<UbinanData[]> => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .select('*, nks:nks_id(*), ppl:ppl_id(*)')
+    .eq('pml_id', pmlId);
+    
+  if (error) {
+    console.error("Error fetching ubinan data for verification:", error);
+    throw error;
+  }
+    
+  return data;
+};
+
+export const createUbinanData = async (
+  nksId: string,
+  pplId: string,
+  respondenName: string,
+  komoditas: string,
+  tanggalUbinan: string,
+  beratHasil: number,
+  pmlId: string
+): Promise<UbinanData> => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .insert({
+      nks_id: nksId,
+      ppl_id: pplId,
+      responden_name: respondenName,
+      komoditas: komoditas,
+      tanggal_ubinan: tanggalUbinan,
+      berat_hasil: beratHasil,
+      status: 'sudah_diisi',
+      pml_id: pmlId
+    })
+    .select()
+    .single();
+    
+  if (error) {
+    console.error("Error creating ubinan data:", error);
+    throw error;
+  }
+    
+  return data;
+};
+
+export const updateUbinanVerification = async (
+  id: string,
+  status: 'dikonfirmasi' | 'ditolak',
+  dokumenDiterima: boolean,
+  komentar?: string
+): Promise<UbinanData> => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .update({
+      status,
+      dokumen_diterima: dokumenDiterima,
+      komentar,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) {
+    console.error("Error updating ubinan verification:", error);
+    throw error;
+  }
+    
+  return data;
+};
+
+export const getSubround = async () => {
+  const { data, error } = await supabase.rpc('get_subround');
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as unknown as number;
+};
+
+export const getUbinanProgressBySubround = async (subround: number) => {
+  const { data, error } = await supabase.rpc('get_ubinan_progress_by_subround', { subround_param: subround });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getUbinanProgressByYear = async (year: number = new Date().getFullYear()) => {
+  const { data, error } = await supabase.rpc('get_ubinan_progress_by_year', { year_param: year });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
 };

@@ -56,6 +56,7 @@ export type Database = {
           created_at: string | null
           desa_id: string
           id: string
+          subround: number
           target_padi: number
           target_palawija: number
         }
@@ -64,6 +65,7 @@ export type Database = {
           created_at?: string | null
           desa_id: string
           id?: string
+          subround?: number
           target_padi?: number
           target_palawija?: number
         }
@@ -72,6 +74,7 @@ export type Database = {
           created_at?: string | null
           desa_id?: string
           id?: string
+          subround?: number
           target_padi?: number
           target_palawija?: number
         }
@@ -240,13 +243,41 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      get_ubinan_progress_by_subround: {
+        Args: { subround_param: number }
+        Returns: {
+          status: Database["public"]["Enums"]["verification_status"]
+          komoditas: Database["public"]["Enums"]["komoditas_type"]
+          count: number
+        }[]
+      }
+      get_ubinan_progress_by_year: {
+        Args: { year_param: number }
+        Returns: {
+          status: Database["public"]["Enums"]["verification_status"]
+          komoditas: Database["public"]["Enums"]["komoditas_type"]
+          count: number
+        }[]
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
     }
     Enums: {
+      komoditas_type:
+        | "padi"
+        | "jagung"
+        | "kedelai"
+        | "kacang_tanah"
+        | "ubi_kayu"
+        | "ubi_jalar"
       user_role: "admin" | "user"
+      verification_status:
+        | "belum_diisi"
+        | "sudah_diisi"
+        | "dikonfirmasi"
+        | "ditolak"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -362,7 +393,21 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      komoditas_type: [
+        "padi",
+        "jagung",
+        "kedelai",
+        "kacang_tanah",
+        "ubi_kayu",
+        "ubi_jalar",
+      ],
       user_role: ["admin", "user"],
+      verification_status: [
+        "belum_diisi",
+        "sudah_diisi",
+        "dikonfirmasi",
+        "ditolak",
+      ],
     },
   },
 } as const
