@@ -12,7 +12,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -71,11 +71,18 @@ export default function VerifikasiDataPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ubinan_verification", user?.id] });
       resetVerificationForm();
-      toast.success("Verifikasi data ubinan berhasil disimpan");
+      toast({
+        title: "Berhasil",
+        description: "Verifikasi data ubinan berhasil disimpan",
+      });
     },
     onError: (error) => {
       console.error("Error verifying ubinan data:", error);
-      toast.error("Gagal menyimpan verifikasi");
+      toast({
+        title: "Gagal",
+        description: "Gagal menyimpan verifikasi",
+        variant: "destructive",
+      });
     }
   });
   
@@ -284,8 +291,8 @@ export default function VerifikasiDataPage() {
             <div className="flex items-center space-x-2">
               <Switch
                 id="dokumen"
-                checked={dokumentDiterima}
-                onCheckedChange={setDokumentDiterima}
+                checked={dokumenDiterima}
+                onCheckedChange={setDokumenDiterima}
               />
               <Label htmlFor="dokumen">Dokumen diterima</Label>
             </div>
