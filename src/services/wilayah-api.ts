@@ -107,6 +107,61 @@ export const createNKS = async (
   return data;
 };
 
+// Additional NKS API for getting details
+export const getNKSDetails = async (nksId: string): Promise<NKS> => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select('*')
+    .eq('id', nksId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching NKS details:", error);
+    return {
+      id: '',
+      code: '',
+      desa_id: '',
+      target_padi: 0,
+      target_palawija: 0,
+      created_at: new Date().toISOString()
+    };
+  }
+  
+  return data;
+};
+
+// Additional Desa API for getting by ID
+export const getDesaById = async (desaId: string): Promise<Desa | null> => {
+  const { data, error } = await supabase
+    .from('desa')
+    .select('*')
+    .eq('id', desaId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching desa by ID:", error);
+    return null;
+  }
+  
+  return data;
+};
+
+// Additional Kecamatan API for getting by ID
+export const getKecamatanById = async (kecamatanId: string): Promise<Kecamatan | null> => {
+  const { data, error } = await supabase
+    .from('kecamatan')
+    .select('*')
+    .eq('id', kecamatanId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching kecamatan by ID:", error);
+    return null;
+  }
+  
+  return data;
+};
+
 // Petugas APIs
 export const getPetugasList = async (role?: 'admin' | 'pml' | 'ppl' | 'viewer'): Promise<Petugas[]> => {
   let query = supabase.from('users').select('*').order('name');
@@ -282,6 +337,23 @@ export const removePPLAssignment = async (nksId: string, pplId: string) => {
     return data;
   } catch (error) {
     console.error('Error removing PPL assignment:', error);
+    throw error;
+  }
+};
+
+// Get PML list function
+export const getPMLList = async (): Promise<Petugas[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 'pml')
+      .order('name');
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching PML list:', error);
     throw error;
   }
 };
