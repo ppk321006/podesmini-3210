@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,19 +32,16 @@ export default function AlokasiPetugasPage() {
   const [filterType, setFilterType] = useState<"all" | "nks" | "segmen">("all");
   const [filterAllocated, setFilterAllocated] = useState<"all" | "allocated" | "unallocated">("all");
   
-  // Fetch PPL list
   const { data: pplList = [], isLoading: isLoadingPPL } = useQuery({
     queryKey: ["petugas", "ppl"],
     queryFn: () => getPPLList(),
   });
   
-  // Fetch PML list
   const { data: pmlList = [], isLoading: isLoadingPML } = useQuery({
     queryKey: ["petugas", "pml"],
     queryFn: () => getPMLList(),
   });
   
-  // Fetch allocation status for both NKS and Segmen
   const { 
     data: allocationStatus = [], 
     isLoading: isLoadingAllocation
@@ -54,7 +50,6 @@ export default function AlokasiPetugasPage() {
     queryFn: () => getAllocationStatus(),
   });
   
-  // Fetch assigned NKS for a PPL
   const { 
     data: assignedNKS = [], 
     isLoading: isLoadingAssignedNKS, 
@@ -65,7 +60,6 @@ export default function AlokasiPetugasPage() {
     enabled: !!selectedPPL && activeTab === "view",
   });
   
-  // Assign PPL to NKS mutation
   const assignMutation = useMutation({
     mutationFn: ({ nksId, pplId, pmlId }: { nksId: string; pplId: string; pmlId: string }) => 
       assignPPLToNKS(nksId, pplId, pmlId),
@@ -84,7 +78,6 @@ export default function AlokasiPetugasPage() {
     }
   });
   
-  // Remove PPL assignment mutation
   const removeMutation = useMutation({
     mutationFn: ({ nksId, pplId }: { nksId: string; pplId: string }) => 
       removePPLAssignment(nksId, pplId),
@@ -102,19 +95,16 @@ export default function AlokasiPetugasPage() {
     }
   });
   
-  // Get the PPL name based on ID
   const getPPLName = (id: string) => {
     const ppl = pplList.find(p => p.id === id);
     return ppl ? ppl.name : "-";
   };
   
-  // Get the PML name based on ID
   const getPMLName = (id: string) => {
     const pml = pmlList.find(p => p.id === id);
     return pml ? pml.name : "-";
   };
   
-  // Filter allocation status by search term and filters
   const filteredAllocationStatus = allocationStatus.filter(item => {
     const searchMatch = 
       item.code.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -131,7 +121,6 @@ export default function AlokasiPetugasPage() {
     return searchMatch && typeMatch && allocatedMatch;
   });
   
-  // Handle assigning PPL to NKS
   const handleAssign = () => {
     if (!selectedPPL || !selectedNKS || !selectedPML) {
       toast.error("Pilih PPL, PML, dan NKS/Segmen terlebih dahulu");
@@ -145,12 +134,10 @@ export default function AlokasiPetugasPage() {
     });
   };
   
-  // Handle removing PPL assignment
   const handleRemoveAssignment = (nksId: string, pplId: string) => {
     removeMutation.mutate({ nksId, pplId });
   };
   
-  // Effect to reset the PPL selection when tab changes
   useEffect(() => {
     if (activeTab === "allocate") {
       setSelectedPPL("");
@@ -560,11 +547,11 @@ export default function AlokasiPetugasPage() {
                             <TableCell>{item.kecamatan_name}</TableCell>
                             <TableCell>
                               {item.is_allocated ? (
-                                <Badge variant="success" className="bg-green-100 text-green-800">
+                                <Badge variant="outline" className="bg-green-100 text-green-800">
                                   <Check className="h-3 w-3 mr-1" /> Teralokasi
                                 </Badge>
                               ) : (
-                                <Badge variant="destructive" className="bg-red-100 text-red-800">
+                                <Badge variant="outline" className="bg-red-100 text-red-800">
                                   <X className="h-3 w-3 mr-1" /> Belum Dialokasi
                                 </Badge>
                               )}

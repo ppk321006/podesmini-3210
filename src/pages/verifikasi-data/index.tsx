@@ -45,7 +45,7 @@ export default function VerifikasiDataPage() {
   const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
   const [currentUbinanId, setCurrentUbinanId] = useState<string | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<'dikonfirmasi' | 'ditolak'>('dikonfirmasi');
-  const [dokumentDiterima, setDokumentDiterima] = useState(true);
+  const [dokumenDiterima, setDokumenDiterima] = useState(true);
   const [komentar, setKomentar] = useState("");
   
   // Get ubinan data for verification
@@ -83,7 +83,7 @@ export default function VerifikasiDataPage() {
   const resetVerificationForm = () => {
     setCurrentUbinanId(null);
     setVerificationStatus('dikonfirmasi');
-    setDokumentDiterima(true);
+    setDokumenDiterima(true);
     setKomentar("");
     setIsVerifyDialogOpen(false);
   };
@@ -101,7 +101,7 @@ export default function VerifikasiDataPage() {
     verifyUbinanMutation.mutate({
       id: currentUbinanId,
       status: verificationStatus,
-      dokumenDiterima,
+      dokumenDiterima: dokumenDiterima,
       komentar,
     });
   };
