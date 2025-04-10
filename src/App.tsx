@@ -3,18 +3,18 @@ import { StrictMode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/context/auth-context";
-import { Layout } from "@/components/layout/layout";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./context/auth-context";
+import Layout from "./components/layout/layout";
 import DashboardPage from "./pages/dashboard";
+import ProgressUbinanPage from "./pages/progress-ubinan";
 import PetugasPage from "./pages/petugas";
 import WilayahPage from "./pages/wilayah";
 import AlokasiWilayahPage from "./pages/alokasi-wilayah";
 import AlokasiPetugasPage from "./pages/alokasi-petugas";
-import ProgressUbinanPage from "./pages/progress-ubinan";
-import InputUbinanPage from "./pages/input-ubinan";
 import VerifikasiPage from "./pages/verifikasi";
+import InputUbinanPage from "./pages/input-ubinan";
 import NotFoundPage from "./pages/not-found";
 
 // Create the QueryClient instance within the App component function

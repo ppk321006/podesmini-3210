@@ -1,359 +1,211 @@
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/auth-context";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, X, FileCheck, AlertCircle, Search } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { UbinanData } from "@/types/database-schema";
-import { getUbinanDataForVerification } from "@/services/wilayah-api";
-import { VerificationDialog } from "@/components/verification/verification-dialog";
-import { formatDateToLocale } from "@/lib/utils";
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/auth-context';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { VerificationDialog } from '@/components/verification/verification-dialog';
+import { getUbinanDataForVerification } from '@/services/wilayah-api';
+import { UbinanData } from '@/types/database-schema';
 
-const VerifikasiPage = () => {
+export default function VerifikasiPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [ubinanData, setUbinanData] = useState<UbinanData[]>([]);
-  const [filteredData, setFilteredData] = useState<UbinanData[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTab, setSelectedTab] = useState("menunggu");
-  const [selectedData, setSelectedData] = useState<UbinanData | null>(null);
+  const [selectedUbinan, setSelectedUbinan] = useState<UbinanData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [filter, setFilter] = useState<string>('all');
 
-  const statusCount = {
-    menunggu: 0,
-    dikonfirmasi: 0,
-    ditolak: 0,
-    belum: 0
-  };
-
-  // Calculate status counts
-  ubinanData.forEach(item => {
-    if (item.status === "sudah_diisi") statusCount.menunggu++;
-    else if (item.status === "dikonfirmasi") statusCount.dikonfirmasi++;
-    else if (item.status === "ditolak") statusCount.ditolak++;
-    else statusCount.belum++;
+  const { data: ubinanData = [], isLoading, refetch } = useQuery({
+    queryKey: ['ubinan_verification', user?.id],
+    queryFn: () => getUbinanDataForVerification(user?.id || ''),
+    enabled: !!user?.id,
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.id) return;
-      
-      try {
-        setLoading(true);
-        // If user is PML, fetch data for verification
-        if (user.role === 'pml') {
-          const data = await getUbinanDataForVerification(user.id);
-          setUbinanData(data);
-          setFilteredData(data);
-        }
-      } catch (error) {
-        console.error("Error fetching data for verification:", error);
-        toast({
-          title: "Error",
-          description: "Gagal mengambil data untuk verifikasi",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [user, toast]);
+  // Filter data based on status
+  const filteredData = filter === 'all' 
+    ? ubinanData 
+    : ubinanData.filter(item => item.status === filter);
 
-  useEffect(() => {
-    // Filter data based on search term and selected tab
-    let filtered = [...ubinanData];
-    
-    // Filter by status tab
-    if (selectedTab === "menunggu") {
-      filtered = filtered.filter(item => item.status === "sudah_diisi");
-    } else if (selectedTab === "dikonfirmasi") {
-      filtered = filtered.filter(item => item.status === "dikonfirmasi");
-    } else if (selectedTab === "ditolak") {
-      filtered = filtered.filter(item => item.status === "ditolak");
-    } else if (selectedTab === "belum") {
-      filtered = filtered.filter(item => item.status === "belum_diisi");
-    }
-    
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(item => 
-        item.responden_name.toLowerCase().includes(term) || 
-        item.komoditas.toLowerCase().includes(term) ||
-        (item.nks?.code && item.nks.code.toLowerCase().includes(term)) ||
-        (item.segmen?.code && item.segmen.code.toLowerCase().includes(term))
-      );
-    }
-    
-    setFilteredData(filtered);
-  }, [ubinanData, searchTerm, selectedTab]);
+  // Group data by status for summary
+  const summary = {
+    total: ubinanData.length,
+    sudah_diisi: ubinanData.filter(item => item.status === 'sudah_diisi').length,
+    dikonfirmasi: ubinanData.filter(item => item.status === 'dikonfirmasi').length,
+    ditolak: ubinanData.filter(item => item.status === 'ditolak').length,
+    belum_diisi: ubinanData.filter(item => item.status === 'belum_diisi').length,
+  };
 
-  const handleVerify = (data: UbinanData) => {
-    setSelectedData(data);
+  const handleVerify = (ubinan: UbinanData) => {
+    setSelectedUbinan(ubinan);
     setIsDialogOpen(true);
   };
 
-  const handleVerificationComplete = (updatedData: UbinanData) => {
-    setUbinanData(prev => 
-      prev.map(item => 
-        item.id === updatedData.id ? updatedData : item
-      )
-    );
+  const handleDialogClose = () => {
     setIsDialogOpen(false);
-    
-    const actionText = updatedData.status === "dikonfirmasi" ? "dikonfirmasi" : "ditolak";
-    
-    toast({
-      title: "Berhasil",
-      description: `Data ubinan telah ${actionText}`,
-      variant: "default"
-    });
+    setSelectedUbinan(null);
+    refetch();
   };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "sudah_diisi":
-        return <Badge className="bg-yellow-500">Menunggu Verifikasi</Badge>;
-      case "dikonfirmasi":
-        return <Badge className="bg-green-500">Dikonfirmasi</Badge>;
-      case "ditolak":
-        return <Badge className="bg-red-500">Ditolak</Badge>;
-      default:
-        return <Badge className="bg-gray-500">Belum Diisi</Badge>;
-    }
-  };
-
-  if (!user || user.role !== 'pml') {
-    return (
-      <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Halaman ini hanya tersedia untuk PML</h1>
-        <p>Silahkan login sebagai PML untuk mengakses halaman ini.</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Verifikasi Data Ubinan</h1>
-      </div>
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Verifikasi Data Ubinan</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-yellow-50">
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg text-yellow-700">Menunggu</CardTitle>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-blue-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Total Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-yellow-700">{statusCount.menunggu}</p>
+            <p className="text-3xl font-bold">{summary.total}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-yellow-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-yellow-700">Menunggu Verifikasi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-yellow-700">{summary.sudah_diisi}</p>
           </CardContent>
         </Card>
 
         <Card className="bg-green-50">
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg text-green-700">Dikonfirmasi</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-green-700">Terverifikasi</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-700">{statusCount.dikonfirmasi}</p>
+            <p className="text-3xl font-bold text-green-700">{summary.dikonfirmasi}</p>
           </CardContent>
         </Card>
 
         <Card className="bg-red-50">
-          <CardHeader className="py-4">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg text-red-700">Ditolak</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-700">{statusCount.ditolak}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-50">
-          <CardHeader className="py-4">
-            <CardTitle className="text-lg text-gray-700">Belum Diisi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-gray-700">{statusCount.belum}</p>
+            <p className="text-3xl font-bold text-red-700">{summary.ditolak}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Data Ubinan</CardTitle>
-          <CardDescription>Verifikasi dan konfirmasi data ubinan yang telah diisikan oleh PPL</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <Input 
-                placeholder="Cari berdasarkan nama responden atau komoditas" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
-            
-            <Tabs defaultValue="menunggu" onValueChange={setSelectedTab}>
-              <TabsList>
-                <TabsTrigger value="menunggu">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>Menunggu Verifikasi</span>
-                  </div>
-                </TabsTrigger>
-                <TabsTrigger value="dikonfirmasi">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4" />
-                    <span>Dikonfirmasi</span>
-                  </div>
-                </TabsTrigger>
-                <TabsTrigger value="ditolak">
-                  <div className="flex items-center gap-2">
-                    <X className="h-4 w-4" />
-                    <span>Ditolak</span>
-                  </div>
-                </TabsTrigger>
-                <TabsTrigger value="belum">
-                  <div className="flex items-center gap-2">
-                    <FileCheck className="h-4 w-4" />
-                    <span>Belum Diisi</span>
-                  </div>
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="menunggu" className="pt-4">
-                <DataTable 
-                  data={filteredData} 
-                  loading={loading} 
-                  getStatusBadge={getStatusBadge}
-                  onVerify={handleVerify}
-                  emptyMessage="Tidak ada data yang menunggu verifikasi"
-                />
-              </TabsContent>
-              
-              <TabsContent value="dikonfirmasi" className="pt-4">
-                <DataTable 
-                  data={filteredData} 
-                  loading={loading} 
-                  getStatusBadge={getStatusBadge}
-                  onVerify={handleVerify}
-                  emptyMessage="Tidak ada data yang telah dikonfirmasi"
-                />
-              </TabsContent>
-              
-              <TabsContent value="ditolak" className="pt-4">
-                <DataTable 
-                  data={filteredData} 
-                  loading={loading} 
-                  getStatusBadge={getStatusBadge}
-                  onVerify={handleVerify}
-                  emptyMessage="Tidak ada data yang ditolak"
-                />
-              </TabsContent>
-
-              <TabsContent value="belum" className="pt-4">
-                <DataTable 
-                  data={filteredData} 
-                  loading={loading} 
-                  getStatusBadge={getStatusBadge}
-                  onVerify={handleVerify}
-                  emptyMessage="Tidak ada data yang belum diisi"
-                />
-              </TabsContent>
-            </Tabs>
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Data Ubinan</h2>
+          
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Filter Status:</label>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="sudah_diisi">Menunggu Verifikasi</SelectItem>
+                <SelectItem value="dikonfirmasi">Terverifikasi</SelectItem>
+                <SelectItem value="ditolak">Ditolak</SelectItem>
+                <SelectItem value="belum_diisi">Belum Diisi</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-      
-      {selectedData && (
-        <VerificationDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          data={selectedData}
-          onComplete={handleVerificationComplete}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8">Loading...</div>
+      ) : filteredData.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-lg text-gray-500">Tidak ada data yang tersedia</p>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kode</TableHead>
+                  <TableHead>Responden</TableHead>
+                  <TableHead>Komoditas</TableHead>
+                  <TableHead>Tanggal Ubinan</TableHead>
+                  <TableHead>Berat Hasil</TableHead>
+                  <TableHead>PPL</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((ubinan) => (
+                  <TableRow key={ubinan.id}>
+                    <TableCell className="font-medium">
+                      {ubinan.nks?.code || ubinan.segmen?.code || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {ubinan.responden_name}
+                      {ubinan.sample_status && (
+                        <Badge variant="outline" className="ml-2">
+                          {ubinan.sample_status}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>{ubinan.komoditas.replace('_', ' ')}</TableCell>
+                    <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
+                    <TableCell>{ubinan.berat_hasil} kg</TableCell>
+                    <TableCell>{ubinan.ppl?.name}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          ubinan.status === 'dikonfirmasi'
+                            ? 'bg-green-100 text-green-800'
+                            : ubinan.status === 'ditolak'
+                            ? 'bg-red-100 text-red-800'
+                            : ubinan.status === 'sudah_diisi'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }
+                      >
+                        {ubinan.status === 'dikonfirmasi'
+                          ? 'Terverifikasi'
+                          : ubinan.status === 'ditolak'
+                          ? 'Ditolak'
+                          : ubinan.status === 'sudah_diisi'
+                          ? 'Menunggu Verifikasi'
+                          : 'Belum Diisi'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant={ubinan.status === 'sudah_diisi' ? 'default' : 'outline'}
+                        size="sm" 
+                        disabled={ubinan.status !== 'sudah_diisi'}
+                        onClick={() => handleVerify(ubinan)}
+                      >
+                        Verifikasi
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedUbinan && (
+        <VerificationDialog 
+          ubinanData={selectedUbinan}
+          isOpen={isDialogOpen}
+          onClose={handleDialogClose}
         />
       )}
     </div>
   );
-};
-
-interface DataTableProps {
-  data: UbinanData[];
-  loading: boolean;
-  getStatusBadge: (status: string) => JSX.Element;
-  onVerify: (data: UbinanData) => void;
-  emptyMessage: string;
 }
-
-const DataTable = ({ data, loading, getStatusBadge, onVerify, emptyMessage }: DataTableProps) => {
-  if (loading) {
-    return <div className="py-8 text-center">Memuat data...</div>;
-  }
-  
-  if (data.length === 0) {
-    return <div className="py-8 text-center">{emptyMessage}</div>;
-  }
-  
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Jenis</TableHead>
-            <TableHead>Kode</TableHead>
-            <TableHead>Responden</TableHead>
-            <TableHead>Status Sampel</TableHead>
-            <TableHead>Komoditas</TableHead>
-            <TableHead>Tanggal Ubinan</TableHead>
-            <TableHead>Berat Hasil</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Dokumen</TableHead>
-            <TableHead className="text-right">Tindakan</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>{item.nks_id ? "NKS" : "Segmen"}</TableCell>
-              <TableCell>
-                {item.nks_id ? item.nks?.code : item.segmen?.code || "-"}
-              </TableCell>
-              <TableCell>{item.responden_name}</TableCell>
-              <TableCell>{item.sample_status || "-"}</TableCell>
-              <TableCell className="capitalize">{item.komoditas.replace('_', ' ')}</TableCell>
-              <TableCell>{formatDateToLocale(item.tanggal_ubinan)}</TableCell>
-              <TableCell>{item.berat_hasil} kg</TableCell>
-              <TableCell>{getStatusBadge(item.status)}</TableCell>
-              <TableCell>
-                {item.dokumen_diterima ? (
-                  <Badge className="bg-green-500">Diterima</Badge>
-                ) : (
-                  <Badge className="bg-yellow-500">Belum Diterima</Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => onVerify(item)}
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Detail
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
-
-export default VerifikasiPage;

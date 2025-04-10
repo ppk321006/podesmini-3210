@@ -95,6 +95,8 @@ export interface ProgressReport {
   created_at: string;
   updated_at: string;
   ppl?: Petugas;
+  target_padi: number;
+  target_palawija: number;
 }
 
 export interface AllocationStatus {

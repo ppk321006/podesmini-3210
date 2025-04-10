@@ -634,15 +634,15 @@ export const getUbinanDataForVerification = async (pmlId: string): Promise<Ubina
 };
 
 export const createUbinanData = async (
-  nksId?: string,
-  segmenId?: string,
-  pplId: string,
   respondenName: string,
   sampleStatus: string,
   komoditas: string,
   tanggalUbinan: string,
   beratHasil: number,
-  pmlId: string
+  pplId: string,
+  pmlId: string,
+  nksId?: string,
+  segmenId?: string
 ): Promise<UbinanData> => {
   if (!nksId && !segmenId) {
     throw new Error("Either NKS ID or Segmen ID is required");

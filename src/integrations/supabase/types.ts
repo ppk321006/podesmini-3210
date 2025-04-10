@@ -126,6 +126,8 @@ export type Database = {
           ppl_id: string | null
           rejected_count: number
           target_count: number
+          target_padi: number | null
+          target_palawija: number | null
           updated_at: string | null
           verified_count: number
           year: number
@@ -138,6 +140,8 @@ export type Database = {
           ppl_id?: string | null
           rejected_count?: number
           target_count: number
+          target_padi?: number | null
+          target_palawija?: number | null
           updated_at?: string | null
           verified_count?: number
           year: number
@@ -150,6 +154,8 @@ export type Database = {
           ppl_id?: string | null
           rejected_count?: number
           target_count?: number
+          target_padi?: number | null
+          target_palawija?: number | null
           updated_at?: string | null
           verified_count?: number
           year?: number
@@ -204,6 +210,13 @@ export type Database = {
             referencedRelation: "segmen"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sampel_krt_segmen_id_fkey"
+            columns: ["segmen_id"]
+            isOneToOne: false
+            referencedRelation: "wilayah_tugas_segmen"
+            referencedColumns: ["segmen_id"]
+          },
         ]
       }
       segmen: {
@@ -249,10 +262,12 @@ export type Database = {
           id: string
           komentar: string | null
           komoditas: string
-          nks_id: string
+          nks_id: string | null
           pml_id: string | null
           ppl_id: string
           responden_name: string
+          sample_status: string | null
+          segmen_id: string | null
           status: string
           tanggal_ubinan: string
           updated_at: string | null
@@ -264,10 +279,12 @@ export type Database = {
           id?: string
           komentar?: string | null
           komoditas: string
-          nks_id: string
+          nks_id?: string | null
           pml_id?: string | null
           ppl_id: string
           responden_name: string
+          sample_status?: string | null
+          segmen_id?: string | null
           status?: string
           tanggal_ubinan: string
           updated_at?: string | null
@@ -279,10 +296,12 @@ export type Database = {
           id?: string
           komentar?: string | null
           komoditas?: string
-          nks_id?: string
+          nks_id?: string | null
           pml_id?: string | null
           ppl_id?: string
           responden_name?: string
+          sample_status?: string | null
+          segmen_id?: string | null
           status?: string
           tanggal_ubinan?: string
           updated_at?: string | null
@@ -308,6 +327,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ubinan_data_segmen_id_fkey"
+            columns: ["segmen_id"]
+            isOneToOne: false
+            referencedRelation: "segmen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ubinan_data_segmen_id_fkey"
+            columns: ["segmen_id"]
+            isOneToOne: false
+            referencedRelation: "wilayah_tugas_segmen"
+            referencedColumns: ["segmen_id"]
           },
         ]
       }
@@ -404,6 +437,31 @@ export type Database = {
         }
         Relationships: []
       }
+      wilayah_tugas_segmen: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          pml_id: string | null
+          ppl_id: string | null
+          segmen_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wilayah_tugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wilayah_tugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_subround: {
@@ -429,6 +487,33 @@ export type Database = {
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      update_progress_report_by_type: {
+        Args: {
+          v_ppl_id: string
+          v_year: number
+          v_month: number
+          v_target_padi: number
+          v_target_palawija: number
+          v_completed_padi: number
+          v_completed_palawija: number
+          v_verified_count: number
+          v_rejected_count: number
+        }
+        Returns: {
+          completed_count: number
+          created_at: string | null
+          id: string
+          month: number
+          ppl_id: string | null
+          rejected_count: number
+          target_count: number
+          target_padi: number | null
+          target_palawija: number | null
+          updated_at: string | null
+          verified_count: number
+          year: number
+        }
       }
     }
     Enums: {

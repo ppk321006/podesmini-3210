@@ -139,7 +139,11 @@ export const exportUbinanReportToPdf = async (
   doc.text(`Menunggu Verifikasi: ${pendingCount}`, 20, 66);
 
   // Group by komoditas
-  const komoditasGroups = data.reduce((acc, item) => {
+  type KomodityGroup = {
+    [key: string]: any[];
+  };
+  
+  const komoditasGroups: KomodityGroup = data.reduce((acc: KomodityGroup, item) => {
     const komoditasName = item.komoditas.replace('_', ' ');
     if (!acc[komoditasName]) {
       acc[komoditasName] = [];
@@ -166,7 +170,15 @@ export const exportUbinanReportToPdf = async (
   });
 
   // Extract PPL performance
-  const pplPerformance = data.reduce((acc, item) => {
+  type PplPerformance = {
+    [key: string]: {
+      total: number;
+      verified: number;
+      rejected: number;
+    };
+  };
+  
+  const pplPerformance: PplPerformance = data.reduce((acc: PplPerformance, item) => {
     const pplName = item.ppl?.name || 'Unknown';
     if (!acc[pplName]) {
       acc[pplName] = { total: 0, verified: 0, rejected: 0 };
@@ -179,7 +191,7 @@ export const exportUbinanReportToPdf = async (
 
   // @ts-ignore - jspdf-autotable types
   doc.autoTable({
-    startY: doc.previousAutoTable.finalY + 15,
+    startY: (doc as any).previousAutoTable.finalY + 15,
     head: [['PPL', 'Total', 'Terverifikasi', 'Ditolak', 'Persentase Verifikasi']],
     body: Object.entries(pplPerformance).map(([ppl, stats]) => {
       const verificationRate = stats.total > 0 ? ((stats.verified / stats.total) * 100).toFixed(1) : '0';
@@ -250,7 +262,11 @@ export const exportUbinanChartToImage = async (
   chartContent.style.borderBottom = '2px solid black';
   
   // Group by komoditas
-  const komoditasGroups = data.reduce((acc, item) => {
+  type KomodityGroup = {
+    [key: string]: any[];
+  };
+  
+  const komoditasGroups: KomodityGroup = data.reduce((acc: KomodityGroup, item) => {
     const komoditasName = item.komoditas.replace('_', ' ');
     if (!acc[komoditasName]) {
       acc[komoditasName] = [];
@@ -264,7 +280,7 @@ export const exportUbinanChartToImage = async (
   
   // Create bar chart
   let colorIndex = 0;
-  Object.entries(komoditasGroups).forEach(([komoditas, items]: [string, any[]]) => {
+  Object.entries(komoditasGroups).forEach(([komoditas, items]) => {
     const barWrapper = document.createElement('div');
     barWrapper.style.display = 'flex';
     barWrapper.style.flexDirection = 'column';
@@ -272,7 +288,7 @@ export const exportUbinanChartToImage = async (
     barWrapper.style.flex = '1';
     
     const count = items.length;
-    const maxCount = Math.max(...Object.values(komoditasGroups).map((items: any[]) => items.length));
+    const maxCount = Math.max(...Object.values(komoditasGroups).map((items) => items.length));
     const barHeight = Math.max(10, (count / maxCount) * 350);
     
     const bar = document.createElement('div');

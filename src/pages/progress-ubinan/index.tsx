@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,10 +21,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { getProgressReports, getPPLList, getUbinanProgressBySubround, getUbinanProgressByYear } from "@/services/wilayah-api";
-import { getMonthName, monthsIndonesia } from "@/lib/utils";
+import { monthsIndonesia } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+// Helper function to get month name
+const getMonthName = (monthNumber: number): string => {
+  return monthsIndonesia[monthNumber - 1] || '';
+};
 
 export default function ProgressUbinanPage() {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -57,6 +63,8 @@ export default function ProgressUbinanPage() {
   // Calculate PPL performance metrics
   const pplPerformance = pplList.map(ppl => {
     const pplReports = progressReports.filter(report => report.ppl_id === ppl.id);
+    const totalPadiTarget = pplReports.reduce((sum, report) => sum + (report.target_padi || 0), 0);
+    const totalPalawijaTarget = pplReports.reduce((sum, report) => sum + (report.target_palawija || 0), 0);
     const totalTarget = pplReports.reduce((sum, report) => sum + report.target_count, 0);
     const totalCompleted = pplReports.reduce((sum, report) => sum + report.completed_count, 0);
     const totalVerified = pplReports.reduce((sum, report) => sum + report.verified_count, 0);
@@ -69,6 +77,8 @@ export default function ProgressUbinanPage() {
     return {
       id: ppl.id,
       name: ppl.name,
+      totalPadiTarget,
+      totalPalawijaTarget,
       totalTarget,
       totalCompleted,
       totalVerified,
@@ -80,7 +90,7 @@ export default function ProgressUbinanPage() {
   });
 
   // Prepare data for komoditas bar chart
-  const komoditasData = ubinanProgressByYear.reduce((acc, item) => {
+  const komoditasData = ubinanProgressByYear.reduce((acc: any[], item) => {
     const komoditas = item.komoditas;
     const status = item.status;
     const count = Number(item.count);
@@ -102,7 +112,7 @@ export default function ProgressUbinanPage() {
   }, []);
 
   // Prepare data for status pie chart
-  const statusData = ubinanProgressByYear.reduce((acc, item) => {
+  const statusData = ubinanProgressByYear.reduce((acc: any[], item) => {
     const status = item.status;
     const count = Number(item.count);
     
@@ -136,17 +146,8 @@ export default function ProgressUbinanPage() {
   });
 
   // Calculate progress metrics for summary cards
-  const totalPadiTarget = progressReports.reduce((sum, report) => {
-    // Assuming the report has a field for padi targets
-    // This is a placeholder - update with real data
-    return sum + (report.target_padi || 0);
-  }, 0);
-  
-  const totalPalawijaTarget = progressReports.reduce((sum, report) => {
-    // Assuming the report has a field for palawija targets
-    // This is a placeholder - update with real data
-    return sum + (report.target_palawija || 0);
-  }, 0);
+  const totalPadiTarget = progressReports.reduce((sum, report) => sum + (report.target_padi || 0), 0);
+  const totalPalawijaTarget = progressReports.reduce((sum, report) => sum + (report.target_palawija || 0), 0);
   
   const completedPadi = ubinanProgressByYear.reduce((sum, item) => {
     if (item.komoditas === 'padi') {
@@ -211,7 +212,7 @@ export default function ProgressUbinanPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-lg">Target Ubinan Padi</CardTitle>
@@ -324,7 +325,9 @@ export default function ProgressUbinanPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nama PPL</TableHead>
-                        <TableHead className="text-right">Target</TableHead>
+                        <TableHead className="text-right">Target Padi</TableHead>
+                        <TableHead className="text-right">Target Palawija</TableHead>
+                        <TableHead className="text-right">Total Target</TableHead>
                         <TableHead className="text-right">Selesai</TableHead>
                         <TableHead className="text-right">Terverifikasi</TableHead>
                         <TableHead className="text-right">Ditolak</TableHead>
@@ -335,6 +338,8 @@ export default function ProgressUbinanPage() {
                       {pplPerformance.map((ppl) => (
                         <TableRow key={ppl.id}>
                           <TableCell className="font-medium">{ppl.name}</TableCell>
+                          <TableCell className="text-right">{ppl.totalPadiTarget}</TableCell>
+                          <TableCell className="text-right">{ppl.totalPalawijaTarget}</TableCell>
                           <TableCell className="text-right">{ppl.totalTarget}</TableCell>
                           <TableCell className="text-right">{ppl.totalCompleted}</TableCell>
                           <TableCell className="text-right">{ppl.totalVerified}</TableCell>

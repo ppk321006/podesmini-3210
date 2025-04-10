@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { FileSpreadsheet, FilePdf, ImageIcon, Download, Loader2 } from "lucide-react";
+import { FileSpreadsheet, FileText, ImageIcon, Download, Loader2 } from "lucide-react";
 import { saveAs } from "file-saver";
 import { exportUbinanDataToExcel, exportUbinanReportToPdf, exportUbinanChartToImage } from "@/services/export-service"; 
 import { toast } from "sonner";
@@ -88,7 +88,7 @@ export function ExportDataCard() {
               onClick={() => setExportType("pdf")}
               className="flex items-center gap-2"
             >
-              <FilePdf className="h-4 w-4" />
+              <FileText className="h-4 w-4" />
               PDF
             </Button>
             <Button
