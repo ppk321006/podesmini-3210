@@ -1,4 +1,5 @@
 
+import { StrictMode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,34 +16,39 @@ import ProgressUbinanPage from "./pages/progress-ubinan";
 import InputUbinanPage from "./pages/input-ubinan";
 import NotFoundPage from "./pages/not-found";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/progres" element={<ProgressUbinanPage />} />
-              <Route path="/petugas" element={<PetugasPage />} />
-              <Route path="/input-data" element={<InputUbinanPage />} />
-              <Route path="/wilayah" element={<WilayahPage />} />
-              <Route path="/alokasi-wilayah" element={<AlokasiWilayahPage />} />
-              <Route path="/alokasi-petugas" element={<AlokasiPetugasPage />} />
-              <Route path="/verifikasi" element={<div className="p-8 text-center">Halaman Verifikasi Data (akan dikembangkan)</div>} />
-              <Route path="/profil" element={<div className="p-8 text-center">Halaman Profil (akan dikembangkan)</div>} />
-              <Route path="/pengaturan" element={<div className="p-8 text-center">Halaman Pengaturan (akan dikembangkan)</div>} />
-            </Route>
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+// Create the QueryClient instance within the App component function
+function App() {
+  const queryClient = new QueryClient();
+  
+  return (
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/progres" element={<ProgressUbinanPage />} />
+                  <Route path="/petugas" element={<PetugasPage />} />
+                  <Route path="/input-data" element={<InputUbinanPage />} />
+                  <Route path="/wilayah" element={<WilayahPage />} />
+                  <Route path="/alokasi-wilayah" element={<AlokasiWilayahPage />} />
+                  <Route path="/alokasi-petugas" element={<AlokasiPetugasPage />} />
+                  <Route path="/verifikasi" element={<div className="p-8 text-center">Halaman Verifikasi Data (akan dikembangkan)</div>} />
+                  <Route path="/profil" element={<div className="p-8 text-center">Halaman Profil (akan dikembangkan)</div>} />
+                  <Route path="/pengaturan" element={<div className="p-8 text-center">Halaman Pengaturan (akan dikembangkan)</div>} />
+                </Route>
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </StrictMode>
+  );
+}
 
 export default App;
