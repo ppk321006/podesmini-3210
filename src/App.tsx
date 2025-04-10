@@ -11,6 +11,8 @@ import PetugasPage from "./pages/petugas";
 import WilayahPage from "./pages/wilayah";
 import AlokasiWilayahPage from "./pages/alokasi-wilayah";
 import AlokasiPetugasPage from "./pages/alokasi-petugas";
+import ProgressUbinanPage from "./pages/progress-ubinan";
+import InputUbinanPage from "./pages/input-ubinan";
 import NotFoundPage from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -25,9 +27,9 @@ const App = () => (
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/progres" element={<div className="p-8 text-center">Halaman Progres Ubinan (akan dikembangkan)</div>} />
+              <Route path="/progres" element={<ProgressUbinanPage />} />
               <Route path="/petugas" element={<PetugasPage />} />
-              <Route path="/input-data" element={<div className="p-8 text-center">Halaman Input Data (akan dikembangkan)</div>} />
+              <Route path="/input-data" element={<InputUbinanPage />} />
               <Route path="/wilayah" element={<WilayahPage />} />
               <Route path="/alokasi-wilayah" element={<AlokasiWilayahPage />} />
               <Route path="/alokasi-petugas" element={<AlokasiPetugasPage />} />
