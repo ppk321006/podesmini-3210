@@ -55,7 +55,7 @@ export function ExportDataCard() {
       let endDate = `${year}-12-31`;
       
       // If month is selected, narrow down the date range
-      if (month) {
+      if (month && month !== "all") {
         const monthNum = parseInt(month);
         startDate = `${year}-${monthNum.toString().padStart(2, '0')}-01`;
         
@@ -64,7 +64,7 @@ export function ExportDataCard() {
         endDate = `${year}-${monthNum.toString().padStart(2, '0')}-${lastDay}`;
       }
       // If subround is selected, use subround date range
-      else if (subround) {
+      else if (subround && subround !== "all") {
         switch (subround) {
           case "1": // Jan-Apr
             startDate = `${year}-01-01`;
@@ -154,7 +154,8 @@ export function ExportDataCard() {
                 <SelectValue placeholder="Pilih bulan" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Bulan</SelectItem>
+                {/* Fix: Change empty string "" to "all" for the value prop */}
+                <SelectItem value="all">Semua Bulan</SelectItem>
                 {months.map((m) => (
                   <SelectItem key={m.value} value={m.value}>
                     {m.label}
@@ -171,7 +172,8 @@ export function ExportDataCard() {
                 <SelectValue placeholder="Pilih subround" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Subround</SelectItem>
+                {/* Fix: Change empty string "" to "all" for the value prop */}
+                <SelectItem value="all">Semua Subround</SelectItem>
                 <SelectItem value="1">Subround 1 (Jan-Apr)</SelectItem>
                 <SelectItem value="2">Subround 2 (Mei-Ags)</SelectItem>
                 <SelectItem value="3">Subround 3 (Sep-Des)</SelectItem>
