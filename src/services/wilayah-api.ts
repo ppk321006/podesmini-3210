@@ -865,6 +865,22 @@ export const getUbinanProgressByYear = async (year: number = new Date().getFullY
 };
 
 // Get Segmen assigned to a PPL
+export const assignPPLToSegmen = async (segmenId: string, pplId: string, pmlId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('wilayah_tugas_segmen')
+      .insert([
+        { segmen_id: segmenId, ppl_id: pplId, pml_id: pmlId }
+      ]);
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error assigning PPL to Segmen:', error);
+    throw error;
+  }
+};
+
 export const getSegmenByPPL = async (pplId: string) => {
   try {
     const { data, error } = await supabase
@@ -881,5 +897,20 @@ export const getSegmenByPPL = async (pplId: string) => {
   } catch (error) {
     console.error('Error fetching Segmen by PPL:', error);
     return [];
+  }
+};
+
+export const removePPLFromSegmen = async (segmenId: string, pplId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('wilayah_tugas_segmen')
+      .delete()
+      .match({ segmen_id: segmenId, ppl_id: pplId });
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error removing PPL from Segmen:', error);
+    throw error;
   }
 };
