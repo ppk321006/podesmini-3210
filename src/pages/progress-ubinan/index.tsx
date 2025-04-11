@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -26,41 +25,39 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-// Helper function to get month name
 const getMonthName = (monthNumber: number): string => {
   return monthsIndonesia[monthNumber - 1] || '';
 };
 
 export default function ProgressUbinanPage() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [subround, setSubround] = useState(1);
   const [activeTab, setActiveTab] = useState("ppl-performance");
 
-  // Get progress reports
+  const handleYearChange = (value: string) => {
+    setYear(value);
+  };
+
   const { data: progressReports = [], isLoading: isLoadingProgress } = useQuery({
     queryKey: ["progress_reports"],
     queryFn: getProgressReports,
   });
 
-  // Get PPL list
   const { data: pplList = [] } = useQuery({
     queryKey: ["petugas", "ppl"],
     queryFn: () => getPPLList(),
   });
 
-  // Get ubinan progress by subround
   const { data: ubinanProgressBySubround = [] } = useQuery({
     queryKey: ["ubinan_progress", "subround", subround],
     queryFn: () => getUbinanProgressBySubround(subround),
   });
 
-  // Get ubinan progress by year
   const { data: ubinanProgressByYear = [] } = useQuery({
     queryKey: ["ubinan_progress", "year", year],
     queryFn: () => getUbinanProgressByYear(year),
   });
 
-  // Calculate PPL performance metrics
   const pplPerformance = pplList.map(ppl => {
     const pplReports = progressReports.filter(report => report.ppl_id === ppl.id);
     const totalPadiTarget = pplReports.reduce((sum, report) => sum + (report.target_padi || 0), 0);
@@ -89,7 +86,6 @@ export default function ProgressUbinanPage() {
     };
   });
 
-  // Prepare data for komoditas bar chart
   const komoditasData = ubinanProgressByYear.reduce((acc: any[], item) => {
     const komoditas = item.komoditas;
     const status = item.status;
@@ -111,7 +107,6 @@ export default function ProgressUbinanPage() {
     return acc;
   }, []);
 
-  // Prepare data for status pie chart
   const statusData = ubinanProgressByYear.reduce((acc: any[], item) => {
     const status = item.status;
     const count = Number(item.count);
@@ -130,7 +125,6 @@ export default function ProgressUbinanPage() {
     return acc;
   }, []);
 
-  // Calculate monthly progress
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const monthlyProgress = months.map(month => {
     const monthReports = progressReports.filter(report => report.month === month && report.year === year);
@@ -145,7 +139,6 @@ export default function ProgressUbinanPage() {
     };
   });
 
-  // Calculate progress metrics for summary cards
   const totalPadiTarget = progressReports.reduce((sum, report) => sum + (report.target_padi || 0), 0);
   const totalPalawijaTarget = progressReports.reduce((sum, report) => sum + (report.target_palawija || 0), 0);
   
@@ -185,14 +178,19 @@ export default function ProgressUbinanPage() {
         <div className="flex flex-col md:flex-row gap-4 md:items-center">
           <div>
             <label className="text-sm font-medium mb-1 block">Tahun</label>
-            <Select value={year.toString()} onValueChange={(v) => setYear(Number(v))}>
+            <Select value={year} onValueChange={handleYearChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Pilih Tahun" />
               </SelectTrigger>
               <SelectContent>
-                {[2022, 2023, 2024, 2025].map(y => (
-                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                ))}
+                {Array.from({ length: 5 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
