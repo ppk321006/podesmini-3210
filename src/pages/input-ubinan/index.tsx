@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, Loader2, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { SampelKRT } from "@/types/database-schema";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function InputUbinanPage() {
   const { user } = useAuth();
@@ -98,9 +99,47 @@ export default function InputUbinanPage() {
     resetForm();
   }, [allocationType]);
 
+  // Create ubinan data directly using supabase client to work around issues
+  const createUbinanDataDirect = async (values: {
+    nksId?: string;
+    segmenId?: string;
+    respondenName: string;
+    sampleStatus: string;
+    komoditas: string;
+    tanggalUbinan: string;
+    beratHasil: number;
+    pplId: string;
+    pmlId: string;
+  }) => {
+    // Insert the data directly using supabase
+    const { data, error } = await supabase
+      .from('ubinan_data')
+      .insert({
+        nks_id: values.nksId || null,
+        segmen_id: values.segmenId || null,
+        responden_name: values.respondenName,
+        sample_status: values.sampleStatus,
+        komoditas: values.komoditas,
+        tanggal_ubinan: values.tanggalUbinan,
+        berat_hasil: values.beratHasil,
+        ppl_id: values.pplId,
+        pml_id: values.pmlId || null,
+        status: 'sudah_diisi',
+        dokumen_diterima: false
+      })
+      .select();
+
+    if (error) {
+      console.error("Supabase Error:", error);
+      throw error;
+    }
+    
+    return data[0];
+  };
+
   // Create ubinan data mutation
   const createUbinanMutation = useMutation({
-    mutationFn: (values: { 
+    mutationFn: async (values: { 
       nksId?: string;
       segmenId?: string;
       respondenName: string;
@@ -123,17 +162,28 @@ export default function InputUbinanPage() {
         pmlId = segmenWithPML?.pml?.id || "";
       }
       
-      return createUbinanData(
-        values.respondenName,
-        values.sampleStatus,
-        values.komoditas,
-        values.tanggalUbinan,
-        Number(values.beratHasil),
-        user.id,
-        pmlId,
-        values.nksId,
-        values.segmenId
-      );
+      try {
+        // Try the direct supabase insert first
+        return await createUbinanDataDirect({
+          ...values,
+          pplId: user.id,
+          pmlId: pmlId
+        });
+      } catch (directError) {
+        console.error("Direct insert failed, falling back to API:", directError);
+        // Fall back to the API method if direct insert fails
+        return await createUbinanData(
+          values.respondenName,
+          values.sampleStatus,
+          values.komoditas,
+          values.tanggalUbinan,
+          Number(values.beratHasil),
+          user.id,
+          pmlId,
+          values.nksId,
+          values.segmenId
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ubinan_data", user?.id] });
@@ -142,7 +192,7 @@ export default function InputUbinanPage() {
     },
     onError: (error) => {
       console.error("Error creating ubinan data:", error);
-      toast.error("Gagal menyimpan data ubinan");
+      toast.error("Gagal menyimpan data ubinan. Silakan coba lagi.");
     }
   });
   

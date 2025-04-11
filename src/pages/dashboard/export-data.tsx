@@ -7,13 +7,13 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { DownloadIcon, Loader2 } from "lucide-react";
-import { exportUbinanDataToExcel, exportUbinanReportToPdf } from "@/services/export-service";
+import { exportUbinanDataToExcel, exportUbinanReportToJpeg } from "@/services/export-service";
 
 export function ExportDataCard() {
   const [year, setYear] = useState(new Date().getFullYear().toString());
-  const [month, setMonth] = useState("");
-  const [subround, setSubround] = useState("");
-  const [exportType, setExportType] = useState<"excel" | "pdf">("excel");
+  const [month, setMonth] = useState("all");
+  const [subround, setSubround] = useState("all");
+  const [exportType, setExportType] = useState<"excel" | "jpeg">("excel");
   const [isExporting, setIsExporting] = useState(false);
   
   const currentYear = new Date().getFullYear();
@@ -98,8 +98,8 @@ export function ExportDataCard() {
         
         toast.success("Data berhasil diekspor ke Excel");
       } else {
-        const blob = await exportUbinanReportToPdf(startDate, endDate);
-        const fileName = `Laporan_Ubinan_${startDate}_${endDate}.pdf`;
+        const blob = await exportUbinanReportToJpeg(startDate, endDate);
+        const fileName = `Laporan_Ubinan_${startDate}_${endDate}.jpeg`;
         
         // Create download link
         const url = URL.createObjectURL(blob);
@@ -111,7 +111,7 @@ export function ExportDataCard() {
         URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
-        toast.success("Data berhasil diekspor ke PDF");
+        toast.success("Data berhasil diekspor ke JPEG");
       }
     } catch (error) {
       console.error("Error exporting data:", error);
@@ -154,7 +154,6 @@ export function ExportDataCard() {
                 <SelectValue placeholder="Pilih bulan" />
               </SelectTrigger>
               <SelectContent>
-                {/* Fix: Change empty string "" to "all" for the value prop */}
                 <SelectItem value="all">Semua Bulan</SelectItem>
                 {months.map((m) => (
                   <SelectItem key={m.value} value={m.value}>
@@ -172,7 +171,6 @@ export function ExportDataCard() {
                 <SelectValue placeholder="Pilih subround" />
               </SelectTrigger>
               <SelectContent>
-                {/* Fix: Change empty string "" to "all" for the value prop */}
                 <SelectItem value="all">Semua Subround</SelectItem>
                 <SelectItem value="1">Subround 1 (Jan-Apr)</SelectItem>
                 <SelectItem value="2">Subround 2 (Mei-Ags)</SelectItem>
@@ -186,7 +184,7 @@ export function ExportDataCard() {
           <Label>Format Ekspor</Label>
           <RadioGroup
             value={exportType}
-            onValueChange={(value) => setExportType(value as "excel" | "pdf")}
+            onValueChange={(value) => setExportType(value as "excel" | "jpeg")}
             className="flex space-x-4"
           >
             <div className="flex items-center space-x-2">
@@ -194,8 +192,8 @@ export function ExportDataCard() {
               <Label htmlFor="excel">Excel (.xlsx)</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pdf" id="pdf" />
-              <Label htmlFor="pdf">PDF (.pdf)</Label>
+              <RadioGroupItem value="jpeg" id="jpeg" />
+              <Label htmlFor="jpeg">JPEG (.jpeg)</Label>
             </div>
           </RadioGroup>
         </div>
