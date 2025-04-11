@@ -15,18 +15,33 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VerificationDialog } from '@/components/verification/verification-dialog';
-import { getUbinanDataForVerification } from '@/services/wilayah-api';
+import { getUbinanDataByPML, getProgressByPML } from '@/services/progress-service';
 import { UbinanData } from '@/types/database-schema';
+import { ArrowUpDown } from 'lucide-react';
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
   const [selectedUbinan, setSelectedUbinan] = useState<UbinanData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: ubinanData = [], isLoading, refetch } = useQuery({
     queryKey: ['ubinan_verification', user?.id],
-    queryFn: () => getUbinanDataForVerification(user?.id || ''),
+    queryFn: () => getUbinanDataByPML(user?.id || ''),
+    enabled: !!user?.id,
+  });
+
+  const { data: progressData = { 
+    totalPadi: 0, 
+    totalPalawija: 0, 
+    pendingVerification: 0, 
+    verified: 0, 
+    rejected: 0 
+  }, isLoading: isLoadingProgress } = useQuery({
+    queryKey: ['pml_progress', user?.id],
+    queryFn: () => getProgressByPML(user?.id || ''),
     enabled: !!user?.id,
   });
 
@@ -35,14 +50,59 @@ export default function VerifikasiPage() {
     ? ubinanData 
     : ubinanData.filter(item => item.status === filter);
 
-  // Group data by status for summary
-  const summary = {
-    total: ubinanData.length,
-    sudah_diisi: ubinanData.filter(item => item.status === 'sudah_diisi').length,
-    dikonfirmasi: ubinanData.filter(item => item.status === 'dikonfirmasi').length,
-    ditolak: ubinanData.filter(item => item.status === 'ditolak').length,
-    belum_diisi: ubinanData.filter(item => item.status === 'belum_diisi').length,
+  // Sort function
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
   };
+
+  // Sort data based on current sort settings
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    let valueA, valueB;
+    
+    switch (sortColumn) {
+      case 'kode':
+        valueA = (a.nks?.code || a.segmen?.code || '').toLowerCase();
+        valueB = (b.nks?.code || b.segmen?.code || '').toLowerCase();
+        break;
+      case 'responden':
+        valueA = a.responden_name.toLowerCase();
+        valueB = b.responden_name.toLowerCase();
+        break;
+      case 'komoditas':
+        valueA = a.komoditas.toLowerCase();
+        valueB = b.komoditas.toLowerCase();
+        break;
+      case 'tanggal':
+        valueA = new Date(a.tanggal_ubinan).getTime();
+        valueB = new Date(b.tanggal_ubinan).getTime();
+        break;
+      case 'berat':
+        valueA = a.berat_hasil;
+        valueB = b.berat_hasil;
+        break;
+      case 'ppl':
+        valueA = a.ppl?.name?.toLowerCase() || '';
+        valueB = b.ppl?.name?.toLowerCase() || '';
+        break;
+      case 'status':
+        valueA = a.status;
+        valueB = b.status;
+        break;
+      default:
+        return 0;
+    }
+    
+    if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+    if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const handleVerify = (ubinan: UbinanData) => {
     setSelectedUbinan(ubinan);
@@ -65,7 +125,7 @@ export default function VerifikasiPage() {
             <CardTitle className="text-lg">Total Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{summary.total}</p>
+            <p className="text-3xl font-bold">{ubinanData.length}</p>
           </CardContent>
         </Card>
 
@@ -74,7 +134,7 @@ export default function VerifikasiPage() {
             <CardTitle className="text-lg text-yellow-700">Menunggu Verifikasi</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-yellow-700">{summary.sudah_diisi}</p>
+            <p className="text-3xl font-bold text-yellow-700">{progressData.pendingVerification}</p>
           </CardContent>
         </Card>
 
@@ -83,7 +143,7 @@ export default function VerifikasiPage() {
             <CardTitle className="text-lg text-green-700">Terverifikasi</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-700">{summary.dikonfirmasi}</p>
+            <p className="text-3xl font-bold text-green-700">{progressData.verified}</p>
           </CardContent>
         </Card>
 
@@ -92,7 +152,7 @@ export default function VerifikasiPage() {
             <CardTitle className="text-lg text-red-700">Ditolak</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-700">{summary.ditolak}</p>
+            <p className="text-3xl font-bold text-red-700">{progressData.rejected}</p>
           </CardContent>
         </Card>
       </div>
@@ -120,8 +180,11 @@ export default function VerifikasiPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8">Loading...</div>
-      ) : filteredData.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2">Loading...</p>
+        </div>
+      ) : sortedData.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-lg text-gray-500">Tidak ada data yang tersedia</p>
         </div>
@@ -131,18 +194,32 @@ export default function VerifikasiPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Responden</TableHead>
-                  <TableHead>Komoditas</TableHead>
-                  <TableHead>Tanggal Ubinan</TableHead>
-                  <TableHead>Berat Hasil</TableHead>
-                  <TableHead>PPL</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead onClick={() => handleSort('kode')} className="cursor-pointer">
+                    Kode {sortColumn === 'kode' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('responden')} className="cursor-pointer">
+                    Responden {sortColumn === 'responden' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('komoditas')} className="cursor-pointer">
+                    Komoditas {sortColumn === 'komoditas' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
+                    Tanggal Ubinan {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('berat')} className="cursor-pointer">
+                    Berat Hasil {sortColumn === 'berat' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('ppl')} className="cursor-pointer">
+                    PPL {sortColumn === 'ppl' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
+                    Status {sortColumn === 'status' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  </TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData.map((ubinan) => (
+                {sortedData.map((ubinan) => (
                   <TableRow key={ubinan.id}>
                     <TableCell className="font-medium">
                       {ubinan.nks?.code || ubinan.segmen?.code || '-'}

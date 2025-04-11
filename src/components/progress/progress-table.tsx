@@ -1,9 +1,9 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowUpDown } from "lucide-react";
 import { DetailProgressData } from "@/types/database-schema";
 
 interface ProgressTableProps {
@@ -19,6 +19,9 @@ export function ProgressTable({
   data,
   loading = false
 }: ProgressTableProps) {
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
   // Helper function to get month name
   const getMonthName = (monthNum: number) => {
     const months = [
@@ -50,6 +53,60 @@ export function ProgressTable({
       </Badge>
     );
   };
+
+  // Sort function
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort data based on current sort settings
+  const sortedData = [...data].sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    let valueA, valueB;
+    
+    switch (sortColumn) {
+      case 'month':
+        valueA = a.month;
+        valueB = b.month;
+        break;
+      case 'padi_target':
+        valueA = a.padi_target;
+        valueB = b.padi_target;
+        break;
+      case 'padi_count':
+        valueA = a.padi_count;
+        valueB = b.padi_count;
+        break;
+      case 'padi_percentage':
+        valueA = a.padi_percentage;
+        valueB = b.padi_percentage;
+        break;
+      case 'palawija_target':
+        valueA = a.palawija_target;
+        valueB = b.palawija_target;
+        break;
+      case 'palawija_count':
+        valueA = a.palawija_count;
+        valueB = b.palawija_count;
+        break;
+      case 'palawija_percentage':
+        valueA = a.palawija_percentage;
+        valueB = b.palawija_percentage;
+        break;
+      default:
+        return 0;
+    }
+    
+    if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+    if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
   
   return (
     <Card>
@@ -71,17 +128,66 @@ export function ProgressTable({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Bulan</TableHead>
-                  <TableHead>Padi Target</TableHead>
-                  <TableHead>Padi Selesai</TableHead>
-                  <TableHead>% Padi</TableHead>
-                  <TableHead>Palawija Target</TableHead>
-                  <TableHead>Palawija Selesai</TableHead>
-                  <TableHead>% Palawija</TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('month')}
+                    className="cursor-pointer"
+                  >
+                    Bulan {sortColumn === 'month' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('padi_target')}
+                    className="cursor-pointer"
+                  >
+                    Padi Target {sortColumn === 'padi_target' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('padi_count')}
+                    className="cursor-pointer"
+                  >
+                    Padi Selesai {sortColumn === 'padi_count' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('padi_percentage')}
+                    className="cursor-pointer"
+                  >
+                    % Padi {sortColumn === 'padi_percentage' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('palawija_target')}
+                    className="cursor-pointer"
+                  >
+                    Palawija Target {sortColumn === 'palawija_target' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('palawija_count')}
+                    className="cursor-pointer"
+                  >
+                    Palawija Selesai {sortColumn === 'palawija_count' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('palawija_percentage')}
+                    className="cursor-pointer"
+                  >
+                    % Palawija {sortColumn === 'palawija_percentage' && (
+                      <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                    )}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((month) => (
+                {sortedData.map((month) => (
                   <TableRow key={month.month}>
                     <TableCell>{getMonthName(month.month)}</TableCell>
                     <TableCell>{month.padi_target}</TableCell>

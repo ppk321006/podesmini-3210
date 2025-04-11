@@ -6,18 +6,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { ArrowUpDown, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { InputUbinanForm } from "./input-form";
 import { getUbinanDataByPPL, getPPLTargets } from "@/services/progress-service";
 import { ProgressTable, createProgressDataFromUbinan } from "@/components/progress/progress-table";
 import { ProgressChart, convertProgressDataToChartData } from "@/components/progress/progress-chart";
 import { toast } from "@/hooks/use-toast";
+import { UbinanData } from "@/types/database-schema";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function InputUbinanPage() {
   const { user } = useAuth();
-  const [ubinanData, setUbinanData] = useState([]);
+  const [ubinanData, setUbinanData] = useState<UbinanData[]>([]);
   const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState({ padi: 0, palawija: 0 });
   const [tabValue, setTabValue] = useState("form");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [editingUbinan, setEditingUbinan] = useState<UbinanData | null>(null);
 
   const fetchData = async () => {
     if (!user) return;
@@ -48,6 +55,55 @@ export default function InputUbinanPage() {
     fetchData();
   }, [user]);
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort data based on current sort settings
+  const sortedUbinanData = [...ubinanData].sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    let valueA, valueB;
+    
+    switch (sortColumn) {
+      case 'tanggal':
+        valueA = new Date(a.tanggal_ubinan).getTime();
+        valueB = new Date(b.tanggal_ubinan).getTime();
+        break;
+      case 'komoditas':
+        valueA = a.komoditas.toLowerCase();
+        valueB = b.komoditas.toLowerCase();
+        break;
+      case 'responden':
+        valueA = a.responden_name.toLowerCase();
+        valueB = b.responden_name.toLowerCase();
+        break;
+      case 'berat':
+        valueA = a.berat_hasil;
+        valueB = b.berat_hasil;
+        break;
+      case 'status':
+        valueA = a.status;
+        valueB = b.status;
+        break;
+      case 'alokasi':
+        valueA = (a.nks?.code || a.segmen?.code || '').toLowerCase();
+        valueB = (b.nks?.code || b.segmen?.code || '').toLowerCase();
+        break;
+      default:
+        return 0;
+    }
+    
+    if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+    if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   // Prepare data for progress table
   const progressData = createProgressDataFromUbinan(ubinanData, targets.padi, targets.palawija);
   
@@ -63,15 +119,19 @@ export default function InputUbinanPage() {
       const padi = monthItems.filter(item => item.komoditas === 'padi').length;
       const palawija = monthItems.filter(item => item.komoditas !== 'padi').length;
       
-      const padiPercentage = targets.padi > 0 ? (padi / targets.padi) * 100 : 0;
-      const palawijaPercentage = targets.palawija > 0 ? (palawija / targets.palawija) * 100 : 0;
+      // Calculate targets for this month (assuming even distribution across 12 months)
+      const monthlyPadiTarget = Math.ceil(targets.padi / 12);
+      const monthlyPalawijaTarget = Math.ceil(targets.palawija / 12);
+      
+      const padiPercentage = monthlyPadiTarget > 0 ? (padi / monthlyPadiTarget) * 100 : 0;
+      const palawijaPercentage = monthlyPalawijaTarget > 0 ? (palawija / monthlyPalawijaTarget) * 100 : 0;
       
       monthData.push({
         month: i,
         padi_count: padi,
         palawija_count: palawija,
-        padi_target: targets.padi,
-        palawija_target: targets.palawija,
+        padi_target: monthlyPadiTarget,
+        palawija_target: monthlyPalawijaTarget,
         padi_percentage: padiPercentage,
         palawija_percentage: palawijaPercentage
       });
@@ -80,6 +140,18 @@ export default function InputUbinanPage() {
   };
   
   const chartData = convertProgressDataToChartData(getMonthData());
+
+  // Setup counts for progress summary
+  const verifiedPadi = ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
+  const verifiedPalawija = ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
+  const pendingPadi = ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'sudah_diisi').length;
+  const pendingPalawija = ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'sudah_diisi').length;
+  const pendingVerification = ubinanData.filter(item => item.status === 'sudah_diisi').length;
+
+  const handleEditUbinan = async (ubinan: UbinanData) => {
+    setEditingUbinan(ubinan);
+    setTabValue("form");
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -93,7 +165,7 @@ export default function InputUbinanPage() {
         </TabsList>
         
         <TabsContent value="form">
-          <InputUbinanForm onSubmitSuccess={fetchData} />
+          <InputUbinanForm onSubmitSuccess={fetchData} initialData={editingUbinan} />
         </TabsContent>
         
         <TabsContent value="data">
@@ -109,7 +181,7 @@ export default function InputUbinanPage() {
                 <div className="flex justify-center items-center h-64">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : ubinanData.length === 0 ? (
+              ) : sortedUbinanData.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   Belum ada data ubinan yang tersimpan
                 </div>
@@ -118,16 +190,41 @@ export default function InputUbinanPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tanggal</TableHead>
-                        <TableHead>Komoditas</TableHead>
-                        <TableHead>Responden</TableHead>
-                        <TableHead>Alokasi</TableHead>
-                        <TableHead>Berat Hasil</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
+                          Tanggal {sortColumn === 'tanggal' && (
+                            <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                          )}
+                        </TableHead>
+                        <TableHead onClick={() => handleSort('komoditas')} className="cursor-pointer">
+                          Komoditas {sortColumn === 'komoditas' && (
+                            <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                          )}
+                        </TableHead>
+                        <TableHead onClick={() => handleSort('responden')} className="cursor-pointer">
+                          Responden {sortColumn === 'responden' && (
+                            <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                          )}
+                        </TableHead>
+                        <TableHead onClick={() => handleSort('alokasi')} className="cursor-pointer">
+                          Alokasi {sortColumn === 'alokasi' && (
+                            <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                          )}
+                        </TableHead>
+                        <TableHead onClick={() => handleSort('berat')} className="cursor-pointer">
+                          Berat Hasil {sortColumn === 'berat' && (
+                            <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                          )}
+                        </TableHead>
+                        <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
+                          Status {sortColumn === 'status' && (
+                            <ArrowUpDown className="inline h-4 w-4 ml-1" />
+                          )}
+                        </TableHead>
+                        <TableHead>Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {ubinanData.map((item) => (
+                      {sortedUbinanData.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>
                             {format(new Date(item.tanggal_ubinan), "dd/MM/yyyy")}
@@ -174,6 +271,15 @@ export default function InputUbinanPage() {
                                 : "Belum Diisi"}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditUbinan(item)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -206,10 +312,10 @@ export default function InputUbinanPage() {
                     <div className="mt-2">
                       <div className="text-xs text-slate-500">Pencapaian</div>
                       <div className="font-medium">
-                        {ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length} terverifikasi
+                        {verifiedPadi} terverifikasi
                       </div>
                       <div className="font-medium">
-                        {ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'sudah_diisi').length} menunggu verifikasi
+                        {pendingPadi} menunggu verifikasi
                       </div>
                     </div>
                   </div>
@@ -220,13 +326,19 @@ export default function InputUbinanPage() {
                     <div className="mt-2">
                       <div className="text-xs text-slate-500">Pencapaian</div>
                       <div className="font-medium">
-                        {ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length} terverifikasi
+                        {verifiedPalawija} terverifikasi
                       </div>
                       <div className="font-medium">
-                        {ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'sudah_diisi').length} menunggu verifikasi
+                        {pendingPalawija} menunggu verifikasi
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <h3 className="font-semibold text-yellow-700">Belum Diverifikasi</h3>
+                  <p className="text-2xl font-bold text-yellow-800">{pendingVerification}</p>
+                  <p className="text-sm text-yellow-600 mt-1">Data menunggu verifikasi dari PML</p>
                 </div>
               </CardContent>
             </Card>
