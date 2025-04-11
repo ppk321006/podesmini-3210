@@ -56,24 +56,33 @@ export async function getVerificationStatusCounts(pml_id?: string): Promise<Veri
     
     if (pml_id) {
       // Get counts specific to a PML
-      query = supabase
+      const { data, error } = await supabase
         .from('ubinan_data')
         .select('status, count', { count: 'exact' })
-        .eq('pml_id', pml_id)
-        .group('status');
+        .eq('pml_id', pml_id);
+      
+      if (error) throw error;
+      
+      // Group results manually since we can't use group() in the query
+      const counts: { [key: string]: number } = {};
+      data?.forEach(item => {
+        if (counts[item.status]) {
+          counts[item.status]++;
+        } else {
+          counts[item.status] = 1;
+        }
+      });
+      
+      return Object.entries(counts).map(([status, count]) => ({
+        status,
+        count
+      }));
     } else {
       // Get global counts
-      query = supabase.rpc('get_verification_status_counts');
+      const { data, error } = await supabase.rpc('get_verification_status_counts');
+      if (error) throw error;
+      return data || [];
     }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error("Error fetching verification status counts:", error);
-      throw error;
-    }
-    
-    return data || [];
   } catch (error) {
     console.error("Error in getVerificationStatusCounts:", error);
     return [];
@@ -127,7 +136,7 @@ export async function getUbinanDataByPML(pmlId: string) {
         *,
         nks:nks_id(*),
         segmen:segmen_id(*),
-        ppl:ppl_id(*)
+        ppl:ppl_id(id, name)
       `)
       .eq('pml_id', pmlId);
       

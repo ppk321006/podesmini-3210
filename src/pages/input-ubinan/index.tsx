@@ -34,7 +34,8 @@ export default function InputUbinanPage() {
       
       // Fetch ubinan data
       const data = await getUbinanDataByPPL(user.id);
-      setUbinanData(data);
+      // Safely cast the returned data to UbinanData[]
+      setUbinanData(data as unknown as UbinanData[]);
       
       // Fetch targets
       const targetData = await getPPLTargets(user.id);
@@ -148,7 +149,7 @@ export default function InputUbinanPage() {
   const pendingPalawija = ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'sudah_diisi').length;
   const pendingVerification = ubinanData.filter(item => item.status === 'sudah_diisi').length;
 
-  const handleEditUbinan = async (ubinan: UbinanData) => {
+  const handleEditUbinan = (ubinan: UbinanData) => {
     setEditingUbinan(ubinan);
     setTabValue("form");
   };
@@ -165,7 +166,10 @@ export default function InputUbinanPage() {
         </TabsList>
         
         <TabsContent value="form">
-          <InputUbinanForm onSubmitSuccess={fetchData} initialData={editingUbinan} />
+          <InputUbinanForm 
+            onSubmitSuccess={fetchData} 
+            initialData={editingUbinan} 
+          />
         </TabsContent>
         
         <TabsContent value="data">
@@ -276,6 +280,7 @@ export default function InputUbinanPage() {
                               variant="ghost" 
                               size="sm" 
                               onClick={() => handleEditUbinan(item)}
+                              disabled={item.status === "dikonfirmasi"}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>

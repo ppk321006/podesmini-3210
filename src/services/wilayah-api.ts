@@ -629,24 +629,23 @@ export async function createUbinanData(ubinanData: {
   }
 }
 
-export async function updateUbinanData(id: string, updateData: Partial<UbinanData>): Promise<UbinanData | null> {
+export async function updateUbinanData(id: string, data: Partial<any>) {
   try {
-    const { data, error } = await supabase
+    const { data: updatedData, error } = await supabase
       .from('ubinan_data')
-      .update(updateData)
+      .update(data)
       .eq('id', id)
       .select()
       .single();
       
     if (error) {
-      console.error("Error updating ubinan data:", error);
       throw error;
     }
     
-    return data as unknown as UbinanData;
+    return updatedData;
   } catch (error) {
-    console.error("Error in updateUbinanData:", error);
-    return null;
+    console.error("Error updating ubinan data:", error);
+    throw error;
   }
 }
 

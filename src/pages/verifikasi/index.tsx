@@ -18,6 +18,7 @@ import { VerificationDialog } from '@/components/verification/verification-dialo
 import { getUbinanDataByPML, getProgressByPML } from '@/services/progress-service';
 import { UbinanData } from '@/types/database-schema';
 import { ArrowUpDown } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
@@ -29,7 +30,29 @@ export default function VerifikasiPage() {
 
   const { data: ubinanData = [], isLoading, refetch } = useQuery({
     queryKey: ['ubinan_verification', user?.id],
-    queryFn: () => getUbinanDataByPML(user?.id || ''),
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('ubinan_data')
+        .select(`
+          *,
+          nks:nks_id(*),
+          segmen:segmen_id(*),
+          ppl_user:ppl_id(id, name, username)
+        `)
+        .eq('pml_id', user.id);
+        
+      if (error) {
+        console.error("Error fetching ubinan data:", error);
+        throw error;
+      }
+      
+      return data.map(item => ({
+        ...item,
+        ppl: item.ppl_user
+      })) || [];
+    },
     enabled: !!user?.id,
   });
 

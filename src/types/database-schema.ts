@@ -66,7 +66,7 @@ export interface Segmen {
 export interface SampelKRT {
   id: string;
   nama: string;
-  status: "Utama" | "Cadangan";
+  status: string; // Changed from "Utama" | "Cadangan" to string to match database
   nks_id: string | null;
   segmen_id: string | null;
   created_at: string;
@@ -107,7 +107,7 @@ export interface UbinanData {
   segmen_id: string | null;
   ppl_id: string;
   responden_name: string;
-  sample_status?: "Utama" | "Cadangan";
+  sample_status?: string; // Changed from "Utama" | "Cadangan" to string to match database
   komoditas: string;
   tanggal_ubinan: string;
   berat_hasil: number;
