@@ -1,4 +1,3 @@
-
 export interface Kecamatan {
   id: string;
   name: string;
@@ -107,7 +106,7 @@ export interface UbinanData {
   segmen_id: string | null;
   ppl_id: string;
   responden_name: string;
-  sample_status?: string; // Changed from "Utama" | "Cadangan" to string to match database
+  sample_status: string;
   komoditas: string;
   tanggal_ubinan: string;
   berat_hasil: number;
@@ -120,6 +119,9 @@ export interface UbinanData {
   nks?: NKS;
   segmen?: Segmen;
   ppl?: Petugas;
+  ppl_name?: string; // Fallback for PPL name when direct access to ppl object isn't available
+  desa_name?: string;
+  kecamatan_name?: string;
 }
 
 export interface ProgressReport {

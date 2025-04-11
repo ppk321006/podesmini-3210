@@ -134,9 +134,21 @@ export async function getUbinanDataByPML(pmlId: string) {
       .from('ubinan_data')
       .select(`
         *,
-        nks:nks_id(*),
-        segmen:segmen_id(*),
-        ppl:ppl_id(id, name)
+        nks:nks_id(
+          id, code,
+          desa:desa_id(
+            id, name,
+            kecamatan:kecamatan_id(id, name)
+          )
+        ),
+        segmen:segmen_id(
+          id, code,
+          desa:desa_id(
+            id, name,
+            kecamatan:kecamatan_id(id, name)
+          )
+        ),
+        ppl:ppl_id(id, name, username)
       `)
       .eq('pml_id', pmlId);
       
@@ -145,7 +157,18 @@ export async function getUbinanDataByPML(pmlId: string) {
       throw error;
     }
     
-    return data || [];
+    // Process data to add easier access to location information
+    const processedData = data.map(item => {
+      const desa = item.nks?.desa || item.segmen?.desa;
+      return {
+        ...item,
+        desa_name: desa?.name || '-',
+        kecamatan_name: desa?.kecamatan?.name || '-',
+        ppl_name: item.ppl?.name || 'Unknown'
+      };
+    });
+    
+    return processedData;
   } catch (error) {
     console.error("Error in getUbinanDataByPML:", error);
     return [];

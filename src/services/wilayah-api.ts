@@ -599,50 +599,29 @@ export async function removePPLAssignment(allocationId: string, pplId: string): 
 }
 
 // Ubinan Data API
-export async function createUbinanData(ubinanData: {
-  nks_id?: string;
-  segmen_id?: string;
-  ppl_id: string;
-  responden_name: string;
-  sample_status?: "Utama" | "Cadangan";
-  komoditas: string;
-  tanggal_ubinan: string;
-  berat_hasil: number;
-  pml_id?: string;
-}): Promise<UbinanData | null> {
+export async function createUbinanData(data: any) {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('ubinan_data')
-      .insert([ubinanData])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating ubinan data:", error);
-      throw error;
-    }
-    
-    return data as unknown as UbinanData;
+      .insert(data);
+
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error("Error in createUbinanData:", error);
-    return null;
+    console.error("Error creating ubinan data:", error);
+    throw error;
   }
 }
 
-export async function updateUbinanData(id: string, data: Partial<any>) {
+export async function updateUbinanData(id: string, data: any) {
   try {
-    const { data: updatedData, error } = await supabase
+    const { error } = await supabase
       .from('ubinan_data')
       .update(data)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) {
-      throw error;
-    }
-    
-    return updatedData;
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
   } catch (error) {
     console.error("Error updating ubinan data:", error);
     throw error;

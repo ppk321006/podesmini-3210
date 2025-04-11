@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -15,12 +16,19 @@ import { format, parse } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { SampelKRT, UbinanData } from "@/types/database-schema";
 
+interface UsedSample {
+  nks_id: string | null;
+  segmen_id: string | null;
+  responden_name: string;
+}
+
 interface InputUbinanFormProps {
   onSubmitSuccess: () => void;
   initialData?: UbinanData | null;
+  usedSamples?: UsedSample[];
 }
 
-export function InputUbinanForm({ onSubmitSuccess, initialData = null }: InputUbinanFormProps) {
+export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSamples = [] }: InputUbinanFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +73,18 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null }: InputUb
       setTanggalUbinan(new Date(initialData.tanggal_ubinan));
       setBeratHasil(initialData.berat_hasil.toString());
       setUseManualInput(true);
+    } else {
+      // Reset form when not in edit mode
+      setEditMode(false);
+      setAllocationType("nks");
+      setSelectedAllocation("");
+      setResponden("");
+      setSampelStatus("Utama");
+      setKomoditas("padi");
+      setTanggalUbinan(new Date());
+      setBeratHasil("");
+      setUseManualInput(false);
+      setSelectedSampel("");
     }
   }, [initialData]);
 
@@ -108,7 +128,27 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null }: InputUb
           : { segmen_id: selectedAllocation };
           
         const data = await getSampelKRTList(params);
-        setSampelList(data);
+        
+        // Filter out samples that are already used
+        const filteredData = data.filter(sample => {
+          // In edit mode, don't filter out the current responden
+          if (editMode && initialData && initialData.responden_name === sample.nama) {
+            return true;
+          }
+          
+          // Check if this sample is already used in another entry
+          const isUsed = usedSamples.some(used => {
+            const matchesAllocation = 
+              (allocationType === "nks" && used.nks_id === selectedAllocation) ||
+              (allocationType === "segmen" && used.segmen_id === selectedAllocation);
+            
+            return matchesAllocation && used.responden_name === sample.nama;
+          });
+          
+          return !isUsed;
+        });
+        
+        setSampelList(filteredData);
       } catch (error) {
         console.error("Error fetching sampel KRT:", error);
         toast({
@@ -122,7 +162,7 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null }: InputUb
     };
 
     fetchSampelKRT();
-  }, [selectedAllocation, allocationType]);
+  }, [selectedAllocation, allocationType, usedSamples, editMode, initialData]);
 
   // Handle sampel selection change
   useEffect(() => {
@@ -349,7 +389,7 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null }: InputUb
                       ))
                     ) : (
                       <div className="text-center py-2 text-muted-foreground">
-                        Tidak ada Sampel KRT yang tersedia
+                        Tidak ada Sampel KRT yang tersedia atau semua sampel sudah digunakan
                       </div>
                     )}
                   </SelectContent>

@@ -51,7 +51,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       title: "Dashboard",
       icon: Home,
       href: "/",
-      allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
+      allowedRoles: [UserRole.ADMIN, UserRole.VIEWER], // Removed PML and PPL from Dashboard
     },
     {
       title: "Progres Ubinan",
@@ -69,7 +69,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       title: "Input Data Ubinan",
       icon: ClipboardList,
       href: "/input-data",
-      allowedRoles: [UserRole.PPL], // Removed ADMIN from allowed roles
+      allowedRoles: [UserRole.PPL],
     },
     {
       title: "Alokasi Wilayah",

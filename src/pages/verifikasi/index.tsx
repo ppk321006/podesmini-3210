@@ -33,13 +33,26 @@ export default function VerifikasiPage() {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      // Modified query to include relationship with desa and kecamatan through nks and segmen
       const { data, error } = await supabase
         .from('ubinan_data')
         .select(`
           *,
-          nks:nks_id(*),
-          segmen:segmen_id(*),
-          ppl:ppl_id(*)
+          nks:nks_id(
+            id, code,
+            desa:desa_id(
+              id, name,
+              kecamatan:kecamatan_id(id, name)
+            )
+          ),
+          segmen:segmen_id(
+            id, code,
+            desa:desa_id(
+              id, name,
+              kecamatan:kecamatan_id(id, name)
+            )
+          ),
+          ppl:ppl_id(id, name, username)
         `)
         .eq('pml_id', user.id);
         
@@ -48,8 +61,18 @@ export default function VerifikasiPage() {
         throw error;
       }
       
-      // Using type assertion with unknown as intermediate step
-      return (data as unknown) as UbinanData[];
+      // Process data to add easier access to location information
+      const processedData = data.map(item => {
+        const desa = item.nks?.desa || item.segmen?.desa;
+        return {
+          ...item,
+          desa_name: desa?.name || '-',
+          kecamatan_name: desa?.kecamatan?.name || '-',
+          ppl_name: item.ppl?.name || 'Unknown'
+        };
+      });
+      
+      return processedData as UbinanData[];
     },
     enabled: !!user?.id,
   });
@@ -109,9 +132,16 @@ export default function VerifikasiPage() {
         valueB = b.berat_hasil;
         break;
       case 'ppl':
-        // Handle potentially undefined ppl property safely
-        valueA = a.ppl?.name?.toLowerCase() || '';
-        valueB = b.ppl?.name?.toLowerCase() || '';
+        valueA = a.ppl_name?.toLowerCase() || '';
+        valueB = b.ppl_name?.toLowerCase() || '';
+        break;
+      case 'lokasi':
+        valueA = `${a.kecamatan_name} ${a.desa_name}`.toLowerCase();
+        valueB = `${b.kecamatan_name} ${b.desa_name}`.toLowerCase();
+        break;
+      case 'komentar':
+        valueA = (a.komentar || '').toLowerCase();
+        valueB = (b.komentar || '').toLowerCase();
         break;
       case 'status':
         valueA = a.status;
@@ -213,86 +243,100 @@ export default function VerifikasiPage() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead onClick={() => handleSort('kode')} className="cursor-pointer">
-                    Kode {sortColumn === 'kode' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead onClick={() => handleSort('responden')} className="cursor-pointer">
-                    Responden {sortColumn === 'responden' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead onClick={() => handleSort('komoditas')} className="cursor-pointer">
-                    Komoditas {sortColumn === 'komoditas' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
-                    Tanggal Ubinan {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead onClick={() => handleSort('berat')} className="cursor-pointer">
-                    Berat Hasil {sortColumn === 'berat' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead onClick={() => handleSort('ppl')} className="cursor-pointer">
-                    PPL {sortColumn === 'ppl' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
-                    Status {sortColumn === 'status' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                  </TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedData.map((ubinan) => (
-                  <TableRow key={ubinan.id}>
-                    <TableCell className="font-medium">
-                      {ubinan.nks?.code || ubinan.segmen?.code || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {ubinan.responden_name}
-                      {ubinan.sample_status && (
-                        <Badge variant="outline" className="ml-2">
-                          {ubinan.sample_status}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="capitalize">{ubinan.komoditas.replace('_', ' ')}</TableCell>
-                    <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
-                    <TableCell>{ubinan.berat_hasil} kg</TableCell>
-                    <TableCell>{ubinan.ppl?.name || 'Unknown'}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          ubinan.status === 'dikonfirmasi'
-                            ? 'bg-green-100 text-green-800'
-                            : ubinan.status === 'ditolak'
-                            ? 'bg-red-100 text-red-800'
-                            : ubinan.status === 'sudah_diisi'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }
-                      >
-                        {ubinan.status === 'dikonfirmasi'
-                          ? 'Terverifikasi'
-                          : ubinan.status === 'ditolak'
-                          ? 'Ditolak'
-                          : ubinan.status === 'sudah_diisi'
-                          ? 'Menunggu Verifikasi'
-                          : 'Belum Diisi'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant={ubinan.status === 'sudah_diisi' ? 'default' : 'outline'}
-                        size="sm" 
-                        disabled={ubinan.status !== 'sudah_diisi'}
-                        onClick={() => handleVerify(ubinan)}
-                      >
-                        Verifikasi
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead onClick={() => handleSort('kode')} className="cursor-pointer">
+                      Kode {sortColumn === 'kode' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('responden')} className="cursor-pointer">
+                      Responden {sortColumn === 'responden' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('komoditas')} className="cursor-pointer">
+                      Komoditas {sortColumn === 'komoditas' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('lokasi')} className="cursor-pointer">
+                      Kecamatan/Desa {sortColumn === 'lokasi' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
+                      Tanggal {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('berat')} className="cursor-pointer">
+                      Berat Hasil {sortColumn === 'berat' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('ppl')} className="cursor-pointer">
+                      PPL {sortColumn === 'ppl' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('komentar')} className="cursor-pointer">
+                      Komentar {sortColumn === 'komentar' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
+                      Status {sortColumn === 'status' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {sortedData.map((ubinan) => (
+                    <TableRow key={ubinan.id}>
+                      <TableCell className="font-medium">
+                        {ubinan.nks?.code || ubinan.segmen?.code || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {ubinan.responden_name}
+                        {ubinan.sample_status && (
+                          <Badge variant="outline" className="ml-2">
+                            {ubinan.sample_status}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="capitalize">{ubinan.komoditas.replace('_', ' ')}</TableCell>
+                      <TableCell>
+                        {ubinan.kecamatan_name} / {ubinan.desa_name}
+                      </TableCell>
+                      <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
+                      <TableCell>{ubinan.berat_hasil} kg</TableCell>
+                      <TableCell>{ubinan.ppl_name}</TableCell>
+                      <TableCell>
+                        <span className="line-clamp-2">{ubinan.komentar || '-'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            ubinan.status === 'dikonfirmasi'
+                              ? 'bg-green-100 text-green-800'
+                              : ubinan.status === 'ditolak'
+                              ? 'bg-red-100 text-red-800'
+                              : ubinan.status === 'sudah_diisi'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {ubinan.status === 'dikonfirmasi'
+                            ? 'Terverifikasi'
+                            : ubinan.status === 'ditolak'
+                            ? 'Ditolak'
+                            : ubinan.status === 'sudah_diisi'
+                            ? 'Menunggu Verifikasi'
+                            : 'Belum Diisi'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant={ubinan.status === 'sudah_diisi' ? 'default' : 'outline'}
+                          size="sm" 
+                          disabled={ubinan.status !== 'sudah_diisi'}
+                          onClick={() => handleVerify(ubinan as UbinanData)}
+                        >
+                          Verifikasi
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
