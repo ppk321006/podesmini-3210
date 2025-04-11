@@ -61,18 +61,21 @@ export default function VerifikasiPage() {
         throw error;
       }
       
-      // Process data to add easier access to location information
+      // Process data to add easier access to location information and handle potential errors
       const processedData = data.map(item => {
         const desa = item.nks?.desa || item.segmen?.desa;
+        const pplName = typeof item.ppl === 'object' && item.ppl && 'name' in item.ppl ? 
+          item.ppl.name : 'Unknown';
+          
         return {
           ...item,
           desa_name: desa?.name || '-',
           kecamatan_name: desa?.kecamatan?.name || '-',
-          ppl_name: item.ppl?.name || 'Unknown'
+          ppl_name: pplName
         };
       });
       
-      return processedData as UbinanData[];
+      return processedData as unknown as UbinanData[];
     },
     enabled: !!user?.id,
   });
@@ -132,12 +135,12 @@ export default function VerifikasiPage() {
         valueB = b.berat_hasil;
         break;
       case 'ppl':
-        valueA = a.ppl_name?.toLowerCase() || '';
-        valueB = b.ppl_name?.toLowerCase() || '';
+        valueA = (a.ppl_name || '').toLowerCase();
+        valueB = (b.ppl_name || '').toLowerCase();
         break;
       case 'lokasi':
-        valueA = `${a.kecamatan_name} ${a.desa_name}`.toLowerCase();
-        valueB = `${b.kecamatan_name} ${b.desa_name}`.toLowerCase();
+        valueA = `${a.kecamatan_name || ''} ${a.desa_name || ''}`.toLowerCase();
+        valueB = `${b.kecamatan_name || ''} ${b.desa_name || ''}`.toLowerCase();
         break;
       case 'komentar':
         valueA = (a.komentar || '').toLowerCase();
@@ -327,7 +330,7 @@ export default function VerifikasiPage() {
                           variant={ubinan.status === 'sudah_diisi' ? 'default' : 'outline'}
                           size="sm" 
                           disabled={ubinan.status !== 'sudah_diisi'}
-                          onClick={() => handleVerify(ubinan as UbinanData)}
+                          onClick={() => handleVerify(ubinan)}
                         >
                           Verifikasi
                         </Button>
@@ -343,7 +346,7 @@ export default function VerifikasiPage() {
 
       {selectedUbinan && (
         <VerificationDialog 
-          data={selectedUbinan as UbinanData}
+          data={selectedUbinan}
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
           onComplete={handleDialogClose}

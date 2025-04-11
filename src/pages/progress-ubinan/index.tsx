@@ -226,6 +226,8 @@ export default function ProgressUbinanPage() {
         </CardHeader>
         <CardContent>
           <ProgressTable
+            title="Detail Progres Bulanan"
+            description="Pencapaian target bulanan entri data ubinan"
             data={
               user?.role === UserRole.PPL ? pplProgress :
               user?.role === UserRole.PML ? pmlProgress :

@@ -1,3 +1,4 @@
+
 export interface Kecamatan {
   id: string;
   name: string;
@@ -116,9 +117,39 @@ export interface UbinanData {
   komentar: string | null;
   created_at: string;
   updated_at: string;
-  nks?: NKS;
-  segmen?: Segmen;
+  nks?: {
+    id: string;
+    code: string;
+    desa_id?: string;
+    target_padi?: number;
+    target_palawija?: number;
+    created_at?: string;
+    desa?: {
+      id: string;
+      name: string;
+      kecamatan?: {
+        id: string;
+        name: string;
+      }
+    }
+  };
+  segmen?: {
+    id: string;
+    code: string;
+    desa_id?: string;
+    target_padi?: number;
+    created_at?: string;
+    desa?: {
+      id: string;
+      name: string;
+      kecamatan?: {
+        id: string;
+        name: string;
+      }
+    }
+  };
   ppl?: Petugas;
+  pml?: Petugas;
   ppl_name?: string; // Fallback for PPL name when direct access to ppl object isn't available
   desa_name?: string;
   kecamatan_name?: string;

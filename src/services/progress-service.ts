@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount } from "@/types/database-schema";
 
@@ -111,8 +110,21 @@ export async function getUbinanDataByPPL(pplId: string) {
       .from('ubinan_data')
       .select(`
         *,
-        nks:nks_id(*),
-        segmen:segmen_id(*)
+        nks:nks_id(
+          id, code,
+          desa:desa_id(
+            id, name,
+            kecamatan:kecamatan_id(id, name)
+          )
+        ),
+        segmen:segmen_id(
+          id, code,
+          desa:desa_id(
+            id, name,
+            kecamatan:kecamatan_id(id, name)
+          )
+        ),
+        ppl:ppl_id(id, name, username)
       `)
       .eq('ppl_id', pplId);
       
@@ -121,7 +133,22 @@ export async function getUbinanDataByPPL(pplId: string) {
       throw error;
     }
     
-    return data || [];
+    // Process data to add easier access to location information
+    const processedData = data.map(item => {
+      const desa = item.nks?.desa || item.segmen?.desa;
+      // Handle potential issues with ppl object being an error object
+      const pplName = typeof item.ppl === 'object' && item.ppl && 'name' in item.ppl ? 
+        item.ppl.name : 'Unknown';
+      
+      return {
+        ...item,
+        desa_name: desa?.name || '-',
+        kecamatan_name: desa?.kecamatan?.name || '-',
+        ppl_name: pplName
+      };
+    });
+    
+    return processedData;
   } catch (error) {
     console.error("Error in getUbinanDataByPPL:", error);
     return [];
@@ -160,11 +187,15 @@ export async function getUbinanDataByPML(pmlId: string) {
     // Process data to add easier access to location information
     const processedData = data.map(item => {
       const desa = item.nks?.desa || item.segmen?.desa;
+      // Handle potential issues with ppl object being an error object
+      const pplName = typeof item.ppl === 'object' && item.ppl && 'name' in item.ppl ? 
+        item.ppl.name : 'Unknown';
+      
       return {
         ...item,
         desa_name: desa?.name || '-',
         kecamatan_name: desa?.kecamatan?.name || '-',
-        ppl_name: item.ppl?.name || 'Unknown'
+        ppl_name: pplName
       };
     });
     
