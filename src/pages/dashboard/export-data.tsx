@@ -44,12 +44,6 @@ export function ExportDataCard() {
         return;
       }
       
-      // At least one filter should be selected
-      if (!month && !subround) {
-        toast.error("Pilih bulan atau subround terlebih dahulu");
-        return;
-      }
-      
       // Calculate date range based on selections
       let startDate = `${year}-01-01`;
       let endDate = `${year}-12-31`;
