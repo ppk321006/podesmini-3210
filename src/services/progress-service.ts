@@ -136,9 +136,12 @@ export async function getUbinanDataByPPL(pplId: string) {
     // Process data to add easier access to location information
     const processedData = data.map(item => {
       const desa = item.nks?.desa || item.segmen?.desa;
-      // Handle potential issues with ppl object being an error object
-      const pplName = typeof item.ppl === 'object' && item.ppl && 'name' in item.ppl ? 
-        item.ppl.name : 'Unknown';
+      
+      // Safely handle PPL data with better type checking
+      let pplName = "Unknown";
+      if (item.ppl && typeof item.ppl === 'object' && 'name' in item.ppl && item.ppl.name) {
+        pplName = item.ppl.name as string;
+      }
       
       return {
         ...item,
@@ -187,9 +190,12 @@ export async function getUbinanDataByPML(pmlId: string) {
     // Process data to add easier access to location information
     const processedData = data.map(item => {
       const desa = item.nks?.desa || item.segmen?.desa;
-      // Handle potential issues with ppl object being an error object
-      const pplName = typeof item.ppl === 'object' && item.ppl && 'name' in item.ppl ? 
-        item.ppl.name : 'Unknown';
+      
+      // Safely handle PPL data with better type checking
+      let pplName = "Unknown";
+      if (item.ppl && typeof item.ppl === 'object' && 'name' in item.ppl && item.ppl.name) {
+        pplName = item.ppl.name as string;
+      }
       
       return {
         ...item,

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -33,7 +32,6 @@ export default function VerifikasiPage() {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      // Modified query to include relationship with desa and kecamatan through nks and segmen
       const { data, error } = await supabase
         .from('ubinan_data')
         .select(`
@@ -61,11 +59,13 @@ export default function VerifikasiPage() {
         throw error;
       }
       
-      // Process data to add easier access to location information and handle potential errors
       const processedData = data.map(item => {
         const desa = item.nks?.desa || item.segmen?.desa;
-        const pplName = typeof item.ppl === 'object' && item.ppl && 'name' in item.ppl ? 
-          item.ppl.name : 'Unknown';
+        
+        let pplName = "Unknown";
+        if (item.ppl && typeof item.ppl === 'object' && 'name' in item.ppl && item.ppl.name) {
+          pplName = item.ppl.name as string;
+        }
           
         return {
           ...item,
@@ -75,7 +75,7 @@ export default function VerifikasiPage() {
         };
       });
       
-      return processedData as unknown as UbinanData[];
+      return processedData as UbinanData[];
     },
     enabled: !!user?.id,
   });
@@ -92,12 +92,10 @@ export default function VerifikasiPage() {
     enabled: !!user?.id,
   });
 
-  // Filter data based on status
   const filteredData = filter === 'all' 
     ? ubinanData 
     : ubinanData.filter(item => item.status === filter);
 
-  // Sort function
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -107,7 +105,6 @@ export default function VerifikasiPage() {
     }
   };
 
-  // Sort data based on current sort settings
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sortColumn) return 0;
     
