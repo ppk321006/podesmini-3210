@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { DownloadIcon, Loader2 } from "lucide-react";
-import { exportToExcel, exportToPDF } from "@/services/export-service";
+import { exportUbinanDataToExcel, exportUbinanReportToPdf } from "@/services/export-service";
 
 export function ExportDataCard() {
   const [year, setYear] = useState(new Date().getFullYear().toString());
@@ -50,19 +50,67 @@ export function ExportDataCard() {
         return;
       }
       
-      // Filter data based on selections
-      const filterParams = {
-        year: parseInt(year),
-        month: month ? parseInt(month) : undefined,
-        subround: subround ? parseInt(subround) : undefined
-      };
+      // Calculate date range based on selections
+      let startDate = `${year}-01-01`;
+      let endDate = `${year}-12-31`;
+      
+      // If month is selected, narrow down the date range
+      if (month) {
+        const monthNum = parseInt(month);
+        startDate = `${year}-${monthNum.toString().padStart(2, '0')}-01`;
+        
+        // Calculate last day of month
+        const lastDay = new Date(parseInt(year), monthNum, 0).getDate();
+        endDate = `${year}-${monthNum.toString().padStart(2, '0')}-${lastDay}`;
+      }
+      // If subround is selected, use subround date range
+      else if (subround) {
+        switch (subround) {
+          case "1": // Jan-Apr
+            startDate = `${year}-01-01`;
+            endDate = `${year}-04-30`;
+            break;
+          case "2": // May-Aug
+            startDate = `${year}-05-01`;
+            endDate = `${year}-08-31`;
+            break;
+          case "3": // Sep-Dec
+            startDate = `${year}-09-01`;
+            endDate = `${year}-12-31`;
+            break;
+        }
+      }
       
       // Call the appropriate export function based on type
       if (exportType === "excel") {
-        await exportToExcel(filterParams);
+        const blob = await exportUbinanDataToExcel(startDate, endDate);
+        const fileName = `Data_Ubinan_${startDate}_${endDate}.xlsx`;
+        
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
         toast.success("Data berhasil diekspor ke Excel");
       } else {
-        await exportToPDF(filterParams);
+        const blob = await exportUbinanReportToPdf(startDate, endDate);
+        const fileName = `Laporan_Ubinan_${startDate}_${endDate}.pdf`;
+        
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
         toast.success("Data berhasil diekspor ke PDF");
       }
     } catch (error) {
