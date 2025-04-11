@@ -139,7 +139,6 @@ export default function WilayahPage() {
       code: string; 
       desaId: string; 
       targetPalawija: number;
-      komoditasList: string[];
       subround: number;
       sampelKRTList: {nama: string; status: 'Utama' | 'Cadangan'}[];
     }) => {
@@ -147,12 +146,15 @@ export default function WilayahPage() {
         values.code, 
         values.desaId,
         values.targetPalawija,
-        values.komoditasList,
         values.subround
       ).then(nks => {
         // After creating NKS, create sampel KRT entries
         const promises = values.sampelKRTList.map(krt => 
-          createSampelKRT(krt.nama, krt.status, nks.id)
+          createSampelKRT({
+            nama: krt.nama, 
+            status: krt.status, 
+            nks_id: nks.id
+          })
         );
         return Promise.all(promises).then(() => nks);
       });
@@ -295,7 +297,6 @@ export default function WilayahPage() {
       code: newNKSCode,
       desaId: selectedDesaId,
       targetPalawija: targetPalawija,
-      komoditasList: selectedKomoditasList,
       subround: subroundValue,
       sampelKRTList: sampelKRTList
     });
@@ -901,180 +902,4 @@ export default function WilayahPage() {
                         onValueChange={setSelectedDesaId}
                         disabled={!selectedKecamatanId}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih desa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {desaList.map((desa) => (
-                            <SelectItem key={desa.id} value={desa.id}>
-                              {desa.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="segmen-code">Kode Segmen</Label>
-                      <Input
-                        id="segmen-code"
-                        placeholder="Masukkan kode segmen"
-                        value={newSegmenCode}
-                        onChange={(e) => setNewSegmenCode(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="bulan-select">Pilih Bulan</Label>
-                      <Select 
-                        value={selectedBulan !== "" ? selectedBulan.toString() : ""} 
-                        onValueChange={(value) => setSelectedBulan(parseInt(value))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih bulan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {monthsIndonesia.map((month) => (
-                            <SelectItem key={month.value} value={month.value.toString()}>
-                              {month.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="target-padi">Target Ubinan Padi</Label>
-                      <Input
-                        id="target-padi"
-                        type="number"
-                        placeholder="Jumlah target padi"
-                        value={targetPadi.toString()}
-                        onChange={(e) => setTargetPadi(parseInt(e.target.value) || 0)}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button 
-                    onClick={handleAddSegmen}
-                    disabled={
-                      createSegmenMutation.isPending || 
-                      !newSegmenCode.trim() || 
-                      !selectedDesaId ||
-                      selectedBulan === ""
-                    }
-                  >
-                    {createSegmenMutation.isPending ? "Menyimpan..." : "Simpan"}
-                  </Button>
-                </CardFooter>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar Segmen</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingSegmenAssignments ? (
-                    <p>Memuat data...</p>
-                  ) : filteredSegmenData.length === 0 ? (
-                    <p className="text-muted-foreground">
-                      {filterText ? "Tidak ada data segmen yang sesuai filter" : "Belum ada data segmen"}
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Kode Segmen</TableHead>
-                          <TableHead>Desa</TableHead>
-                          <TableHead>Kecamatan</TableHead>
-                          <TableHead>Bulan</TableHead>
-                          <TableHead>Target Ubinan Padi</TableHead>
-                          <TableHead>Tanggal Dibuat</TableHead>
-                          <TableHead>Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredSegmenData.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.code}</TableCell>
-                            <TableCell>{item.desa?.name || '-'}</TableCell>
-                            <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
-                            <TableCell>
-                              {item.bulan ? monthsIndonesia.find(m => m.value === item.bulan)?.label || '-' : '-'}
-                            </TableCell>
-                            <TableCell>{item.target_padi}</TableCell>
-                            <TableCell>{formatDateToLocale(item.created_at)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => {
-                                    setCurrentEditItem(item);
-                                    setIsEditSegmenDialogOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleDeleteSegmen(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-      
-      {/* Edit NKS Dialog */}
-      <Dialog open={isEditNKSDialogOpen} onOpenChange={setIsEditNKSDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit NKS</DialogTitle>
-            <DialogDescription>
-              Ubah informasi NKS
-            </DialogDescription>
-          </DialogHeader>
-          {/* Add edit form content here */}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditNKSDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button>Simpan Perubahan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Segmen Dialog */}
-      <Dialog open={isEditSegmenDialogOpen} onOpenChange={setIsEditSegmenDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Segmen</DialogTitle>
-            <DialogDescription>
-              Ubah informasi Segmen
-            </DialogDescription>
-          </DialogHeader>
-          {/* Add edit form content here */}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditSegmenDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button>Simpan Perubahan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+                        <
