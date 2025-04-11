@@ -69,7 +69,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       title: "Input Data Ubinan",
       icon: ClipboardList,
       href: "/input-data",
-      allowedRoles: [UserRole.ADMIN, UserRole.PPL],
+      allowedRoles: [UserRole.PPL], // Removed ADMIN from allowed roles
     },
     {
       title: "Alokasi Wilayah",

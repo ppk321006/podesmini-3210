@@ -1,152 +1,170 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
-import { FileSpreadsheet, FileText, ImageIcon, Download, Loader2 } from "lucide-react";
-import { saveAs } from "file-saver";
-import { exportUbinanDataToExcel, exportUbinanReportToPdf, exportUbinanChartToImage } from "@/services/export-service"; 
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { DownloadIcon, Loader2 } from "lucide-react";
+import { exportToExcel, exportToPDF } from "@/services/export-service";
 
 export function ExportDataCard() {
-  const [exportType, setExportType] = useState<"excel" | "pdf" | "image">("excel");
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [komoditas, setKomoditas] = useState<string>("all");
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [month, setMonth] = useState("");
+  const [subround, setSubround] = useState("");
+  const [exportType, setExportType] = useState<"excel" | "pdf">("excel");
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
+  
+  const months = [
+    { value: "1", label: "Januari" },
+    { value: "2", label: "Februari" },
+    { value: "3", label: "Maret" },
+    { value: "4", label: "April" },
+    { value: "5", label: "Mei" },
+    { value: "6", label: "Juni" },
+    { value: "7", label: "Juli" },
+    { value: "8", label: "Agustus" },
+    { value: "9", label: "September" },
+    { value: "10", label: "Oktober" },
+    { value: "11", label: "November" },
+    { value: "12", label: "Desember" }
+  ];
+  
   const handleExport = async () => {
     try {
-      if (!startDate || !endDate) {
-        toast.error("Pilih rentang tanggal terlebih dahulu");
+      setIsExporting(true);
+      
+      // Check for required fields
+      if (!year) {
+        toast.error("Pilih tahun terlebih dahulu");
         return;
       }
-
-      setIsLoading(true);
       
-      const filename = `ubinan_${format(startDate, "yyyyMMdd")}_${format(endDate, "yyyyMMdd")}`;
-      
-      if (exportType === "excel") {
-        const blob = await exportUbinanDataToExcel(
-          startDate.toISOString().split('T')[0], 
-          endDate.toISOString().split('T')[0], 
-          komoditas
-        );
-        saveAs(blob, `${filename}.xlsx`);
-        toast.success("Data Excel berhasil diunduh");
-      } 
-      else if (exportType === "pdf") {
-        const blob = await exportUbinanReportToPdf(
-          startDate.toISOString().split('T')[0], 
-          endDate.toISOString().split('T')[0], 
-          komoditas
-        );
-        saveAs(blob, `${filename}.pdf`);
-        toast.success("Laporan PDF berhasil diunduh");
+      // At least one filter should be selected
+      if (!month && !subround) {
+        toast.error("Pilih bulan atau subround terlebih dahulu");
+        return;
       }
-      else if (exportType === "image") {
-        const blob = await exportUbinanChartToImage(
-          startDate.toISOString().split('T')[0], 
-          endDate.toISOString().split('T')[0], 
-          komoditas
-        );
-        saveAs(blob, `${filename}.png`);
-        toast.success("Grafik berhasil diunduh");
+      
+      // Filter data based on selections
+      const filterParams = {
+        year: parseInt(year),
+        month: month ? parseInt(month) : undefined,
+        subround: subround ? parseInt(subround) : undefined
+      };
+      
+      // Call the appropriate export function based on type
+      if (exportType === "excel") {
+        await exportToExcel(filterParams);
+        toast.success("Data berhasil diekspor ke Excel");
+      } else {
+        await exportToPDF(filterParams);
+        toast.success("Data berhasil diekspor ke PDF");
       }
     } catch (error) {
-      console.error("Export error:", error);
+      console.error("Error exporting data:", error);
       toast.error("Gagal mengekspor data");
     } finally {
-      setIsLoading(false);
+      setIsExporting(false);
     }
   };
-
+  
   return (
-    <Card>
+    <Card className="w-full col-span-full">
       <CardHeader>
-        <CardTitle>Ekspor Data</CardTitle>
+        <CardTitle>Ekspor Data Ubinan</CardTitle>
         <CardDescription>
-          Ekspor data ubinan dalam berbagai format
+          Ekspor data ubinan berdasarkan filter yang dipilih
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Format Export</label>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant={exportType === "excel" ? "default" : "outline"}
-              onClick={() => setExportType("excel")}
-              className="flex items-center gap-2"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Excel
-            </Button>
-            <Button
-              variant={exportType === "pdf" ? "default" : "outline"}
-              onClick={() => setExportType("pdf")}
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              PDF
-            </Button>
-            <Button
-              variant={exportType === "image" ? "default" : "outline"}
-              onClick={() => setExportType("image")}
-              className="flex items-center gap-2"
-            >
-              <ImageIcon className="h-4 w-4" />
-              Grafik
-            </Button>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Komoditas</label>
-          <Select value={komoditas} onValueChange={setKomoditas}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih komoditas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Komoditas</SelectItem>
-              <SelectItem value="padi">Padi</SelectItem>
-              <SelectItem value="jagung">Jagung</SelectItem>
-              <SelectItem value="kedelai">Kedelai</SelectItem>
-              <SelectItem value="kacang_tanah">Kacang Tanah</SelectItem>
-              <SelectItem value="ubi_kayu">Ubi Kayu</SelectItem>
-              <SelectItem value="ubi_jalar">Ubi Jalar</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tanggal Mulai</label>
-            <DatePicker date={startDate} onSelect={setStartDate} />
+            <Label htmlFor="year">Tahun</Label>
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger id="year">
+                <SelectValue placeholder="Pilih tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tanggal Akhir</label>
-            <DatePicker date={endDate} onSelect={setEndDate} />
+            <Label htmlFor="month">Bulan</Label>
+            <Select value={month} onValueChange={setMonth}>
+              <SelectTrigger id="month">
+                <SelectValue placeholder="Pilih bulan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Semua Bulan</SelectItem>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="subround">Subround</Label>
+            <Select value={subround} onValueChange={setSubround}>
+              <SelectTrigger id="subround">
+                <SelectValue placeholder="Pilih subround" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Semua Subround</SelectItem>
+                <SelectItem value="1">Subround 1 (Jan-Apr)</SelectItem>
+                <SelectItem value="2">Subround 2 (Mei-Ags)</SelectItem>
+                <SelectItem value="3">Subround 3 (Sep-Des)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Format Ekspor</Label>
+          <RadioGroup
+            value={exportType}
+            onValueChange={(value) => setExportType(value as "excel" | "pdf")}
+            className="flex space-x-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="excel" id="excel" />
+              <Label htmlFor="excel">Excel (.xlsx)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="pdf" id="pdf" />
+              <Label htmlFor="pdf">PDF (.pdf)</Label>
+            </div>
+          </RadioGroup>
         </div>
       </CardContent>
       <CardFooter>
         <Button 
+          className="w-full md:w-auto" 
           onClick={handleExport}
-          disabled={isLoading || !startDate || !endDate}
-          className="w-full"
+          disabled={isExporting}
         >
-          {isLoading ? (
+          {isExporting ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Memproses...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Mengekspor...
             </>
           ) : (
             <>
-              <Download className="h-4 w-4 mr-2" />
-              Unduh {exportType === "excel" ? "Excel" : exportType === "pdf" ? "PDF" : "Grafik"}
+              <DownloadIcon className="mr-2 h-4 w-4" />
+              Ekspor Data
             </>
           )}
         </Button>

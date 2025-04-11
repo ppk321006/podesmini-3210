@@ -209,7 +209,9 @@ export default function InputUbinanPage() {
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Input Data Ubinan</h1>
       
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Display form and data in separate rows - stacked on mobile, side by side on larger screens */}
+      <div className="grid gap-6 grid-cols-1">
+        {/* Form Card */}
         <Card>
           <CardHeader>
             <CardTitle>Form Input Data Ubinan</CardTitle>
@@ -438,6 +440,7 @@ export default function InputUbinanPage() {
           </form>
         </Card>
         
+        {/* Data List Card */}
         <Card>
           <CardHeader>
             <CardTitle>Daftar Data Ubinan</CardTitle>
