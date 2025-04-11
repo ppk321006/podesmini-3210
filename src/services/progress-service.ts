@@ -140,12 +140,12 @@ export async function getUbinanDataByPPL(pplId: string) {
       
       // Safely handle PPL data with better type checking
       let pplName = "Unknown";
-      if (item.ppl && 
-          typeof item.ppl === 'object' && 
-          item.ppl !== null) {
-        // Safe access to ppl object properties using in operator
-        if ('name' in item.ppl && typeof item.ppl.name === 'string') {
-          pplName = item.ppl.name;
+      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
+        // Create a type-safe temporary variable
+        const pplObj = item.ppl as Record<string, unknown>;
+        // Check if name property exists and is a string
+        if ('name' in pplObj && typeof pplObj['name'] === 'string') {
+          pplName = pplObj['name'];
         }
       }
       
@@ -199,12 +199,12 @@ export async function getUbinanDataByPML(pmlId: string) {
       
       // Safely handle PPL data with better type checking
       let pplName = "Unknown";
-      if (item.ppl && 
-          typeof item.ppl === 'object' && 
-          item.ppl !== null) {
-        // Safe access to ppl object properties using in operator
-        if ('name' in item.ppl && typeof item.ppl.name === 'string') {
-          pplName = item.ppl.name;
+      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
+        // Create a type-safe temporary variable
+        const pplObj = item.ppl as Record<string, unknown>;
+        // Check if name property exists and is a string
+        if ('name' in pplObj && typeof pplObj['name'] === 'string') {
+          pplName = pplObj['name'];
         }
       }
       

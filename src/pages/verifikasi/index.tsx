@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -64,12 +63,10 @@ export default function VerifikasiPage() {
         const desa = item.nks?.desa || item.segmen?.desa;
         
         let pplName = "Unknown";
-        if (item.ppl && 
-            typeof item.ppl === 'object' && 
-            item.ppl !== null) {
-          // Safe access to ppl object properties
-          if ('name' in item.ppl && typeof item.ppl.name === 'string') {
-            pplName = item.ppl.name;
+        if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
+          const pplObj = item.ppl as Record<string, unknown>;
+          if ('name' in pplObj && typeof pplObj['name'] === 'string') {
+            pplName = pplObj['name'];
           }
         }
           
@@ -81,7 +78,6 @@ export default function VerifikasiPage() {
         };
       });
       
-      // Use proper type assertion for the response format
       return processedData as unknown as UbinanData[];
     },
     enabled: !!user?.id,
