@@ -39,7 +39,7 @@ export default function VerifikasiPage() {
           *,
           nks:nks_id(*),
           segmen:segmen_id(*),
-          ppl_user:ppl_id(id, name, username)
+          ppl:ppl_id(id, name, username)
         `)
         .eq('pml_id', user.id);
         
@@ -48,10 +48,7 @@ export default function VerifikasiPage() {
         throw error;
       }
       
-      return data.map(item => ({
-        ...item,
-        ppl: item.ppl_user
-      })) || [];
+      return data as UbinanData[];
     },
     enabled: !!user?.id,
   });

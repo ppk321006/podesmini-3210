@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -179,7 +178,7 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null }: InputUb
         pmlId = initialData?.pml_id || null;
       }
       
-      const ubinanData = {
+      const ubinanData: any = {
         nks_id: allocationType === "nks" ? selectedAllocation : null,
         segmen_id: allocationType === "segmen" ? selectedAllocation : null,
         ppl_id: user.id,
