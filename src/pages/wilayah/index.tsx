@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -384,6 +385,12 @@ export default function WilayahPage() {
       (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText))
     );
   });
+
+  // Helper function to get month name from number
+  const getMonthName = (monthNum: number): string => {
+    const month = monthsIndonesia.find(m => m.value === monthNum);
+    return month ? month.label : '';
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -901,3 +908,236 @@ export default function WilayahPage() {
                       <Select 
                         value={selectedDesaId} 
                         onValueChange={setSelectedDesaId}
+                        disabled={!selectedKecamatanId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih desa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {desaList.map((desa) => (
+                            <SelectItem key={desa.id} value={desa.id}>
+                              {desa.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="segmen-code">Kode Segmen</Label>
+                      <Input
+                        id="segmen-code"
+                        placeholder="Masukkan kode segmen"
+                        value={newSegmenCode}
+                        onChange={(e) => setNewSegmenCode(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="bulan-select">Pilih Bulan</Label>
+                      <Select 
+                        value={selectedBulan !== "" ? selectedBulan.toString() : ""} 
+                        onValueChange={(value) => setSelectedBulan(parseInt(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthsIndonesia.map((month) => (
+                            <SelectItem key={month.value} value={month.value.toString()}>
+                              {month.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="target-padi">Target Ubinan</Label>
+                      <Input
+                        id="target-padi"
+                        type="number"
+                        placeholder="Jumlah target padi"
+                        value={targetPadi.toString()}
+                        onChange={(e) => setTargetPadi(parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button 
+                    onClick={handleAddSegmen}
+                    disabled={
+                      createSegmenMutation.isPending || 
+                      !newSegmenCode.trim() || 
+                      !selectedDesaId ||
+                      selectedBulan === ""
+                    }
+                  >
+                    {createSegmenMutation.isPending ? "Menyimpan..." : "Simpan"}
+                  </Button>
+                </CardFooter>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daftar Segmen</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingSegmenAssignments ? (
+                    <p>Memuat data...</p>
+                  ) : filteredSegmenData.length === 0 ? (
+                    <p className="text-muted-foreground">
+                      {filterText ? "Tidak ada data segmen yang sesuai filter" : "Belum ada data segmen"}
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Kode Segmen</TableHead>
+                          <TableHead>Desa</TableHead>
+                          <TableHead>Kecamatan</TableHead>
+                          <TableHead>Bulan</TableHead>
+                          <TableHead>Target Ubinan</TableHead>
+                          <TableHead>PPL</TableHead>
+                          <TableHead>PML</TableHead>
+                          <TableHead>Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSegmenData.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.code}</TableCell>
+                            <TableCell>{item.desa?.name || '-'}</TableCell>
+                            <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
+                            <TableCell>
+                              {item.bulan ? getMonthName(item.bulan) : '-'}
+                            </TableCell>
+                            <TableCell>{item.target_padi}</TableCell>
+                            <TableCell>
+                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
+                                ? (item.wilayah_tugas[0] as any)?.ppl?.name || '-'
+                                : '-'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
+                                ? (item.wilayah_tugas[0] as any)?.pml?.name || '-'
+                                : '-'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setCurrentEditItem(item);
+                                    setIsEditSegmenDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => handleDeleteSegmen(item.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+      
+      {/* NKS Edit Dialog */}
+      <Dialog open={isEditNKSDialogOpen} onOpenChange={setIsEditNKSDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit NKS</DialogTitle>
+            <DialogDescription>
+              Edit detail NKS yang sudah ada
+            </DialogDescription>
+          </DialogHeader>
+          {currentEditItem && (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label>Kode NKS</Label>
+                <Input 
+                  value={currentEditItem.code || ''} 
+                  disabled
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Target Ubinan</Label>
+                <Input 
+                  type="number"
+                  value={currentEditItem.target_palawija || 0} 
+                  readOnly
+                />
+              </div>
+              {/* Add more edit fields as needed */}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditNKSDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button type="button" disabled>
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Segmen Edit Dialog */}
+      <Dialog open={isEditSegmenDialogOpen} onOpenChange={setIsEditSegmenDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Segmen</DialogTitle>
+            <DialogDescription>
+              Edit detail segmen yang sudah ada
+            </DialogDescription>
+          </DialogHeader>
+          {currentEditItem && (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label>Kode Segmen</Label>
+                <Input 
+                  value={currentEditItem.code || ''} 
+                  disabled
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Target Ubinan</Label>
+                <Input 
+                  type="number"
+                  value={currentEditItem.target_padi || 0} 
+                  readOnly
+                />
+              </div>
+              {/* Add more edit fields as needed */}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditSegmenDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button type="button" disabled>
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
