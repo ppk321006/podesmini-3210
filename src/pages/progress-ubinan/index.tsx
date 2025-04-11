@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,9 +12,8 @@ import {
   getUbinanProgressByYear, 
   getUbinanProgressDetailBySubround, 
   getVerificationStatusCounts, 
-  getPalawijaTypeounts, 
-  getUbinanTotalsBySubround,
-  getPalawijaTypeCount 
+  getPalawijaTypeCounts, 
+  getUbinanTotalsBySubround
 } from "@/services/wilayah-api";
 import { DetailProgressData, VerificationStatusCount, PalawijaTypeCount, UbinanTotals } from "@/types/database-schema";
 
@@ -81,7 +79,7 @@ export default function ProgressUbinanPage() {
       const statusData = await getVerificationStatusCounts();
 
       // Fetch palawija by type
-      const palawijaData = await getPalawijaTypeounts();
+      const palawijaData = await getPalawijaTypeCounts();
 
       // Fetch totals for current subround
       const totalsData = await getUbinanTotalsBySubround(selectedSubround);

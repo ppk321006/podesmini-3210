@@ -867,7 +867,7 @@ export const getVerificationStatusCounts = async (): Promise<VerificationStatusC
   return data;
 };
 
-export const getPalawijaTypecounts = async (): Promise<PalawijaTypeCount[]> => {
+export const getPalawijaTypeCounts = async (): Promise<PalawijaTypeCount[]> => {
   const { data, error } = await supabase.rpc('get_palawija_by_type');
   
   if (error) {
