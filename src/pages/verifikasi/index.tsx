@@ -66,10 +66,11 @@ export default function VerifikasiPage() {
         let pplName = "Unknown";
         if (item.ppl && 
             typeof item.ppl === 'object' && 
-            item.ppl !== null && 
-            'name' in item.ppl && 
-            typeof item.ppl.name === 'string') {
-          pplName = item.ppl.name;
+            item.ppl !== null) {
+          // Safe access to ppl object properties
+          if ('name' in item.ppl && typeof item.ppl.name === 'string') {
+            pplName = item.ppl.name;
+          }
         }
           
         return {
@@ -80,7 +81,7 @@ export default function VerifikasiPage() {
         };
       });
       
-      // Use proper type casting to handle the response format
+      // Use proper type assertion for the response format
       return processedData as unknown as UbinanData[];
     },
     enabled: !!user?.id,
