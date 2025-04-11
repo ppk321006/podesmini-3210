@@ -1015,14 +1015,14 @@ export default function WilayahPage() {
                             </TableCell>
                             <TableCell>{item.target_padi}</TableCell>
                             <TableCell>
-                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
-                                ? (item.wilayah_tugas[0] as any)?.ppl?.name || '-'
+                              {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 
+                                ? (item.wilayah_tugas_segmen[0])?.ppl?.name || '-'
                                 : '-'
                               }
                             </TableCell>
                             <TableCell>
-                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
-                                ? (item.wilayah_tugas[0] as any)?.pml?.name || '-'
+                              {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 
+                                ? (item.wilayah_tugas_segmen[0])?.pml?.name || '-'
                                 : '-'
                               }
                             </TableCell>

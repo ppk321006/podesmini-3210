@@ -1,3 +1,4 @@
+
 export interface Kecamatan {
   id: string;
   name: string;
@@ -87,6 +88,8 @@ export interface WilayahTugasSegmen {
   pml_id: string;
   ppl_id: string;
   created_at: string;
+  ppl?: Petugas;
+  pml?: Petugas;
 }
 
 export interface Petugas {
