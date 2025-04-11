@@ -10,6 +10,7 @@ import { InputUbinanForm } from "./input-form";
 import { getUbinanDataByPPL, getPPLTargets } from "@/services/progress-service";
 import { ProgressTable, createProgressDataFromUbinan } from "@/components/progress/progress-table";
 import { ProgressChart, convertProgressDataToChartData } from "@/components/progress/progress-chart";
+import { toast } from "@/hooks/use-toast";
 
 export default function InputUbinanPage() {
   const { user } = useAuth();
@@ -33,6 +34,11 @@ export default function InputUbinanPage() {
       setTargets(targetData);
     } catch (error) {
       console.error("Error fetching data:", error);
+      toast({
+        title: "Kesalahan",
+        description: "Gagal memuat data ubinan",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -87,7 +93,7 @@ export default function InputUbinanPage() {
         </TabsList>
         
         <TabsContent value="form">
-          <InputUbinanForm />
+          <InputUbinanForm onSubmitSuccess={fetchData} />
         </TabsContent>
         
         <TabsContent value="data">
@@ -146,12 +152,17 @@ export default function InputUbinanPage() {
                             <Badge
                               variant={
                                 item.status === "dikonfirmasi"
-                                  ? "success"
+                                  ? "default"
                                   : item.status === "sudah_diisi"
                                   ? "secondary"
                                   : item.status === "ditolak"
                                   ? "destructive"
                                   : "outline"
+                              }
+                              className={
+                                item.status === "dikonfirmasi" 
+                                  ? "bg-green-500 hover:bg-green-600" 
+                                  : ""
                               }
                             >
                               {item.status === "dikonfirmasi"

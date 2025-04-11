@@ -18,6 +18,15 @@ export interface NKS {
   target_palawija: number;
   created_at: string;
   subround?: number;
+  desa?: {
+    id: string;
+    name: string;
+    kecamatan_id: string;
+    kecamatan?: {
+      id: string;
+      name: string;
+    }
+  };
 }
 
 export interface NKSKomoditas {
@@ -34,12 +43,21 @@ export interface Segmen {
   target_padi: number;
   created_at: string;
   bulan?: number;
+  desa?: {
+    id: string;
+    name: string;
+    kecamatan_id: string;
+    kecamatan?: {
+      id: string;
+      name: string;
+    }
+  };
 }
 
 export interface SampelKRT {
   id: string;
   nama: string;
-  status: 'Utama' | 'Cadangan';
+  status: string;
   nks_id: string | null;
   segmen_id: string | null;
   created_at: string;
@@ -65,7 +83,7 @@ export interface Petugas {
   id: string;
   username: string;
   name: string;
-  role: 'admin' | 'pml' | 'ppl' | 'viewer';
+  role: string;
   pml_id: string | null;
   created_at: string | null;
 }
@@ -76,11 +94,11 @@ export interface UbinanData {
   segmen_id: string | null;
   ppl_id: string;
   responden_name: string;
-  sample_status?: 'Utama' | 'Cadangan';
-  komoditas: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar';
+  sample_status?: string;
+  komoditas: string;
   tanggal_ubinan: string;
   berat_hasil: number;
-  status: 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak';
+  status: string;
   pml_id: string | null;
   dokumen_diterima: boolean;
   komentar: string | null;
@@ -108,7 +126,7 @@ export interface ProgressReport {
 }
 
 export interface AllocationStatus {
-  type: 'nks' | 'segmen';
+  type: string;
   id: string;
   code: string;
   desa_id: string;

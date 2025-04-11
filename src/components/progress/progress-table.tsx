@@ -77,9 +77,14 @@ export function ProgressTable({ title, description, data, loading }: ProgressTab
                     <TableCell className="text-right">
                       <Badge 
                         variant={
-                          row.persentase >= 75 ? "success" : 
-                          row.persentase >= 50 ? "default" :
-                          row.persentase >= 25 ? "warning" : "destructive"
+                          row.persentase >= 75 ? "default" : 
+                          row.persentase >= 50 ? "secondary" :
+                          row.persentase >= 25 ? "outline" : "destructive"
+                        }
+                        className={
+                          row.persentase >= 75 ? "bg-green-500 hover:bg-green-600" :
+                          row.persentase >= 50 ? "" :
+                          row.persentase >= 25 ? "bg-amber-500 hover:bg-amber-600 text-white" : ""
                         }
                       >
                         {row.persentase.toFixed(1)}%

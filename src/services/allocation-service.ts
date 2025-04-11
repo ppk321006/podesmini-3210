@@ -15,7 +15,8 @@ export async function getAllocationStatus(): Promise<AllocationStatus[]> {
       throw error;
     }
     
-    return data || [];
+    // Cast the data to the correct type
+    return (data || []) as AllocationStatus[];
   } catch (error) {
     console.error("Error in getAllocationStatus:", error);
     return [];
@@ -36,7 +37,8 @@ export async function getUnassignedAllocations(): Promise<AllocationStatus[]> {
       throw error;
     }
     
-    return data || [];
+    // Cast the data to the correct type
+    return (data || []) as AllocationStatus[];
   } catch (error) {
     console.error("Error in getUnassignedAllocations:", error);
     return [];

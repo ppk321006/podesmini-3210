@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { updateUbinanVerification } from "@/services/wilayah-api";
+import { toast } from "@/hooks/use-toast";
 
 export interface VerificationDialogProps {
   data: UbinanData;
@@ -34,9 +35,20 @@ export function VerificationDialog({ open, onOpenChange, data, onComplete }: Ver
         komentar
       );
       
+      toast({
+        title: status === 'dikonfirmasi' ? "Data Dikonfirmasi" : "Data Ditolak",
+        description: `Data ubinan telah berhasil ${status === 'dikonfirmasi' ? 'dikonfirmasi' : 'ditolak'}.`,
+        variant: status === 'dikonfirmasi' ? "default" : "destructive",
+      });
+      
       onComplete(updatedData);
     } catch (error) {
       console.error("Error updating verification status:", error);
+      toast({
+        title: "Kesalahan",
+        description: "Gagal mengupdate status verifikasi",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -95,9 +107,19 @@ export function VerificationDialog({ open, onOpenChange, data, onComplete }: Ver
           <div className="grid grid-cols-3 gap-2">
             <div className="font-medium">Status</div>
             <div className="col-span-2">
-              {data.status === "sudah_diisi" && <Badge className="bg-yellow-500">Menunggu Verifikasi</Badge>}
-              {data.status === "dikonfirmasi" && <Badge className="bg-green-500">Dikonfirmasi</Badge>}
-              {data.status === "ditolak" && <Badge className="bg-red-500">Ditolak</Badge>}
+              <Badge 
+                variant={
+                  data.status === "dikonfirmasi" ? "default" : 
+                  data.status === "sudah_diisi" ? "secondary" : 
+                  data.status === "ditolak" ? "destructive" : "outline"
+                }
+                className={data.status === "dikonfirmasi" ? "bg-green-500 hover:bg-green-600" : ""}
+              >
+                {data.status === "dikonfirmasi" && "Terverifikasi"}
+                {data.status === "sudah_diisi" && "Menunggu Verifikasi"}
+                {data.status === "ditolak" && "Ditolak"}
+                {data.status !== "dikonfirmasi" && data.status !== "sudah_diisi" && data.status !== "ditolak" && "Belum Diisi"}
+              </Badge>
             </div>
           </div>
           

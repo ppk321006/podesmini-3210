@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/types/supabase-db";
+import { AllocationStatus, Petugas, UbinanData } from "@/types/database-schema";
 
 // Define types based on our custom database schema
 type DatabaseUser = Database['public']['Tables']['users']['Row'];
@@ -8,7 +9,6 @@ type Kecamatan = Database['public']['Tables']['kecamatan']['Row'];
 type Desa = Database['public']['Tables']['desa']['Row'];
 type NKS = Database['public']['Tables']['nks']['Row'];
 type WilayahTugas = Database['public']['Tables']['wilayah_tugas']['Row'];
-type UbinanData = Database['public']['Tables']['ubinan_data']['Row'];
 
 // Users API
 export const getUsers = async () => {
@@ -146,7 +146,7 @@ export const getUbinanDataByPPL = async (pplId: string) => {
     throw error;
   }
   
-  return data as UbinanData[];
+  return data as unknown as UbinanData[];
 };
 
 export const getUbinanDataForVerification = async (pmlId: string) => {
@@ -160,7 +160,7 @@ export const getUbinanDataForVerification = async (pmlId: string) => {
     throw error;
   }
   
-  return data as UbinanData[];
+  return data as unknown as UbinanData[];
 };
 
 export const getSubround = async () => {
@@ -174,7 +174,8 @@ export const getSubround = async () => {
 };
 
 export const getUbinanProgressBySubround = async (subround: number) => {
-  const { data, error } = await supabase.rpc('get_ubinan_progress_by_subround', { subround_param: subround });
+  // Fix the function name to match the one in the database
+  const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { subround_param: subround });
   
   if (error) {
     throw error;
@@ -207,4 +208,4 @@ export const getNKSByKomoditas = async (komoditas: string) => {
 };
 
 // Export types for use in other components
-export type { DatabaseUser, Kecamatan, Desa, NKS, WilayahTugas, UbinanData };
+export type { DatabaseUser, Kecamatan, Desa, NKS, WilayahTugas };
