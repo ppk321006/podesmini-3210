@@ -1,5 +1,4 @@
 
-// Custom database type definitions for our Supabase tables
 export type Json =
   | string
   | number
@@ -19,6 +18,7 @@ export interface Database {
           name: string
           role: 'admin' | 'pml' | 'ppl' | 'viewer'
           pml_id: string | null
+          created_at: string
         }
         Insert: {
           id?: string
@@ -27,6 +27,7 @@ export interface Database {
           name: string
           role: 'admin' | 'pml' | 'ppl' | 'viewer'
           pml_id?: string | null
+          created_at?: string
         }
         Update: {
           id?: string
@@ -35,6 +36,7 @@ export interface Database {
           name?: string
           role?: 'admin' | 'pml' | 'ppl' | 'viewer'
           pml_id?: string | null
+          created_at?: string
         }
       }
       kecamatan: {
@@ -75,14 +77,16 @@ export interface Database {
           desa_id: string
           target_padi: number
           target_palawija: number
+          subround: number | null
           created_at: string
         }
         Insert: {
           id?: string
           code: string
           desa_id: string
-          target_padi: number
-          target_palawija: number
+          target_padi?: number
+          target_palawija?: number
+          subround?: number | null
           created_at?: string
         }
         Update: {
@@ -91,6 +95,79 @@ export interface Database {
           desa_id?: string
           target_padi?: number
           target_palawija?: number
+          subround?: number | null
+          created_at?: string
+        }
+      }
+      nks_komoditas: {
+        Row: {
+          id: string
+          nks_id: string
+          komoditas: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nks_id: string
+          komoditas: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nks_id?: string
+          komoditas?: string
+          created_at?: string
+        }
+      }
+      segmen: {
+        Row: {
+          id: string
+          code: string
+          desa_id: string
+          target_padi: number
+          bulan: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          desa_id: string
+          target_padi?: number
+          bulan?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          desa_id?: string
+          target_padi?: number
+          bulan?: number | null
+          created_at?: string
+        }
+      }
+      sampel_krt: {
+        Row: {
+          id: string
+          nama: string
+          status: string
+          nks_id: string | null
+          segmen_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nama: string
+          status: string
+          nks_id?: string | null
+          segmen_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nama?: string
+          status?: string
+          nks_id?: string | null
+          segmen_id?: string | null
           created_at?: string
         }
       }
@@ -120,13 +197,15 @@ export interface Database {
       ubinan_data: {
         Row: {
           id: string
-          nks_id: string
+          nks_id: string | null
+          segmen_id: string | null
           ppl_id: string
           responden_name: string
-          komoditas: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar'
+          sample_status: string | null
+          komoditas: string
           tanggal_ubinan: string
           berat_hasil: number
-          status: 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak'
+          status: string
           pml_id: string | null
           dokumen_diterima: boolean
           komentar: string | null
@@ -135,13 +214,15 @@ export interface Database {
         }
         Insert: {
           id?: string
-          nks_id: string
+          nks_id?: string | null
+          segmen_id?: string | null
           ppl_id: string
           responden_name: string
-          komoditas: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar'
+          sample_status?: string | null
+          komoditas: string
           tanggal_ubinan: string
           berat_hasil: number
-          status?: 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak'
+          status?: string
           pml_id?: string | null
           dokumen_diterima?: boolean
           komentar?: string | null
@@ -150,16 +231,62 @@ export interface Database {
         }
         Update: {
           id?: string
-          nks_id?: string
+          nks_id?: string | null
+          segmen_id?: string | null
           ppl_id?: string
           responden_name?: string
-          komoditas?: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar'
+          sample_status?: string | null
+          komoditas?: string
           tanggal_ubinan?: string
           berat_hasil?: number
-          status?: 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak'
+          status?: string
           pml_id?: string | null
           dokumen_diterima?: boolean
           komentar?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      progress_report: {
+        Row: {
+          id: string
+          ppl_id: string
+          target_count: number
+          completed_count: number
+          verified_count: number
+          rejected_count: number
+          target_padi: number
+          target_palawija: number
+          year: number
+          month: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          ppl_id: string
+          target_count?: number
+          completed_count?: number
+          verified_count?: number
+          rejected_count?: number
+          target_padi?: number
+          target_palawija?: number
+          year: number
+          month: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          ppl_id?: string
+          target_count?: number
+          completed_count?: number
+          verified_count?: number
+          rejected_count?: number
+          target_padi?: number
+          target_palawija?: number
+          year?: number
+          month?: number
           created_at?: string
           updated_at?: string
         }
@@ -173,10 +300,31 @@ export interface Database {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      get_ubinan_progress_by_subround: {
+        Args: { subround_param: number }
+        Returns: {
+          ppl_id: string
+          ppl_name: string
+          target_count: number
+          completed_count: number
+          verified_count: number
+          rejected_count: number
+          completion_percentage: number
+        }[]
+      }
+      get_ubinan_progress_by_year: {
+        Args: { year_param: number }
+        Returns: {
+          month: number
+          target_count: number
+          completed_count: number
+          verified_count: number
+          rejected_count: number
+          completion_percentage: number
+        }[]
+      }
     }
     Enums: {
-      komoditas_type: 'padi' | 'jagung' | 'kedelai' | 'kacang_tanah' | 'ubi_kayu' | 'ubi_jalar'
-      verification_status: 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' | 'ditolak'
       user_role: 'admin' | 'pml' | 'ppl' | 'viewer'
     }
     CompositeTypes: {

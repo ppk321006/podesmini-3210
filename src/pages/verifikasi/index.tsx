@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VerificationDialog } from '@/components/verification/verification-dialog';
 import { getUbinanDataForVerification } from '@/services/wilayah-api';
@@ -50,7 +49,7 @@ export default function VerifikasiPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDialogClose = () => {
+  const handleDialogClose = (updatedData?: UbinanData) => {
     setIsDialogOpen(false);
     setSelectedUbinan(null);
     refetch();
@@ -156,7 +155,7 @@ export default function VerifikasiPage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>{ubinan.komoditas.replace('_', ' ')}</TableCell>
+                    <TableCell className="capitalize">{ubinan.komoditas.replace('_', ' ')}</TableCell>
                     <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
                     <TableCell>{ubinan.berat_hasil} kg</TableCell>
                     <TableCell>{ubinan.ppl?.name}</TableCell>
@@ -201,9 +200,10 @@ export default function VerifikasiPage() {
 
       {selectedUbinan && (
         <VerificationDialog 
-          ubinanData={selectedUbinan}
-          isOpen={isDialogOpen}
-          onClose={handleDialogClose}
+          data={selectedUbinan}
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onComplete={handleDialogClose}
         />
       )}
     </div>

@@ -43,7 +43,12 @@ export function LoginForm() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+        <DialogHeader className="items-center">
+          <img 
+            src="/lovable-uploads/6faa01a9-cc07-4092-89f3-a6c83a2690d0.png" 
+            alt="Si Monita Logo" 
+            className="h-24 w-24 mb-4" // Increased size from default
+          />
           <DialogTitle className="text-center text-2xl font-bold text-simonita-brown">Login Si Monita</DialogTitle>
           <DialogDescription className="text-center">
             Silakan masukkan username dan password Anda untuk login

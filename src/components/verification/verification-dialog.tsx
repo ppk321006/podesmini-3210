@@ -7,14 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { UbinanData } from "@/types/database-schema";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, AlertCircle } from "lucide-react";
-import { formatDateToLocale } from "@/lib/utils";
+import { Check, X } from "lucide-react";
+import { format } from "date-fns";
 import { updateUbinanVerification } from "@/services/wilayah-api";
 
-interface VerificationDialogProps {
+export interface VerificationDialogProps {
+  data: UbinanData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  data: UbinanData;
   onComplete: (updatedData: UbinanData) => void;
 }
 
@@ -42,8 +42,14 @@ export function VerificationDialog({ open, onOpenChange, data, onComplete }: Ver
     }
   };
 
+  const formatDateToLocale = (dateString: string) => {
+    return format(new Date(dateString), 'dd MMMM yyyy');
+  };
+
   const allocationType = data.nks_id ? "NKS" : "Segmen";
-  const allocationCode = data.nks_id ? data.nks?.code : data.segmen?.code;
+  const allocationCode = data.nks_id 
+    ? (data.nks?.code || "-") 
+    : (data.segmen?.code || "-");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,7 +74,7 @@ export function VerificationDialog({ open, onOpenChange, data, onComplete }: Ver
           
           <div className="grid grid-cols-3 gap-2">
             <div className="font-medium">Alokasi</div>
-            <div className="col-span-2">{allocationType}: {allocationCode || "-"}</div>
+            <div className="col-span-2">{allocationType}: {allocationCode}</div>
           </div>
           
           <div className="grid grid-cols-3 gap-2">

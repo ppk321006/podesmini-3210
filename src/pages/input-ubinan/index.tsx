@@ -119,22 +119,20 @@ export default function InputUbinanPage() {
         const nksWithPML = assignedNKS.find(item => item.nks_id === values.nksId);
         pmlId = nksWithPML?.pml?.id || "";
       } else if (values.segmenId) {
-        // In a real scenario, you would get this from the segmen association
-        // This is a placeholder - update your API to handle segmen allocations
         const segmenWithPML = assignedSegmen.find(item => item.segmen_id === values.segmenId);
         pmlId = segmenWithPML?.pml?.id || "";
       }
       
       return createUbinanData(
-        values.nksId,
-        values.segmenId,
-        user.id,
         values.respondenName,
         values.sampleStatus,
         values.komoditas,
         values.tanggalUbinan,
-        values.beratHasil,
-        pmlId
+        Number(values.beratHasil),
+        user.id,
+        pmlId,
+        values.nksId,
+        values.segmenId
       );
     },
     onSuccess: () => {
@@ -221,6 +219,7 @@ export default function InputUbinanPage() {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {/* Jenis Alokasi */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Jenis Alokasi</label>
                 <RadioGroup
@@ -239,6 +238,7 @@ export default function InputUbinanPage() {
                 </RadioGroup>
               </div>
 
+              {/* NKS Selection */}
               {allocationType === "nks" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Pilih NKS</label>
@@ -268,6 +268,7 @@ export default function InputUbinanPage() {
                 </div>
               )}
 
+              {/* Segmen Selection */}
               {allocationType === "segmen" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Pilih Segmen</label>
@@ -297,6 +298,7 @@ export default function InputUbinanPage() {
                 </div>
               )}
               
+              {/* Komoditas */}
               {allocationType === "nks" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Komoditas</label>
@@ -322,6 +324,7 @@ export default function InputUbinanPage() {
                 </div>
               )}
               
+              {/* Nama Responden */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Nama Responden</label>
                 <Input
@@ -331,6 +334,7 @@ export default function InputUbinanPage() {
                 />
               </div>
 
+              {/* Status Sampel */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status Sampel</label>
                 <RadioGroup
@@ -349,6 +353,7 @@ export default function InputUbinanPage() {
                 </RadioGroup>
               </div>
 
+              {/* Sampel KRT list */}
               {sampelList.length > 0 && (
                 <div className="space-y-2 p-3 border rounded-md">
                   <label className="text-sm font-medium">Pilih dari Daftar Sampel KRT:</label>
@@ -370,6 +375,7 @@ export default function InputUbinanPage() {
                 </div>
               )}
               
+              {/* Tanggal Ubinan */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Tanggal Ubinan</label>
                 <Popover>
@@ -397,6 +403,7 @@ export default function InputUbinanPage() {
                 </Popover>
               </div>
               
+              {/* Berat Hasil */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Berat Hasil (kg)</label>
                 <Input
