@@ -1,49 +1,70 @@
 
 import React from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { DetailProgressData } from "@/types/database-schema";
-
-interface ProgressDataRow {
-  month: number;
-  komoditas: string;
-  target: number;
-  teralokasi: number;
-  terisi: number;
-  diverifikasi: number;
-  ditolak: number;
-  persentase: number;
-}
 
 interface ProgressTableProps {
   title: string;
-  description?: string;
-  data: ProgressDataRow[];
+  description: string;
+  data: DetailProgressData[];
   loading?: boolean;
 }
 
-const monthNames = [
-  "Januari", "Februari", "Maret", "April",
-  "Mei", "Juni", "Juli", "Agustus",
-  "September", "Oktober", "November", "Desember"
-];
-
-export function ProgressTable({ title, description, data, loading }: ProgressTableProps) {
+export function ProgressTable({
+  title,
+  description,
+  data,
+  loading = false
+}: ProgressTableProps) {
+  // Helper function to get month name
+  const getMonthName = (monthNum: number) => {
+    const months = [
+      "Januari", "Februari", "Maret", "April",
+      "Mei", "Juni", "Juli", "Agustus",
+      "September", "Oktober", "November", "Desember"
+    ];
+    return months[monthNum - 1] || "";
+  };
+  
+  // Helper function to render percentage badge with color
+  const renderPercentageBadge = (percentage: number) => {
+    let variant: "default" | "destructive" | "outline" | "secondary" = "outline";
+    
+    if (percentage >= 85) {
+      // Use the default variant for high completion
+      variant = "default";
+    } else if (percentage >= 50) {
+      // Use the secondary variant for medium completion
+      variant = "secondary";
+    } else if (percentage > 0) {
+      // Use the destructive variant for low completion
+      variant = "destructive"; 
+    }
+    
+    return (
+      <Badge variant={variant}>
+        {percentage.toFixed(1)}%
+      </Badge>
+    );
+  };
+  
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
         ) : data.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            Tidak ada data yang tersedia
+          <div className="text-center py-8 text-muted-foreground">
+            Tidak ada data progress yang tersedia
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -51,44 +72,27 @@ export function ProgressTable({ title, description, data, loading }: ProgressTab
               <TableHeader>
                 <TableRow>
                   <TableHead>Bulan</TableHead>
-                  <TableHead>Komoditas</TableHead>
-                  <TableHead className="text-right">Target</TableHead>
-                  <TableHead className="text-right">Teralokasi</TableHead>
-                  <TableHead className="text-right">Terisi</TableHead>
-                  <TableHead className="text-right">Diverifikasi</TableHead>
-                  <TableHead className="text-right">Ditolak</TableHead>
-                  <TableHead className="text-right">Persentase Selesai</TableHead>
+                  <TableHead>Padi Target</TableHead>
+                  <TableHead>Padi Selesai</TableHead>
+                  <TableHead>% Padi</TableHead>
+                  <TableHead>Palawija Target</TableHead>
+                  <TableHead>Palawija Selesai</TableHead>
+                  <TableHead>% Palawija</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((row, index) => (
-                  <TableRow key={`${row.month}-${row.komoditas}-${index}`}>
-                    <TableCell>{monthNames[row.month - 1]}</TableCell>
+                {data.map((month) => (
+                  <TableRow key={month.month}>
+                    <TableCell>{getMonthName(month.month)}</TableCell>
+                    <TableCell>{month.padi_target}</TableCell>
+                    <TableCell>{month.padi_count}</TableCell>
                     <TableCell>
-                      <Badge variant={row.komoditas === "Padi" ? "default" : "secondary"}>
-                        {row.komoditas}
-                      </Badge>
+                      {renderPercentageBadge(month.padi_percentage)}
                     </TableCell>
-                    <TableCell className="text-right">{row.target}</TableCell>
-                    <TableCell className="text-right">{row.teralokasi}</TableCell>
-                    <TableCell className="text-right">{row.terisi}</TableCell>
-                    <TableCell className="text-right">{row.diverifikasi}</TableCell>
-                    <TableCell className="text-right">{row.ditolak}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge 
-                        variant={
-                          row.persentase >= 75 ? "default" : 
-                          row.persentase >= 50 ? "secondary" :
-                          row.persentase >= 25 ? "outline" : "destructive"
-                        }
-                        className={
-                          row.persentase >= 75 ? "bg-green-500 hover:bg-green-600" :
-                          row.persentase >= 50 ? "" :
-                          row.persentase >= 25 ? "bg-amber-500 hover:bg-amber-600 text-white" : ""
-                        }
-                      >
-                        {row.persentase.toFixed(1)}%
-                      </Badge>
+                    <TableCell>{month.palawija_target}</TableCell>
+                    <TableCell>{month.palawija_count}</TableCell>
+                    <TableCell>
+                      {renderPercentageBadge(month.palawija_percentage)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -101,84 +105,41 @@ export function ProgressTable({ title, description, data, loading }: ProgressTab
   );
 }
 
-export function convertProgressDataToRows(data: DetailProgressData[]): ProgressDataRow[] {
-  const rows: ProgressDataRow[] = [];
-  
-  data.forEach(item => {
-    // Add row for padi
-    rows.push({
-      month: item.month,
-      komoditas: "Padi",
-      target: item.padi_target,
-      teralokasi: item.padi_target, // Assuming all targets are allocated
-      terisi: item.padi_count,
-      diverifikasi: item.padi_count, // Simplified, actual should come from verification status
-      ditolak: 0, // Would come from ditolak status
-      persentase: item.padi_percentage
-    });
-    
-    // Add row for palawija
-    rows.push({
-      month: item.month,
-      komoditas: "Palawija",
-      target: item.palawija_target,
-      teralokasi: item.palawija_target, // Assuming all targets are allocated
-      terisi: item.palawija_count,
-      diverifikasi: item.palawija_count, // Simplified, actual should come from verification status
-      ditolak: 0, // Would come from ditolak status
-      persentase: item.palawija_percentage
-    });
-  });
-  
-  return rows;
-}
-
 export function createProgressDataFromUbinan(
   ubinanData: any[],
-  targetPadi: number = 0,
-  targetPalawija: number = 0
-): ProgressDataRow[] {
-  // Group data by month and komoditas
-  const dataByMonthKomoditas = ubinanData.reduce((acc, item) => {
-    const month = new Date(item.tanggal_ubinan).getMonth() + 1;
-    const komoditas = item.komoditas === 'padi' ? 'Padi' : 'Palawija';
-    
-    if (!acc[`${month}-${komoditas}`]) {
-      acc[`${month}-${komoditas}`] = {
-        month,
-        komoditas,
-        terisi: 0,
-        diverifikasi: 0,
-        ditolak: 0
-      };
-    }
-    
-    acc[`${month}-${komoditas}`].terisi += 1;
-    
-    if (item.status === 'dikonfirmasi') {
-      acc[`${month}-${komoditas}`].diverifikasi += 1;
-    } else if (item.status === 'ditolak') {
-      acc[`${month}-${komoditas}`].ditolak += 1;
-    }
-    
-    return acc;
-  }, {});
+  padiTarget: number,
+  palawijaTarget: number
+): DetailProgressData[] {
+  // Initialize an array for all months
+  const monthlyData: DetailProgressData[] = [];
   
-  // Convert to array and calculate percentages
-  return Object.values(dataByMonthKomoditas).map((item: any) => {
-    const target = item.komoditas === 'Padi' ? targetPadi : targetPalawija;
-    const teralokasi = target; // Assuming all targets are allocated
-    const persentase = target > 0 ? (item.diverifikasi / target) * 100 : 0;
+  for (let i = 1; i <= 12; i++) {
+    const monthItems = ubinanData.filter(item => {
+      const itemDate = new Date(item.tanggal_ubinan);
+      return itemDate.getMonth() + 1 === i;
+    });
     
-    return {
-      month: item.month,
-      komoditas: item.komoditas,
-      target,
-      teralokasi,
-      terisi: item.terisi,
-      diverifikasi: item.diverifikasi,
-      ditolak: item.ditolak,
-      persentase
-    };
-  }).sort((a, b) => a.month - b.month);
+    const padiCount = monthItems.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
+    const palawijaCount = monthItems.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
+    
+    // Calculate monthly target (distributed evenly across months)
+    const monthlyPadiTarget = Math.ceil(padiTarget / 12);
+    const monthlyPalawijaTarget = Math.ceil(palawijaTarget / 12);
+    
+    // Calculate percentages
+    const padiPercentage = monthlyPadiTarget > 0 ? (padiCount / monthlyPadiTarget) * 100 : 0;
+    const palawijaPercentage = monthlyPalawijaTarget > 0 ? (palawijaCount / monthlyPalawijaTarget) * 100 : 0;
+    
+    monthlyData.push({
+      month: i,
+      padi_count: padiCount,
+      palawija_count: palawijaCount,
+      padi_target: monthlyPadiTarget,
+      palawija_target: monthlyPalawijaTarget,
+      padi_percentage: padiPercentage,
+      palawija_percentage: palawijaPercentage
+    });
+  }
+  
+  return monthlyData;
 }

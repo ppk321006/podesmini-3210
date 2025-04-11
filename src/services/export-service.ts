@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -7,14 +6,14 @@ import * as htmlToImage from 'html-to-image';
 // Function to export ubinan data to Excel
 export async function exportUbinanDataToExcel(startDate: string, endDate: string): Promise<Blob> {
   try {
-    // Fetch ubinan data
+    // Fetch ubinan data with proper joins
     const { data, error } = await supabase
       .from('ubinan_data')
       .select(`
         *,
-        nks:nks_id(*),
-        segmen:segmen_id(*),
-        ppl:ppl_id(*)
+        nks:nks_id(id, code, desa_id),
+        segmen:segmen_id(id, code, desa_id),
+        ppl:ppl_id(id, name)
       `)
       .gte('tanggal_ubinan', startDate)
       .lte('tanggal_ubinan', endDate)
@@ -24,18 +23,47 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
       throw error;
     }
     
+    // Get desa information for NKS and Segmen
+    const desaIds = new Set();
+    data?.forEach(item => {
+      if (item.nks && item.nks.desa_id) desaIds.add(item.nks.desa_id);
+      if (item.segmen && item.segmen.desa_id) desaIds.add(item.segmen.desa_id);
+    });
+    
+    const { data: desaData, error: desaError } = await supabase
+      .from('desa')
+      .select('id, name, kecamatan:kecamatan_id(id, name)')
+      .in('id', Array.from(desaIds));
+      
+    if (desaError) {
+      throw desaError;
+    }
+    
+    // Create a map of desa info
+    const desaMap = new Map();
+    desaData?.forEach(desa => {
+      desaMap.set(desa.id, {
+        name: desa.name,
+        kecamatan_name: desa.kecamatan ? desa.kecamatan.name : ''
+      });
+    });
+    
     // Transform data for Excel export
     const exportData = data?.map((item) => {
       const formattedDate = new Date(item.tanggal_ubinan).toLocaleDateString('id-ID');
       const allocationType = item.nks_id ? 'NKS' : 'Segmen';
       const allocationCode = item.nks_id ? item.nks?.code : item.segmen?.code;
-      const desaName = item.nks_id ? item.nks?.desa?.name : item.segmen?.desa?.name;
-      const kecamatanName = item.nks_id ? item.nks?.desa?.kecamatan?.name : item.segmen?.desa?.kecamatan?.name;
+      
+      const desaId = item.nks_id ? item.nks?.desa_id : item.segmen?.desa_id;
+      const desaInfo = desaMap.get(desaId) || { name: '-', kecamatan_name: '-' };
+      const desaName = desaInfo.name;
+      const kecamatanName = desaInfo.kecamatan_name;
+      
       const komoditas = item.komoditas.replace('_', ' ');
       const responden = item.responden_name;
       const sampleStatus = item.sample_status;
       const beratHasil = item.berat_hasil;
-      const pplName = item.ppl?.name;
+      const pplName = item.ppl ? item.ppl.name : '-';
       const statusVerifikasi = item.status === 'dikonfirmasi' ? 'Terverifikasi' : 
                                item.status === 'sudah_diisi' ? 'Menunggu Verifikasi' : 
                                item.status === 'ditolak' ? 'Ditolak' : 'Belum Diisi';
@@ -109,9 +137,9 @@ export async function exportUbinanReportToJpeg(startDate: string, endDate: strin
       .from('ubinan_data')
       .select(`
         *,
-        nks:nks_id(*),
-        segmen:segmen_id(*),
-        ppl:ppl_id(*)
+        nks:nks_id(id, code, desa_id),
+        segmen:segmen_id(id, code, desa_id),
+        ppl:ppl_id(id, name)
       `)
       .gte('tanggal_ubinan', startDate)
       .lte('tanggal_ubinan', endDate)

@@ -1,432 +1,359 @@
 
 import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { CalendarIcon, Check, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, CheckCircle2, Loader2, Save } from "lucide-react";
-import { format } from "date-fns";
 import { toast } from "sonner";
-import { useAuth } from "@/context/auth-context";
-import { supabase } from "@/integrations/supabase/client";
 import { getPPLAllocations } from "@/services/allocation-service";
+import { createUbinanData } from "@/services/wilayah-api";
+import { getSampelKRTList } from "@/services/wilayah-api";
+import { SampelKRT } from "@/types/database-schema";
 
-const formSchema = z.object({
-  allocationType: z.enum(["nks", "segmen"]),
-  allocationId: z.string().min(1, "Pilih alokasi terlebih dahulu"),
-  respondenName: z.string().min(3, "Nama responden minimal 3 karakter"),
-  sampleStatus: z.enum(["Utama", "Cadangan"]),
-  komoditas: z.string().min(1, "Pilih komoditas terlebih dahulu"),
-  tanggalUbinan: z.date(),
-  beratHasil: z.number().min(0.1, "Berat hasil harus lebih dari 0")
-});
+interface InputUbinanFormProps {
+  onSubmitSuccess: () => Promise<void>;
+}
 
-type FormValues = z.infer<typeof formSchema>;
-
-export function InputUbinanForm() {
+export function InputUbinanForm({ onSubmitSuccess }: InputUbinanFormProps) {
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nksAllocations, setNksAllocations] = useState([]);
-  const [segmenAllocations, setSegmenAllocations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedTipe, setSelectedTipe] = useState("nks");
+  const [activeTab, setActiveTab] = useState<"nks" | "segmen">("nks");
+  const [komoditas, setKomoditas] = useState<string>("");
+  const [selectedNKS, setSelectedNKS] = useState<string>("");
+  const [selectedSegmen, setSelectedSegmen] = useState<string>("");
+  const [tanggal, setTanggal] = useState<Date>(new Date());
+  const [berat, setBerat] = useState<string>("");
+  const [responden, setResponden] = useState<string>("");
+  const [isUsingKRT, setIsUsingKRT] = useState<boolean>(false);
+  const [selectedKRT, setSelectedKRT] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      allocationType: "nks",
-      allocationId: "",
-      respondenName: "",
-      sampleStatus: "Utama",
-      komoditas: "",
-      beratHasil: 0,
-    }
+  // Get PPL allocations
+  const { data: allocations, isLoading: isLoadingAllocations } = useQuery({
+    queryKey: ["ppl_allocations", user?.id],
+    queryFn: () => getPPLAllocations(user?.id || ""),
+    enabled: !!user?.id,
+  });
+  
+  // Get Sampel KRT list based on selected NKS or Segmen
+  const { data: krtList = [], isLoading: isLoadingKRT } = useQuery({
+    queryKey: ["sampel_krt", { nks_id: selectedNKS, segmen_id: selectedSegmen }],
+    queryFn: () => {
+      const params: { nks_id?: string; segmen_id?: string } = {};
+      if (activeTab === "nks" && selectedNKS) {
+        params.nks_id = selectedNKS;
+      } else if (activeTab === "segmen" && selectedSegmen) {
+        params.segmen_id = selectedSegmen;
+      }
+      return getSampelKRTList(params);
+    },
+    enabled: (activeTab === "nks" && !!selectedNKS) || (activeTab === "segmen" && !!selectedSegmen),
   });
 
-  const komoditasOptions = [
-    { value: "padi", label: "Padi" },
-    { value: "jagung", label: "Jagung" },
-    { value: "kedelai", label: "Kedelai" },
-    { value: "kacang_tanah", label: "Kacang Tanah" },
-    { value: "ubi_kayu", label: "Ubi Kayu" },
-    { value: "ubi_jalar", label: "Ubi Jalar" }
-  ];
-  
-  const fetchAllocations = async () => {
-    if (!user) return;
-    
-    try {
-      setIsLoading(true);
-      const allocations = await getPPLAllocations(user.id);
-      
-      setNksAllocations(allocations.nks || []);
-      setSegmenAllocations(allocations.segmen || []);
-    } catch (error) {
-      console.error("Error fetching allocations:", error);
-      toast.error("Gagal mengambil data alokasi");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Reset form when switching tabs
   useEffect(() => {
-    fetchAllocations();
-  }, [user]);
-  
-  const onSubmit = async (values: FormValues) => {
+    setSelectedNKS("");
+    setSelectedSegmen("");
+    setKomoditas("");
+    setBerat("");
+    setResponden("");
+    setIsUsingKRT(false);
+    setSelectedKRT("");
+  }, [activeTab]);
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!user) {
       toast.error("Anda harus login terlebih dahulu");
+      return;
+    }
+    
+    if (!komoditas) {
+      toast.error("Pilih komoditas terlebih dahulu");
+      return;
+    }
+    
+    if (activeTab === "nks" && !selectedNKS) {
+      toast.error("Pilih NKS terlebih dahulu");
+      return;
+    }
+    
+    if (activeTab === "segmen" && !selectedSegmen) {
+      toast.error("Pilih Segmen terlebih dahulu");
+      return;
+    }
+    
+    if (!berat || isNaN(Number(berat)) || Number(berat) <= 0) {
+      toast.error("Masukkan berat hasil yang valid");
+      return;
+    }
+
+    // If using KRT but no KRT selected
+    if (isUsingKRT && !selectedKRT) {
+      toast.error("Pilih Sampel KRT terlebih dahulu");
+      return;
+    }
+
+    // If not using KRT but no name entered
+    if (!isUsingKRT && !responden) {
+      toast.error("Masukkan nama responden");
       return;
     }
     
     try {
       setIsSubmitting(true);
       
-      // Get PML ID based on allocation type and ID
-      let pmlId = null;
-      if (values.allocationType === "nks") {
-        const nksItem = nksAllocations.find(item => item.nks?.id === values.allocationId);
-        pmlId = nksItem?.pml?.id;
-      } else {
-        const segmenItem = segmenAllocations.find(item => item.segmen?.id === values.allocationId);
-        pmlId = segmenItem?.pml?.id;
-      }
+      // Get the selected KRT for detail
+      const selectedKRTDetail = isUsingKRT 
+        ? krtList.find((krt: SampelKRT) => krt.id === selectedKRT)
+        : null;
       
-      if (!pmlId) {
-        toast.error("Data PML tidak ditemukan");
-        return;
-      }
-      
-      // Prepare data for insertion
-      const insertData = {
-        nks_id: values.allocationType === "nks" ? values.allocationId : null,
-        segmen_id: values.allocationType === "segmen" ? values.allocationId : null,
-        responden_name: values.respondenName,
-        sample_status: values.sampleStatus,
-        komoditas: values.komoditas,
-        tanggal_ubinan: format(values.tanggalUbinan, 'yyyy-MM-dd'),
-        berat_hasil: values.beratHasil,
+      // Create ubinan data
+      const ubinanData = {
+        nks_id: activeTab === "nks" ? selectedNKS : null,
+        segmen_id: activeTab === "segmen" ? selectedSegmen : null,
         ppl_id: user.id,
-        pml_id: pmlId,
+        responden_name: isUsingKRT ? selectedKRTDetail?.nama || "" : responden,
+        sample_status: isUsingKRT ? selectedKRTDetail?.status as ("Utama" | "Cadangan") : undefined,
+        komoditas: komoditas,
+        tanggal_ubinan: format(tanggal, 'yyyy-MM-dd'),
+        berat_hasil: parseFloat(berat),
+        pml_id: user.pml_id || null,
         status: 'sudah_diisi',
-        dokumen_diterima: false
       };
       
-      const { data, error } = await supabase
-        .from('ubinan_data')
-        .insert(insertData)
-        .select();
+      await createUbinanData(ubinanData);
       
-      if (error) {
-        console.error("Error submitting data:", error);
-        toast.error("Gagal menyimpan data");
-        return;
+      toast.success("Data ubinan berhasil disimpan");
+      
+      // Reset form
+      setKomoditas("");
+      setBerat("");
+      setResponden("");
+      setIsUsingKRT(false);
+      setSelectedKRT("");
+      
+      // Call the onSubmitSuccess callback
+      if (onSubmitSuccess) {
+        await onSubmitSuccess();
       }
-      
-      toast.success("Data berhasil disimpan");
-      form.reset({
-        allocationType: "nks",
-        allocationId: "",
-        respondenName: "",
-        sampleStatus: "Utama",
-        komoditas: "",
-        tanggalUbinan: undefined,
-        beratHasil: 0
-      });
-      
     } catch (error) {
-      console.error("Error in onSubmit:", error);
-      toast.error("Terjadi kesalahan saat menyimpan data");
+      console.error("Error submitting ubinan data:", error);
+      toast.error("Gagal menyimpan data ubinan");
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  const handleAllocationTypeChange = (value: string) => {
-    setSelectedTipe(value);
-    form.setValue("allocationType", value as "nks" | "segmen");
-    form.setValue("allocationId", "");
-    
-    // If changing allocation type to segmen, only allow padi as komoditas
-    if (value === "segmen") {
-      form.setValue("komoditas", "padi");
-    } else {
-      form.setValue("komoditas", "");
-    }
-  };
-
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Input Data Ubinan</CardTitle>
-        <CardDescription>
-          Isi form berikut untuk menambahkan data ubinan baru
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Tabs 
-              value={selectedTipe} 
-              onValueChange={handleAllocationTypeChange} 
-              className="w-full"
-            >
-              <TabsList className="grid grid-cols-2">
+    <Card>
+      <form onSubmit={handleSubmit}>
+        <CardHeader>
+          <CardTitle>Form Input Ubinan</CardTitle>
+          <CardDescription>
+            Input data ubinan berdasarkan alokasi dan komoditas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "nks" | "segmen")} className="w-full">
+              <TabsList className="grid grid-cols-2 mb-2">
                 <TabsTrigger value="nks">NKS (Palawija)</TabsTrigger>
                 <TabsTrigger value="segmen">Segmen (Padi)</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="nks" className="pt-4">
-                <FormField
-                  control={form.control}
-                  name="allocationId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pilih NKS</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                        disabled={isLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih NKS" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {nksAllocations.length === 0 ? (
-                            <SelectItem value="no-data" disabled>
-                              Tidak ada NKS yang tersedia
-                            </SelectItem>
-                          ) : (
-                            nksAllocations.map((item) => (
-                              <SelectItem key={item.nks?.id} value={item.nks?.id}>
-                                {item.nks?.code} - {item.nks?.desa?.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <TabsContent value="nks">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Pilih NKS</Label>
+                    <Select 
+                      value={selectedNKS} 
+                      onValueChange={setSelectedNKS}
+                      disabled={isLoadingAllocations}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={isLoadingAllocations ? "Memuat..." : "Pilih NKS"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allocations?.nks.map((item) => (
+                          <SelectItem key={item.nks.id} value={item.nks.id}>
+                            {item.nks.code} - {item.nks.desa?.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Komoditas Palawija</Label>
+                    <Select value={komoditas} onValueChange={setKomoditas}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih komoditas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="jagung">Jagung</SelectItem>
+                        <SelectItem value="kedelai">Kedelai</SelectItem>
+                        <SelectItem value="kacang_tanah">Kacang Tanah</SelectItem>
+                        <SelectItem value="ubi_kayu">Ubi Kayu</SelectItem>
+                        <SelectItem value="ubi_jalar">Ubi Jalar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </TabsContent>
               
-              <TabsContent value="segmen" className="pt-4">
-                <FormField
-                  control={form.control}
-                  name="allocationId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pilih Segmen</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                        disabled={isLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih Segmen" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {segmenAllocations.length === 0 ? (
-                            <SelectItem value="no-data" disabled>
-                              Tidak ada Segmen yang tersedia
-                            </SelectItem>
-                          ) : (
-                            segmenAllocations.map((item) => (
-                              <SelectItem key={item.segmen?.id} value={item.segmen?.id}>
-                                {item.segmen?.code} - {item.segmen?.desa?.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <TabsContent value="segmen">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Pilih Segmen</Label>
+                    <Select 
+                      value={selectedSegmen} 
+                      onValueChange={setSelectedSegmen}
+                      disabled={isLoadingAllocations}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={isLoadingAllocations ? "Memuat..." : "Pilih Segmen"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allocations?.segmen.map((item) => (
+                          <SelectItem key={item.segmen.id} value={item.segmen.id}>
+                            {item.segmen.code} - {item.segmen.desa?.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Komoditas</Label>
+                    <Input value="padi" readOnly disabled className="bg-slate-100" />
+                    <input type="hidden" value="padi" onChange={() => setKomoditas("padi")} />
+                    {activeTab === "segmen" && setKomoditas("padi")}
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="respondenName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Responden</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Masukkan nama responden" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="sampleStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status Sampel</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih status sampel" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Utama">Utama</SelectItem>
-                        <SelectItem value="Cadangan">Cadangan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <div className="space-y-2">
+              <Label>Tanggal Ubinan</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !tanggal && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {tanggal ? format(tanggal, "PPP") : <span>Pilih tanggal</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={tanggal}
+                    onSelect={(date) => date && setTanggal(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Berat Hasil (kg)</Label>
+              <Input 
+                type="number" 
+                placeholder="0.00" 
+                min="0" 
+                step="0.01"
+                value={berat}
+                onChange={(e) => setBerat(e.target.value)}
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="komoditas"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Komoditas</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                      disabled={selectedTipe === "segmen"}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih komoditas" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {komoditasOptions
-                          .filter(option => selectedTipe === "segmen" ? option.value === "padi" : true)
-                          .map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))
-                        }
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="tanggalUbinan"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Tanggal Ubinan</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={`w-full pl-3 text-left font-normal ${
-                              !field.value ? "text-muted-foreground" : ""
-                            }`}
-                          >
-                            {field.value ? (
-                              format(field.value, "dd MMMM yyyy")
-                            ) : (
-                              <span>Pilih tanggal</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("2020-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="beratHasil"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Berat Hasil (kg)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      placeholder="Masukkan berat hasil dalam kg" 
-                      {...field} 
-                      onChange={e => field.onChange(parseFloat(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Menyimpan...
-                </>
+            <div className="space-y-2">
+              <Label className="block">Responden</Label>
+              <RadioGroup value={isUsingKRT ? "krt" : "manual"} onValueChange={(v) => setIsUsingKRT(v === "krt")}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="krt" id="krt" />
+                  <Label htmlFor="krt" className="cursor-pointer">Gunakan sampel KRT</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="manual" id="manual" />
+                  <Label htmlFor="manual" className="cursor-pointer">Input manual</Label>
+                </div>
+              </RadioGroup>
+
+              {isUsingKRT ? (
+                <div className="mt-2">
+                  <Select 
+                    value={selectedKRT} 
+                    onValueChange={setSelectedKRT}
+                    disabled={isLoadingKRT || krtList.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        isLoadingKRT ? "Memuat..." : 
+                        krtList.length === 0 ? "Tidak ada sampel KRT" : 
+                        "Pilih sampel KRT"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {krtList.map((krt: SampelKRT) => (
+                        <SelectItem key={krt.id} value={krt.id}>
+                          {krt.nama} ({krt.status})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!isLoadingKRT && krtList.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tidak ada sampel KRT untuk {activeTab === "nks" ? "NKS" : "Segmen"} ini
+                    </p>
+                  )}
+                </div>
               ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Simpan Data
-                </>
+                <Input 
+                  placeholder="Nama responden" 
+                  value={responden}
+                  onChange={(e) => setResponden(e.target.value)}
+                />
               )}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-      <CardFooter className="flex justify-between flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          Pastikan data yang dimasukkan sudah benar
-        </p>
-        {selectedTipe === "nks" ? (
-          <p className="text-sm font-medium flex items-center">
-            <CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
-            NKS: Palawija
-          </p>
-        ) : (
-          <p className="text-sm font-medium flex items-center">
-            <CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
-            Segmen: Padi
-          </p>
-        )}
-      </CardFooter>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Menyimpan...
+              </>
+            ) : (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Simpan Data
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      </form>
     </Card>
   );
 }

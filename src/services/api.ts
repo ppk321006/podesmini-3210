@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/types/supabase-db";
 import { AllocationStatus, Petugas, UbinanData } from "@/types/database-schema";
@@ -174,14 +173,20 @@ export const getSubround = async () => {
 };
 
 export const getUbinanProgressBySubround = async (subround: number) => {
-  // Fix the function name to match the one in the database
-  const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { subround_param: subround });
-  
-  if (error) {
-    throw error;
+  try {
+    const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { 
+      subround_param: subround 
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getUbinanProgressBySubround:", error);
+    return [];
   }
-  
-  return data;
 };
 
 export const getUbinanProgressByYear = async (year: number = new Date().getFullYear()) => {

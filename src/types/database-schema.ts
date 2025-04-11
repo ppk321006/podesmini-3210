@@ -8,6 +8,10 @@ export interface Desa {
   id: string;
   name: string;
   kecamatan_id: string;
+  kecamatan?: {
+    id: string;
+    name: string;
+  }
 }
 
 export interface NKS {
@@ -57,7 +61,7 @@ export interface Segmen {
 export interface SampelKRT {
   id: string;
   nama: string;
-  status: string;
+  status: "Utama" | "Cadangan";
   nks_id: string | null;
   segmen_id: string | null;
   created_at: string;
@@ -83,7 +87,7 @@ export interface Petugas {
   id: string;
   username: string;
   name: string;
-  role: string;
+  role: "admin" | "pml" | "ppl" | "viewer";
   pml_id: string | null;
   created_at: string | null;
 }
@@ -94,7 +98,7 @@ export interface UbinanData {
   segmen_id: string | null;
   ppl_id: string;
   responden_name: string;
-  sample_status?: string;
+  sample_status?: "Utama" | "Cadangan";
   komoditas: string;
   tanggal_ubinan: string;
   berat_hasil: number;
@@ -126,7 +130,7 @@ export interface ProgressReport {
 }
 
 export interface AllocationStatus {
-  type: string;
+  type: "nks" | "segmen";
   id: string;
   code: string;
   desa_id: string;
