@@ -1,11 +1,11 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount } from "@/types/database-schema";
+import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount, SubroundProgressData } from "@/types/database-schema";
 
-export async function getProgressDetailBySubround(subround: number): Promise<DetailProgressData[]> {
+export async function getProgressDetailBySubround(subround: number, year: number = new Date().getFullYear()): Promise<DetailProgressData[]> {
   try {
     const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', {
-      subround_param: subround
+      subround_param: subround,
+      year_param: year
     });
     
     if (error) {
@@ -20,10 +20,11 @@ export async function getProgressDetailBySubround(subround: number): Promise<Det
   }
 }
 
-export async function getUbinanTotalsBySubround(subround: number): Promise<UbinanTotals> {
+export async function getUbinanTotalsBySubround(subround: number, year: number = new Date().getFullYear()): Promise<UbinanTotals> {
   try {
     const { data, error } = await supabase.rpc('get_ubinan_totals_by_subround', {
-      subround_param: subround
+      subround_param: subround,
+      year_param: year
     });
     
     if (error) {
@@ -486,7 +487,7 @@ export async function getPMLProgressByMonth(pmlId: string, year: number) {
   }
 }
 
-export async function getAllPPLProgress(year: number) {
+export async function getAllPPLProgress(year: number = new Date().getFullYear()) {
   try {
     // Get all PPL users
     const { data: pplUsers, error: pplError } = await supabase
@@ -534,5 +535,88 @@ export async function getAllPPLProgress(year: number) {
   } catch (error) {
     console.error("Error in getAllPPLProgress:", error);
     return {};
+  }
+}
+
+export async function getAllPPLPerformance(year: number = new Date().getFullYear()) {
+  try {
+    // Get all PPL users
+    const { data: pplUsers, error: pplError } = await supabase
+      .from('users')
+      .select('id, name, username')
+      .eq('role', 'ppl');
+      
+    if (pplError) {
+      console.error("Error fetching PPL users:", pplError);
+      throw pplError;
+    }
+    
+    // Get all verified ubinan data for the specified year
+    const { data: ubinanData, error: ubinanError } = await supabase
+      .from('ubinan_data')
+      .select(`
+        id,
+        ppl_id,
+        komoditas,
+        status,
+        tanggal_ubinan
+      `)
+      .gte('tanggal_ubinan', `${year}-01-01`)
+      .lte('tanggal_ubinan', `${year}-12-31`);
+      
+    if (ubinanError) {
+      console.error("Error fetching ubinan data:", ubinanError);
+      throw ubinanError;
+    }
+    
+    // Process performance data for each PPL
+    const performances = [];
+    
+    if (pplUsers) {
+      for (const ppl of pplUsers) {
+        const pplUbinanData = ubinanData?.filter(item => item.ppl_id === ppl.id) || [];
+        const targets = await getPPLTargets(ppl.id);
+        
+        const padiCompleted = pplUbinanData.filter(item => 
+          item.komoditas === 'padi' && item.status === 'dikonfirmasi'
+        ).length;
+        
+        const palawijaCompleted = pplUbinanData.filter(item => 
+          item.komoditas !== 'padi' && item.status === 'dikonfirmasi'
+        ).length;
+        
+        const pendingVerification = pplUbinanData.filter(item => 
+          item.status === 'sudah_diisi'
+        ).length;
+        
+        const rejected = pplUbinanData.filter(item => 
+          item.status === 'ditolak'
+        ).length;
+        
+        const totalTarget = targets.padi + targets.palawija;
+        const totalCompleted = padiCompleted + palawijaCompleted;
+        const completionPercentage = totalTarget > 0 ? (totalCompleted / totalTarget) * 100 : 0;
+        
+        performances.push({
+          ppl_id: ppl.id,
+          ppl_name: ppl.name,
+          ppl_username: ppl.username,
+          padi_target: targets.padi,
+          palawija_target: targets.palawija,
+          padi_completed: padiCompleted,
+          palawija_completed: palawijaCompleted,
+          total_target: totalTarget,
+          total_completed: totalCompleted,
+          completion_percentage: completionPercentage,
+          pending_verification: pendingVerification,
+          rejected: rejected
+        });
+      }
+    }
+    
+    return performances;
+  } catch (error) {
+    console.error("Error in getAllPPLPerformance:", error);
+    return [];
   }
 }

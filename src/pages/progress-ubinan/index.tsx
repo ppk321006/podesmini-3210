@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
@@ -13,37 +14,54 @@ import {
   getPMLProgressByMonth,
   getPPLProgressByMonth
 } from "@/services/progress-service";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 
 export default function ProgressUbinanPage() {
   const { user } = useAuth();
   const [selectedSubround, setSelectedSubround] = useState<number>(0); // 0 = all, 1 = Jan-Apr, 2 = May-Aug, 3 = Sep-Dec
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  
+  // Generate years starting from 2025
   const currentYear = new Date().getFullYear();
+  const years = [];
+  for (let year = 2025; year <= currentYear; year++) {
+    years.push(year);
+  }
+  if (years.length === 0) {
+    years.push(2025); // At minimum, include 2025
+  }
 
   // Get totals for the selected subround
   const { data: totals, isLoading: isLoadingTotals } = useQuery({
-    queryKey: ['ubinan_totals', selectedSubround],
-    queryFn: () => getUbinanTotalsBySubround(selectedSubround),
+    queryKey: ['ubinan_totals', selectedSubround, selectedYear],
+    queryFn: () => getUbinanTotalsBySubround(selectedSubround, selectedYear),
     enabled: !!user,
   });
 
   // Get progress detail by subround
   const { data: progressDetail = [], isLoading: isLoadingDetail } = useQuery({
-    queryKey: ['ubinan_progress_detail', selectedSubround],
-    queryFn: () => getProgressDetailBySubround(selectedSubround),
+    queryKey: ['ubinan_progress_detail', selectedSubround, selectedYear],
+    queryFn: () => getProgressDetailBySubround(selectedSubround, selectedYear),
     enabled: !!user,
   });
 
   // For PPL - get their own progress
   const { data: pplProgress = [], isLoading: isLoadingPPLProgress } = useQuery({
-    queryKey: ['ppl_progress', user?.id, currentYear],
-    queryFn: () => getPPLProgressByMonth(user?.id || '', currentYear),
+    queryKey: ['ppl_progress', user?.id, selectedYear],
+    queryFn: () => getPPLProgressByMonth(user?.id || '', selectedYear),
     enabled: !!user && user.role === UserRole.PPL,
   });
 
   // For PML - get progress for their PPLs
   const { data: pmlProgress = [], isLoading: isLoadingPMLProgress } = useQuery({
-    queryKey: ['pml_progress', user?.id, currentYear],
-    queryFn: () => getPMLProgressByMonth(user?.id || '', currentYear),
+    queryKey: ['pml_progress', user?.id, selectedYear],
+    queryFn: () => getPMLProgressByMonth(user?.id || '', selectedYear),
     enabled: !!user && user.role === UserRole.PML,
   });
 
@@ -65,25 +83,44 @@ export default function ProgressUbinanPage() {
     setSelectedSubround(parseInt(value));
   };
 
+  const handleChangeYear = (value: string) => {
+    setSelectedYear(parseInt(value));
+  };
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Progres Ubinan</h1>
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h2 className="text-xl font-medium">Ringkasan Progres</h2>
 
-        <Tabs 
-          value={selectedSubround.toString()} 
-          onValueChange={handleChangeSubround}
-          className="w-[400px]"
-        >
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="0">Semua</TabsTrigger>
-            <TabsTrigger value="1">Jan-Apr</TabsTrigger>
-            <TabsTrigger value="2">Mei-Ags</TabsTrigger>
-            <TabsTrigger value="3">Sep-Des</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <Select value={selectedYear.toString()} onValueChange={handleChangeYear}>
+            <SelectTrigger className="w-full md:w-[150px]">
+              <SelectValue placeholder="Tahun" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  Tahun {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Tabs 
+            value={selectedSubround.toString()} 
+            onValueChange={handleChangeSubround}
+            className="w-full md:w-[400px]"
+          >
+            <TabsList className="grid grid-cols-4 w-full">
+              <TabsTrigger value="0">Semua</TabsTrigger>
+              <TabsTrigger value="1">Subround 1</TabsTrigger>
+              <TabsTrigger value="2">Subround 2</TabsTrigger>
+              <TabsTrigger value="3">Subround 3</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
       
       {isLoadingTotals ? (
@@ -219,27 +256,22 @@ export default function ProgressUbinanPage() {
         </Card>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Detail Progres Bulanan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProgressTable
-            title="Detail Progres Bulanan"
-            description="Pencapaian target bulanan entri data ubinan"
-            data={
-              user?.role === UserRole.PPL ? pplProgress :
-              user?.role === UserRole.PML ? pmlProgress :
-              progressDetail
-            }
-            loading={
-              user?.role === UserRole.PPL ? isLoadingPPLProgress :
-              user?.role === UserRole.PML ? isLoadingPMLProgress :
-              isLoadingDetail
-            }
-          />
-        </CardContent>
-      </Card>
+      <ProgressTable
+        title="Detail Progres Ubinan"
+        description="Pencapaian target entri data ubinan berdasarkan subround"
+        data={
+          user?.role === UserRole.PPL ? pplProgress :
+          user?.role === UserRole.PML ? pmlProgress :
+          progressDetail
+        }
+        loading={
+          user?.role === UserRole.PPL ? isLoadingPPLProgress :
+          user?.role === UserRole.PML ? isLoadingPMLProgress :
+          isLoadingDetail
+        }
+        selectedYear={selectedYear}
+        selectedSubround={selectedSubround}
+      />
     </div>
   );
 }

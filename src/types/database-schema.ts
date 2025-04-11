@@ -194,6 +194,17 @@ export interface DetailProgressData {
   palawija_percentage: number;
 }
 
+export interface SubroundProgressData {
+  subround: number;
+  subround_name: string;
+  padi_count: number;
+  palawija_count: number;
+  padi_target: number;
+  palawija_target: number;
+  padi_percentage: number;
+  palawija_percentage: number;
+}
+
 export interface VerificationStatusCount {
   status: string;
   count: number;
@@ -210,4 +221,19 @@ export interface UbinanTotals {
   padi_target: number;
   palawija_target: number;
   pending_verification: number;
+}
+
+export interface PetugasPerformance {
+  ppl_id: string;
+  ppl_name: string;
+  ppl_username: string;
+  padi_target: number;
+  palawija_target: number;
+  padi_completed: number;
+  palawija_completed: number;
+  total_target: number;
+  total_completed: number;
+  completion_percentage: number;
+  pending_verification: number;
+  rejected: number;
 }
