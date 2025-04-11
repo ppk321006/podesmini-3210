@@ -414,11 +414,78 @@ export type Database = {
           },
         ]
       }
+      wilayah_tugas_segmen: {
+        Row: {
+          created_at: string
+          id: string
+          pml_id: string
+          ppl_id: string
+          segmen_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pml_id: string
+          ppl_id: string
+          segmen_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pml_id?: string
+          ppl_id?: string
+          segmen_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wilayah_tugas_segmen_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wilayah_tugas_segmen_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wilayah_tugas_segmen_segmen_id_fkey"
+            columns: ["segmen_id"]
+            isOneToOne: false
+            referencedRelation: "segmen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      allocation_status: {
+        Row: {
+          code: string | null
+          desa_id: string | null
+          desa_name: string | null
+          id: string | null
+          is_allocated: boolean | null
+          kecamatan_id: string | null
+          kecamatan_name: string | null
+          pml_id: string | null
+          ppl_id: string | null
+          type: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      get_palawija_by_type: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          komoditas: string
+          count: number
+        }[]
+      }
       get_subround: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -444,6 +511,35 @@ export type Database = {
           verified_count: number
           rejected_count: number
           completion_percentage: number
+        }[]
+      }
+      get_ubinan_progress_detail_by_subround: {
+        Args: { subround_param: number }
+        Returns: {
+          month: number
+          padi_count: number
+          palawija_count: number
+          padi_target: number
+          palawija_target: number
+          padi_percentage: number
+          palawija_percentage: number
+        }[]
+      }
+      get_ubinan_totals_by_subround: {
+        Args: { subround_param: number }
+        Returns: {
+          total_padi: number
+          total_palawija: number
+          padi_target: number
+          palawija_target: number
+          pending_verification: number
+        }[]
+      }
+      get_verification_status_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          status: string
+          count: number
         }[]
       }
     }

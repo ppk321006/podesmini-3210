@@ -3,13 +3,21 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, FileSpreadsheet, BarChart3, TrendingUp, AlertCircle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { monthsIndonesia, getMonthName } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { 
+  getUbinanProgressByYear, 
+  getUbinanProgressDetailBySubround, 
+  getVerificationStatusCounts, 
+  getPalawijaTypeounts, 
+  getUbinanTotalsBySubround,
+  getPalawijaTypeCount 
+} from "@/services/wilayah-api";
+import { DetailProgressData, VerificationStatusCount, PalawijaTypeCount, UbinanTotals } from "@/types/database-schema";
 
 interface ProgressData {
   month: number;
@@ -18,34 +26,6 @@ interface ProgressData {
   verified_count: number;
   rejected_count: number;
   completion_percentage: number;
-}
-
-interface DetailProgressData {
-  month: number;
-  padi_count: number;
-  palawija_count: number;
-  padi_target: number;
-  palawija_target: number;
-  padi_percentage: number;
-  palawija_percentage: number;
-}
-
-interface VerificationStatusCount {
-  status: string;
-  count: number;
-}
-
-interface PalawijaTypeCount {
-  komoditas: string;
-  count: number;
-}
-
-interface UbinanTotals {
-  total_padi: number;
-  total_palawija: number;
-  padi_target: number;
-  palawija_target: number;
-  pending_verification: number;
 }
 
 interface YearOption {
@@ -92,46 +72,19 @@ export default function ProgressUbinanPage() {
       setIsLoading(true);
       
       // Fetch basic progress data
-      const { data: progressData, error: progressError } = await supabase.rpc('get_ubinan_progress_by_year', {
-        year_param: selectedYear
-      });
-
-      if (progressError) {
-        console.error('Error fetching progress data:', progressError);
-        return;
-      }
+      const progressData = await getUbinanProgressByYear(selectedYear);
 
       // Fetch detailed progress data
-      const { data: detailData, error: detailError } = await supabase.rpc('get_ubinan_progress_detail_by_subround', {
-        subround_param: selectedSubround
-      });
-
-      if (detailError) {
-        console.error('Error fetching detailed progress data:', detailError);
-      }
+      const detailData = await getUbinanProgressDetailBySubround(selectedSubround);
 
       // Fetch verification status counts
-      const { data: statusData, error: statusError } = await supabase.rpc('get_verification_status_counts');
-
-      if (statusError) {
-        console.error('Error fetching verification status counts:', statusError);
-      }
+      const statusData = await getVerificationStatusCounts();
 
       // Fetch palawija by type
-      const { data: palawijaData, error: palawijaError } = await supabase.rpc('get_palawija_by_type');
-
-      if (palawijaError) {
-        console.error('Error fetching palawija type counts:', palawijaError);
-      }
+      const palawijaData = await getPalawijaTypeounts();
 
       // Fetch totals for current subround
-      const { data: totalsData, error: totalsError } = await supabase.rpc('get_ubinan_totals_by_subround', {
-        subround_param: selectedSubround
-      });
-
-      if (totalsError) {
-        console.error('Error fetching ubinan totals:', totalsError);
-      }
+      const totalsData = await getUbinanTotalsBySubround(selectedSubround);
 
       // Format and set the data
       const formattedProgressData = formatProgressData(progressData || []);

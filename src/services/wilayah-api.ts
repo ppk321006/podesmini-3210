@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData, Segmen, SampelKRT, NKSKomoditas, AllocationStatus, ProgressReport } from "@/types/database-schema";
+import { Kecamatan, Desa, NKS, WilayahTugas, Petugas, UbinanData, Segmen, SampelKRT, NKSKomoditas, AllocationStatus, ProgressReport, WilayahTugasSegmen, DetailProgressData, VerificationStatusCount, PalawijaTypeCount, UbinanTotals } from "@/types/database-schema";
 
 // Kecamatan APIs
 export const getKecamatanList = async (): Promise<Kecamatan[]> => {
@@ -844,10 +844,45 @@ export const getSubround = async () => {
   return data as unknown as number;
 };
 
-export const getUbinanProgressBySubround = async (subround: number) => {
-  const { data, error } = await supabase.rpc('get_ubinan_progress_by_subround', { subround_param: subround });
+// Get detailed progress data for Ubinan by subround
+export const getUbinanProgressDetailBySubround = async (subround: number): Promise<DetailProgressData[]> => {
+  const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { subround_param: subround });
   
   if (error) {
+    console.error("Error fetching detailed progress data:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getVerificationStatusCounts = async (): Promise<VerificationStatusCount[]> => {
+  const { data, error } = await supabase.rpc('get_verification_status_counts');
+  
+  if (error) {
+    console.error("Error fetching verification status counts:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getPalawijaTypecounts = async (): Promise<PalawijaTypeCount[]> => {
+  const { data, error } = await supabase.rpc('get_palawija_by_type');
+  
+  if (error) {
+    console.error("Error fetching palawija type counts:", error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getUbinanTotalsBySubround = async (subround: number): Promise<UbinanTotals[]> => {
+  const { data, error } = await supabase.rpc('get_ubinan_totals_by_subround', { subround_param: subround });
+  
+  if (error) {
+    console.error("Error fetching ubinan totals:", error);
     throw error;
   }
   

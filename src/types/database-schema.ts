@@ -53,6 +53,14 @@ export interface WilayahTugas {
   created_at: string;
 }
 
+export interface WilayahTugasSegmen {
+  id: string;
+  segmen_id: string;
+  pml_id: string;
+  ppl_id: string;
+  created_at: string;
+}
+
 export interface Petugas {
   id: string;
   username: string;
@@ -110,4 +118,32 @@ export interface AllocationStatus {
   is_allocated: boolean;
   ppl_id: string | null;
   pml_id: string | null;
+}
+
+export interface DetailProgressData {
+  month: number;
+  padi_count: number;
+  palawija_count: number;
+  padi_target: number;
+  palawija_target: number;
+  padi_percentage: number;
+  palawija_percentage: number;
+}
+
+export interface VerificationStatusCount {
+  status: string;
+  count: number;
+}
+
+export interface PalawijaTypeCount {
+  komoditas: string;
+  count: number;
+}
+
+export interface UbinanTotals {
+  total_padi: number;
+  total_palawija: number;
+  padi_target: number;
+  palawija_target: number;
+  pending_verification: number;
 }
