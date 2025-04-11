@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Kecamatan, 
@@ -720,6 +719,119 @@ export async function verifyUbinanData(id: string, isApproved: boolean, komentar
   }
 }
 
+export async function updateUbinanVerification(
+  id: string,
+  status: 'dikonfirmasi' | 'ditolak',
+  dokumenDiterima: boolean,
+  komentar?: string
+): Promise<UbinanData | null> {
+  try {
+    const { data, error } = await supabase
+      .from('ubinan_data')
+      .update({
+        status,
+        dokumen_diterima: dokumenDiterima,
+        komentar: komentar || null
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        nks:nks_id(*),
+        segmen:segmen_id(*)
+      `)
+      .single();
+      
+    if (error) {
+      console.error("Error updating ubinan verification:", error);
+      throw error;
+    }
+    
+    return data as unknown as UbinanData;
+  } catch (error) {
+    console.error("Error in updateUbinanVerification:", error);
+    return null;
+  }
+}
+
+export async function getUbinanProgressByYear(year: number = new Date().getFullYear()) {
+  try {
+    const { data, error } = await supabase.rpc('get_ubinan_progress_by_year', { year_param: year });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getUbinanProgressByYear:", error);
+    return [];
+  }
+}
+
+export async function getUbinanProgressDetailBySubround(subround: number) {
+  try {
+    const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { 
+      subround_param: subround 
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getUbinanProgressDetailBySubround:", error);
+    return [];
+  }
+}
+
+export async function getVerificationStatusCounts() {
+  try {
+    const { data, error } = await supabase.rpc('get_verification_status_counts');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getVerificationStatusCounts:", error);
+    return [];
+  }
+}
+
+export async function getPalawijaTypeCounts() {
+  try {
+    const { data, error } = await supabase.rpc('get_palawija_by_type');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getPalawijaTypeCounts:", error);
+    return [];
+  }
+}
+
+export async function getUbinanTotalsBySubround(subround: number) {
+  try {
+    const { data, error } = await supabase.rpc('get_ubinan_totals_by_subround', { 
+      subround_param: subround 
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getUbinanTotalsBySubround:", error);
+    return [];
+  }
+}
+
 // Progress API
 export async function getPPLTargets(pplId: string): Promise<{ padi: number; palawija: number }> {
   try {
@@ -781,22 +893,5 @@ export async function getSubround(): Promise<number> {
   } catch (error) {
     console.error("Error in getSubround:", error);
     return 1; // Default to subround 1 if error
-  }
-}
-
-export async function getUbinanProgressBySubround(subround: number) {
-  try {
-    const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { 
-      subround_param: subround 
-    });
-    
-    if (error) {
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error("Error in getUbinanProgressBySubround:", error);
-    return [];
   }
 }

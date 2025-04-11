@@ -7,14 +7,14 @@ import * as htmlToImage from 'html-to-image';
 // Function to export ubinan data to Excel
 export async function exportUbinanDataToExcel(startDate: string, endDate: string): Promise<Blob> {
   try {
-    // Fetch ubinan data with nested relations
+    // Fetch ubinan data with properly hinted columns
     const { data, error } = await supabase
       .from('ubinan_data')
       .select(`
         *,
-        nks:nks_id(*, desa:desa_id(*, kecamatan:kecamatan_id(*))),
-        segmen:segmen_id(*, desa:desa_id(*, kecamatan:kecamatan_id(*))),
-        ppl:ppl_id(*)
+        nks:nks_id(id, code, desa_id, desa:desa_id(id, name, kecamatan_id, kecamatan:kecamatan_id(id, name))),
+        segmen:segmen_id(id, code, desa_id, desa:desa_id(id, name, kecamatan_id, kecamatan:kecamatan_id(id, name))),
+        ppl:ppl_id(id, name)
       `)
       .gte('tanggal_ubinan', startDate)
       .lte('tanggal_ubinan', endDate)
@@ -25,7 +25,7 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
     }
     
     // Transform data for Excel export
-    const exportData = data?.map((item) => {
+    const exportData = data?.map((item: any) => {
       const formattedDate = new Date(item.tanggal_ubinan).toLocaleDateString('id-ID');
       const allocationType = item.nks_id ? 'NKS' : 'Segmen';
       const allocationCode = item.nks_id ? item.nks?.code : item.segmen?.code;
@@ -34,12 +34,12 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
       let desaName = '-';
       let kecamatanName = '-';
       
-      if (item.nks_id && item.nks) {
-        desaName = item.nks.desa?.name || '-';
-        kecamatanName = item.nks.desa?.kecamatan?.name || '-';
-      } else if (item.segmen_id && item.segmen) {
-        desaName = item.segmen.desa?.name || '-';
-        kecamatanName = item.segmen.desa?.kecamatan?.name || '-';
+      if (item.nks_id && item.nks && item.nks.desa) {
+        desaName = item.nks.desa.name || '-';
+        kecamatanName = item.nks.desa.kecamatan?.name || '-';
+      } else if (item.segmen_id && item.segmen && item.segmen.desa) {
+        desaName = item.segmen.desa.name || '-';
+        kecamatanName = item.segmen.desa.kecamatan?.name || '-';
       }
       
       const komoditas = item.komoditas.replace('_', ' ');
@@ -115,14 +115,14 @@ export async function exportUbinanReportToJpeg(startDate: string, endDate: strin
     reportElement.style.position = 'absolute';
     reportElement.style.left = '-9999px';
     
-    // Fetch data with proper joins
+    // Fetch data with proper hints on column names
     const { data: ubinanData, error: ubinanError } = await supabase
       .from('ubinan_data')
       .select(`
         *,
-        nks:nks_id(*, desa:desa_id(*, kecamatan:kecamatan_id(*))),
-        segmen:segmen_id(*, desa:desa_id(*, kecamatan:kecamatan_id(*))),
-        ppl:ppl_id(name)
+        nks:nks_id(id, code, desa:desa_id(id, name, kecamatan:kecamatan_id(id, name))),
+        segmen:segmen_id(id, code, desa:desa_id(id, name, kecamatan:kecamatan_id(id, name))),
+        ppl:ppl_id(id, name)
       `)
       .gte('tanggal_ubinan', startDate)
       .lte('tanggal_ubinan', endDate)
@@ -134,11 +134,11 @@ export async function exportUbinanReportToJpeg(startDate: string, endDate: strin
     
     // Generate statistics
     const totalEntries = ubinanData?.length || 0;
-    const padiCount = ubinanData?.filter(item => item.komoditas === 'padi').length || 0;
+    const padiCount = ubinanData?.filter((item: any) => item.komoditas === 'padi').length || 0;
     const palawijaCount = totalEntries - padiCount;
-    const verifiedCount = ubinanData?.filter(item => item.status === 'dikonfirmasi').length || 0;
-    const pendingCount = ubinanData?.filter(item => item.status === 'sudah_diisi').length || 0;
-    const rejectedCount = ubinanData?.filter(item => item.status === 'ditolak').length || 0;
+    const verifiedCount = ubinanData?.filter((item: any) => item.status === 'dikonfirmasi').length || 0;
+    const pendingCount = ubinanData?.filter((item: any) => item.status === 'sudah_diisi').length || 0;
+    const rejectedCount = ubinanData?.filter((item: any) => item.status === 'ditolak').length || 0;
     
     // Build the report HTML
     reportElement.innerHTML = `
@@ -198,7 +198,7 @@ export async function exportUbinanReportToJpeg(startDate: string, endDate: strin
           </tr>
         </thead>
         <tbody>
-          ${ubinanData?.slice(0, 10).map(item => {
+          ${(ubinanData as any[] || []).slice(0, 10).map(item => {
             const tanggal = new Date(item.tanggal_ubinan).toLocaleDateString('id-ID');
             const alokasi = item.nks_id ? `NKS: ${item.nks?.code || ''}` : `Segmen: ${item.segmen?.code || ''}`;
             const komoditas = item.komoditas.replace('_', ' ');

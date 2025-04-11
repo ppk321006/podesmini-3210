@@ -129,6 +129,32 @@ export async function removePPLFromSegmen(segmenId: string, pplId: string): Prom
   }
 }
 
+export async function removePPLAssignment(allocationId: string, pplId: string): Promise<boolean> {
+  try {
+    // First check if this is an NKS or a Segmen based on allocation ID
+    const { data: allocData, error: allocError } = await supabase
+      .from('allocation_status')
+      .select('*')
+      .eq('id', allocationId)
+      .single();
+    
+    if (allocError) {
+      throw allocError;
+    }
+    
+    const allocationType = allocData.type as "nks" | "segmen";
+    
+    if (allocationType === 'nks') {
+      return await removePPLFromNKS(allocationId, pplId);
+    } else {
+      return await removePPLFromSegmen(allocationId, pplId);
+    }
+  } catch (error) {
+    console.error("Error in removePPLAssignment:", error);
+    return false;
+  }
+}
+
 export async function getPPLAllocations(pplId: string) {
   try {
     // Get NKS allocations

@@ -31,6 +31,9 @@ export interface NKS {
       name: string;
     }
   };
+  // Extended properties for joined data
+  komoditas_list?: NKSKomoditas[];
+  wilayah_tugas?: WilayahTugas[];
 }
 
 export interface NKSKomoditas {
@@ -56,6 +59,8 @@ export interface Segmen {
       name: string;
     }
   };
+  // Extended properties for joined data
+  wilayah_tugas_segmen?: WilayahTugasSegmen[];
 }
 
 export interface SampelKRT {
