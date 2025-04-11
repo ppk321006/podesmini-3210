@@ -508,7 +508,9 @@ export type Database = {
         }[]
       }
       get_ubinan_progress_detail_by_subround: {
-        Args: { subround_param: number }
+        Args:
+          | { subround_param: number }
+          | { subround_param: number; year_param?: number }
         Returns: {
           month: number
           padi_count: number
@@ -520,7 +522,9 @@ export type Database = {
         }[]
       }
       get_ubinan_totals_by_subround: {
-        Args: { subround_param: number }
+        Args:
+          | { subround_param: number }
+          | { subround_param: number; year_param?: number }
         Returns: {
           total_padi: number
           total_palawija: number

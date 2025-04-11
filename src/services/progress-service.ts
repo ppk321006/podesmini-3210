@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount, SubroundProgressData } from "@/types/database-schema";
+import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount, SubroundProgressData, PetugasPerformance } from "@/types/database-schema";
 
 export async function getProgressDetailBySubround(subround: number, year: number = new Date().getFullYear()): Promise<DetailProgressData[]> {
   try {
@@ -382,7 +382,7 @@ export async function getProgressByPML(pmlId: string) {
   }
 }
 
-export async function getPPLProgressByMonth(pplId: string, year: number) {
+export async function getPPLProgressByMonth(pplId: string, year: number = new Date().getFullYear()) {
   try {
     const targets = await getPPLTargets(pplId);
     const { data, error } = await supabase
@@ -442,7 +442,7 @@ export async function getPPLProgressByMonth(pplId: string, year: number) {
   }
 }
 
-export async function getPMLProgressByMonth(pmlId: string, year: number) {
+export async function getPMLProgressByMonth(pmlId: string, year: number = new Date().getFullYear()) {
   try {
     // Get all PPLs under this PML
     const ppls = await getPPLsByPML(pmlId);
@@ -538,7 +538,7 @@ export async function getAllPPLProgress(year: number = new Date().getFullYear())
   }
 }
 
-export async function getAllPPLPerformance(year: number = new Date().getFullYear()) {
+export async function getAllPPLPerformance(year: number = new Date().getFullYear()): Promise<PetugasPerformance[]> {
   try {
     // Get all PPL users
     const { data: pplUsers, error: pplError } = await supabase
@@ -570,7 +570,7 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
     }
     
     // Process performance data for each PPL
-    const performances = [];
+    const performances: PetugasPerformance[] = [];
     
     if (pplUsers) {
       for (const ppl of pplUsers) {

@@ -145,7 +145,13 @@ export function ProgressTable({
         String(item.padi_target).includes(searchTerm) ||
         String(item.palawija_target).includes(searchTerm)
       )
-    : data;
+    : data.filter(item => {
+        // Filter data based on the selected subround
+        if (selectedSubround === 1) return item.month >= 1 && item.month <= 4;
+        if (selectedSubround === 2) return item.month >= 5 && item.month <= 8;
+        if (selectedSubround === 3) return item.month >= 9 && item.month <= 12;
+        return true;
+      });
 
   // Sort data based on current sort settings
   const sortedData = [...filteredData].sort((a, b) => {
