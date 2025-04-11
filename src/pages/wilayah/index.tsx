@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -815,21 +814,21 @@ export default function WilayahPage() {
                             <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
                             <TableCell>{item.subround || '1'}</TableCell>
                             <TableCell>
-                              {item.komoditas_list && item.komoditas_list.length > 0 
-                                ? item.komoditas_list.map(k => k.komoditas).join(', ')
+                              {item.komoditas_list && Array.isArray(item.komoditas_list) && item.komoditas_list.length > 0 
+                                ? item.komoditas_list.map((k: any) => k.komoditas).join(', ')
                                 : '-'
                               }
                             </TableCell>
                             <TableCell>{item.target_palawija}</TableCell>
                             <TableCell>
-                              {item.wilayah_tugas?.length > 0 
-                                ? item.wilayah_tugas[0].ppl?.name || '-'
+                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
+                                ? (item.wilayah_tugas[0] as any)?.ppl?.name || '-'
                                 : '-'
                               }
                             </TableCell>
                             <TableCell>
-                              {item.wilayah_tugas?.length > 0 
-                                ? item.wilayah_tugas[0].pml?.name || '-'
+                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
+                                ? (item.wilayah_tugas[0] as any)?.pml?.name || '-'
                                 : '-'
                               }
                             </TableCell>

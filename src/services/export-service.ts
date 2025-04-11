@@ -24,7 +24,7 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
     }
     
     // Get desa information for NKS and Segmen
-    const desaIds = new Set();
+    const desaIds = new Set<string>();
     data?.forEach(item => {
       if (item.nks && item.nks.desa_id) desaIds.add(item.nks.desa_id);
       if (item.segmen && item.segmen.desa_id) desaIds.add(item.segmen.desa_id);
@@ -49,7 +49,7 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
     });
     
     // Transform data for Excel export
-    const exportData = data?.map((item) => {
+    const exportData = data?.map((item: any) => {
       const formattedDate = new Date(item.tanggal_ubinan).toLocaleDateString('id-ID');
       const allocationType = item.nks_id ? 'NKS' : 'Segmen';
       const allocationCode = item.nks_id ? item.nks?.code : item.segmen?.code;

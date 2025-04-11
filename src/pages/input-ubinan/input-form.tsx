@@ -376,7 +376,7 @@ export function InputUbinanForm({ onSubmitSuccess }: InputUbinanFormProps) {
               <Label>Tanggal Ubinan</Label>
               <DatePicker
                 date={tanggalUbinan}
-                setDate={setTanggalUbinan}
+                onSelect={setTanggalUbinan}
                 className="w-full"
               />
             </div>
