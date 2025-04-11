@@ -39,7 +39,7 @@ export default function VerifikasiPage() {
           *,
           nks:nks_id(*),
           segmen:segmen_id(*),
-          ppl:ppl_id(id, name, username)
+          ppl:ppl_id(*)
         `)
         .eq('pml_id', user.id);
         
@@ -48,7 +48,8 @@ export default function VerifikasiPage() {
         throw error;
       }
       
-      return data as UbinanData[];
+      // Using type assertion with unknown as intermediate step
+      return (data as unknown) as UbinanData[];
     },
     enabled: !!user?.id,
   });
@@ -108,6 +109,7 @@ export default function VerifikasiPage() {
         valueB = b.berat_hasil;
         break;
       case 'ppl':
+        // Handle potentially undefined ppl property safely
         valueA = a.ppl?.name?.toLowerCase() || '';
         valueB = b.ppl?.name?.toLowerCase() || '';
         break;
@@ -255,7 +257,7 @@ export default function VerifikasiPage() {
                     <TableCell className="capitalize">{ubinan.komoditas.replace('_', ' ')}</TableCell>
                     <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
                     <TableCell>{ubinan.berat_hasil} kg</TableCell>
-                    <TableCell>{ubinan.ppl?.name}</TableCell>
+                    <TableCell>{ubinan.ppl?.name || 'Unknown'}</TableCell>
                     <TableCell>
                       <Badge
                         className={
@@ -297,7 +299,7 @@ export default function VerifikasiPage() {
 
       {selectedUbinan && (
         <VerificationDialog 
-          data={selectedUbinan}
+          data={selectedUbinan as UbinanData}
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
           onComplete={handleDialogClose}
