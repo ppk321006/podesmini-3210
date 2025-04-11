@@ -64,8 +64,12 @@ export default function VerifikasiPage() {
         const desa = item.nks?.desa || item.segmen?.desa;
         
         let pplName = "Unknown";
-        if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null && 'name' in item.ppl && item.ppl.name) {
-          pplName = item.ppl.name as string;
+        if (item.ppl && 
+            typeof item.ppl === 'object' && 
+            item.ppl !== null && 
+            'name' in item.ppl && 
+            typeof item.ppl.name === 'string') {
+          pplName = item.ppl.name;
         }
           
         return {

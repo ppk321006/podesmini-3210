@@ -140,8 +140,12 @@ export async function getUbinanDataByPPL(pplId: string) {
       
       // Safely handle PPL data with better type checking
       let pplName = "Unknown";
-      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null && 'name' in item.ppl && item.ppl.name) {
-        pplName = item.ppl.name as string;
+      if (item.ppl && 
+          typeof item.ppl === 'object' && 
+          item.ppl !== null && 
+          'name' in item.ppl && 
+          typeof item.ppl.name === 'string') {
+        pplName = item.ppl.name;
       }
       
       return {
@@ -194,8 +198,12 @@ export async function getUbinanDataByPML(pmlId: string) {
       
       // Safely handle PPL data with better type checking
       let pplName = "Unknown";
-      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null && 'name' in item.ppl && item.ppl.name) {
-        pplName = item.ppl.name as string;
+      if (item.ppl && 
+          typeof item.ppl === 'object' && 
+          item.ppl !== null && 
+          'name' in item.ppl && 
+          typeof item.ppl.name === 'string') {
+        pplName = item.ppl.name;
       }
       
       return {
