@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount } from "@/types/database-schema";
 
@@ -139,7 +140,7 @@ export async function getUbinanDataByPPL(pplId: string) {
       
       // Safely handle PPL data with better type checking
       let pplName = "Unknown";
-      if (item.ppl && typeof item.ppl === 'object' && 'name' in item.ppl && item.ppl.name) {
+      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null && 'name' in item.ppl && item.ppl.name) {
         pplName = item.ppl.name as string;
       }
       
@@ -193,7 +194,7 @@ export async function getUbinanDataByPML(pmlId: string) {
       
       // Safely handle PPL data with better type checking
       let pplName = "Unknown";
-      if (item.ppl && typeof item.ppl === 'object' && 'name' in item.ppl && item.ppl.name) {
+      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null && 'name' in item.ppl && item.ppl.name) {
         pplName = item.ppl.name as string;
       }
       

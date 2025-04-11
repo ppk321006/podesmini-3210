@@ -148,7 +148,7 @@ export interface UbinanData {
       }
     }
   };
-  ppl?: Petugas;
+  ppl?: Petugas | null | any; // Added any to handle potential error responses
   pml?: Petugas;
   ppl_name?: string; // Fallback for PPL name when direct access to ppl object isn't available
   desa_name?: string;

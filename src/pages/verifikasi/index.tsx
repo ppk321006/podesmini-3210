@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -63,7 +64,7 @@ export default function VerifikasiPage() {
         const desa = item.nks?.desa || item.segmen?.desa;
         
         let pplName = "Unknown";
-        if (item.ppl && typeof item.ppl === 'object' && 'name' in item.ppl && item.ppl.name) {
+        if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null && 'name' in item.ppl && item.ppl.name) {
           pplName = item.ppl.name as string;
         }
           
@@ -75,7 +76,8 @@ export default function VerifikasiPage() {
         };
       });
       
-      return processedData as UbinanData[];
+      // Use proper type casting to handle the response format
+      return processedData as unknown as UbinanData[];
     },
     enabled: !!user?.id,
   });
