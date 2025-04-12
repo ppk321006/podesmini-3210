@@ -1025,16 +1025,18 @@ export default function WilayahPage() {
                               {item.wilayah_tugas_segmen && 
                                Array.isArray(item.wilayah_tugas_segmen) && 
                                item.wilayah_tugas_segmen.length > 0 && 
-                               item.wilayah_tugas_segmen[0]?.ppl ? 
-                                item.wilayah_tugas_segmen[0].ppl.name || '-' : '-'
+                               item.wilayah_tugas_segmen[0]?.ppl && 
+                               typeof item.wilayah_tugas_segmen[0].ppl === 'object' ? 
+                                (item.wilayah_tugas_segmen[0].ppl as any)?.name || '-' : '-'
                               }
                             </TableCell>
                             <TableCell>
                               {item.wilayah_tugas_segmen && 
                                Array.isArray(item.wilayah_tugas_segmen) && 
                                item.wilayah_tugas_segmen.length > 0 &&
-                               item.wilayah_tugas_segmen[0]?.pml ?
-                                item.wilayah_tugas_segmen[0].pml.name || '-' : '-'
+                               item.wilayah_tugas_segmen[0]?.pml && 
+                               typeof item.wilayah_tugas_segmen[0].pml === 'object' ? 
+                                (item.wilayah_tugas_segmen[0].pml as any)?.name || '-' : '-'
                               }
                             </TableCell>
                             <TableCell>
