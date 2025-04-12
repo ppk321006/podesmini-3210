@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,19 +14,26 @@ import {
   getWilayahTugasList
 } from "@/services/wilayah-api";
 import { useAuth } from "@/context/auth-context";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow, 
+  TableTargetGroup
+} from "@/components/ui/table";
 
 export default function AlokasiWilayahPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // Selection states
   const [selectedKecamatanId, setSelectedKecamatanId] = useState("");
   const [selectedDesaId, setSelectedDesaId] = useState("");
   const [selectedNKSId, setSelectedNKSId] = useState("");
   const [selectedPMLId, setSelectedPMLId] = useState("");
   const [selectedPPLId, setSelectedPPLId] = useState("");
   
-  // Data queries
   const { data: kecamatanList = [] } = useQuery({
     queryKey: ["kecamatan"],
     queryFn: getKecamatanList,
@@ -54,7 +60,6 @@ export default function AlokasiWilayahPage() {
     queryKey: ["petugas", "ppl", selectedPMLId],
     queryFn: async () => {
       if (selectedPMLId) {
-        // Filter PPL by selected PML
         const allPPL = await getPetugasList("ppl");
         return allPPL.filter(ppl => ppl.pml_id === selectedPMLId);
       }
@@ -63,13 +68,11 @@ export default function AlokasiWilayahPage() {
     enabled: !!selectedPMLId,
   });
   
-  // Current allocations
   const { data: wilayahTugasList = [], isLoading: isLoadingWilayah } = useQuery({
     queryKey: ["wilayah_tugas"],
-    queryFn: () => getWilayahTugasList(),
+    queryFn: getWilayahTugasList,
   });
   
-  // Create allocation mutation
   const createWilayahMutation = useMutation({
     mutationFn: (values: { 
       nksId: string;
@@ -84,7 +87,6 @@ export default function AlokasiWilayahPage() {
       queryClient.invalidateQueries({ queryKey: ["wilayah_tugas"] });
       toast.success("Alokasi wilayah tugas berhasil ditambahkan");
       
-      // Reset form
       setSelectedNKSId("");
     },
     onError: (error) => {
@@ -93,21 +95,18 @@ export default function AlokasiWilayahPage() {
     }
   });
   
-  // Set default PML based on logged-in user
   useEffect(() => {
     if (user && user.role === "pml") {
       setSelectedPMLId(user.id);
     }
   }, [user]);
   
-  // Handle form submission
   const handleAddWilayah = () => {
     if (!selectedNKSId || !selectedPMLId || !selectedPPLId) {
       toast.error("Semua field harus diisi");
       return;
     }
     
-    // Check if allocation already exists
     const exists = wilayahTugasList.some(
       w => w.nks_id === selectedNKSId && w.ppl_id === selectedPPLId
     );
@@ -124,16 +123,13 @@ export default function AlokasiWilayahPage() {
     });
   };
   
-  // Check if NKS is already allocated to a PPL
   const isNKSAllocated = (nksId: string) => {
     return wilayahTugasList.some(w => w.nks_id === nksId);
   };
   
-  // Get NKS details by ID - Fix for TypeScript errors
   const getNKSDetails = (nksId: string) => {
     const nks = nksList.find(n => n.id === nksId);
     if (nks) return nks;
-    // Return fallback with all required properties
     return { 
       code: "-", 
       desa_id: "", 
@@ -144,13 +140,11 @@ export default function AlokasiWilayahPage() {
     };
   };
   
-  // Get desa name by ID
   const getDesaName = (desaId: string) => {
     const desa = desaList.find(d => d.id === desaId);
     return desa ? desa.name : "-";
   };
   
-  // Get petugas name by ID
   const getPetugasName = (id: string) => {
     const pml = pmlList.find(p => p.id === id);
     if (pml) return pml.name;
@@ -323,31 +317,36 @@ export default function AlokasiWilayahPage() {
               <p className="text-muted-foreground">Belum ada data wilayah tugas</p>
             ) : (
               <div className="border rounded-lg">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="p-3 text-left">Kode NKS</th>
-                      <th className="p-3 text-left">Desa</th>
-                      <th className="p-3 text-left">Target (Padi/Palawija)</th>
-                      <th className="p-3 text-left">PML</th>
-                      <th className="p-3 text-left">PPL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Kode NKS</TableHead>
+                      <TableHead>Desa</TableHead>
+                      <TableHead>Target (Padi/Palawija)</TableHead>
+                      <TableHead>PML</TableHead>
+                      <TableHead>PPL</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {wilayahTugasList.map((wilayah) => {
                       const nksDetails = getNKSDetails(wilayah.nks_id);
                       return (
-                        <tr key={wilayah.id} className="border-t">
-                          <td className="p-3">{nksDetails.code}</td>
-                          <td className="p-3">{getDesaName(nksDetails.desa_id)}</td>
-                          <td className="p-3">{nksDetails.target_padi}/{nksDetails.target_palawija}</td>
-                          <td className="p-3">{getPetugasName(wilayah.pml_id)}</td>
-                          <td className="p-3">{getPetugasName(wilayah.ppl_id)}</td>
-                        </tr>
+                        <TableRow key={wilayah.id} className="border-t">
+                          <TableCell>{nksDetails.code}</TableCell>
+                          <TableCell>{getDesaName(nksDetails.desa_id)}</TableCell>
+                          <TableCell>
+                            <TableTargetGroup 
+                              padiTarget={nksDetails.target_padi} 
+                              palawijaTarget={nksDetails.target_palawija} 
+                            />
+                          </TableCell>
+                          <TableCell>{getPetugasName(wilayah.pml_id)}</TableCell>
+                          <TableCell>{getPetugasName(wilayah.ppl_id)}</TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>

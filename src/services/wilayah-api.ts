@@ -1,11 +1,54 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { AllocationStatus, Petugas, NKS } from '@/types/database-schema';
+import { AllocationStatus, Petugas, NKS, UbinanData } from '@/types/database-schema';
 
 // Define types based on our custom database schema
-type DatabaseUser = Database['public']['Tables']['users']['Row'];
-type Kecamatan = Database['public']['Tables']['kecamatan']['Row'];
-type Desa = Database['public']['Tables']['desa']['Row'];
-type WilayahTugas = Database['public']['Tables']['wilayah_tugas']['Row'];
+type DatabaseUser = {
+  id: string;
+  username: string;
+  password: string;
+  name: string;
+  role: 'admin' | 'pml' | 'ppl' | 'viewer';
+  pml_id: string | null;
+  created_at: string | null;
+};
+
+type Kecamatan = {
+  id: string;
+  name: string;
+  created_at?: string;
+};
+
+type Desa = {
+  id: string;
+  name: string;
+  kecamatan_id: string;
+  created_at?: string;
+};
+
+type WilayahTugas = {
+  id: string;
+  nks_id: string;
+  pml_id: string;
+  ppl_id: string;
+  created_at: string;
+};
+
+// Alias functions for backward compatibility
+export const getKecamatanList = getKecamatans;
+export const getDesaList = getDesasByKecamatan;
+export const getNKSList = getNKSByDesa;
+export const getWilayahTugasList = async () => {
+  const { data, error } = await supabase
+    .from('wilayah_tugas')
+    .select('*, nks:nks_id(*), ppl:ppl_id(*), pml:pml_id(*)');
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as WilayahTugas[];
+};
 
 // Users API
 export const getUsers = async () => {
@@ -48,6 +91,21 @@ export const getKecamatans = async () => {
   return data as Kecamatan[];
 };
 
+// Create Kecamatan
+export const createKecamatan = async (name: string) => {
+  const { data, error } = await supabase
+    .from('kecamatan')
+    .insert([{ name }])
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as Kecamatan;
+};
+
 // Desa API
 export const getDesasByKecamatan = async (kecamatanId: string) => {
   const { data, error } = await supabase
@@ -77,6 +135,21 @@ export const getDesaById = async (desaId: string) => {
   return data;
 };
 
+// Create Desa
+export const createDesa = async (name: string, kecamatanId: string) => {
+  const { data, error } = await supabase
+    .from('desa')
+    .insert([{ name, kecamatan_id: kecamatanId }])
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as Desa;
+};
+
 // NKS API
 export const getNKSByDesa = async (desaId: string) => {
   const { data, error } = await supabase
@@ -91,6 +164,55 @@ export const getNKSByDesa = async (desaId: string) => {
   return data as NKS[];
 };
 
+export const getNKSWithAssignments = async () => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select(`
+      *,
+      desa:desa_id(*, kecamatan:kecamatan_id(*)),
+      komoditas_list:nks_komoditas(*),
+      wilayah_tugas(*, ppl:ppl_id(*), pml:pml_id(*))
+    `);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const createNKS = async (code: string, desaId: string, targetPalawija: number, subround: number) => {
+  const { data, error } = await supabase
+    .from('nks')
+    .insert([{ 
+      code, 
+      desa_id: desaId,
+      target_palawija: targetPalawija,
+      subround
+    }])
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as NKS;
+};
+
+export const deleteNKS = async (nksId: string) => {
+  const { error } = await supabase
+    .from('nks')
+    .delete()
+    .eq('id', nksId);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return true;
+};
+
 export const getNKSDetails = async (nksId: string) => {
   const { data, error } = await supabase
     .from('nks')
@@ -103,6 +225,121 @@ export const getNKSDetails = async (nksId: string) => {
   }
   
   return data;
+};
+
+// Segmen API
+export const getSegmenList = async (desaId?: string) => {
+  let query = supabase
+    .from('segmen')
+    .select();
+  
+  if (desaId) {
+    query = query.eq('desa_id', desaId);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getSegmenWithAssignments = async () => {
+  const { data, error } = await supabase
+    .from('segmen')
+    .select(`
+      *,
+      desa:desa_id(*, kecamatan:kecamatan_id(*)),
+      wilayah_tugas_segmen(*, ppl:ppl_id(*), pml:pml_id(*))
+    `);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const createSegmen = async (code: string, desaId: string, targetPadi: number, bulan: number) => {
+  const { data, error } = await supabase
+    .from('segmen')
+    .insert([{ 
+      code, 
+      desa_id: desaId,
+      target_padi: targetPadi,
+      bulan
+    }])
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteSegmen = async (segmenId: string) => {
+  const { error } = await supabase
+    .from('segmen')
+    .delete()
+    .eq('id', segmenId);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return true;
+};
+
+// Sampel KRT API
+export const createSampelKRT = async (data: { nama: string; status: string; nks_id?: string; segmen_id?: string; }) => {
+  const { data: result, error } = await supabase
+    .from('sampel_krt')
+    .insert([data])
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return result;
+};
+
+export const getSampelKRTList = async (nksId?: string, segmenId?: string) => {
+  let query = supabase
+    .from('sampel_krt')
+    .select();
+  
+  if (nksId) {
+    query = query.eq('nks_id', nksId);
+  } else if (segmenId) {
+    query = query.eq('segmen_id', segmenId);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteSampelKRT = async (krtId: string) => {
+  const { error } = await supabase
+    .from('sampel_krt')
+    .delete()
+    .eq('id', krtId);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return true;
 };
 
 // Wilayah Tugas API
@@ -132,6 +369,86 @@ export const getWilayahTugasByPPL = async (pplId: string) => {
   return data;
 };
 
+export const createWilayahTugas = async (nksId: string, pmlId: string, pplId: string) => {
+  const { data, error } = await supabase
+    .from('wilayah_tugas')
+    .insert([{ 
+      nks_id: nksId, 
+      pml_id: pmlId, 
+      ppl_id: pplId 
+    }])
+    .select();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+// Ubinan API
+export const createUbinanData = async (data: {
+  nks_id?: string;
+  segmen_id?: string;
+  ppl_id: string;
+  responden_name: string;
+  sample_status?: string;
+  komoditas: string;
+  tanggal_ubinan: string;
+  berat_hasil: number;
+  pml_id?: string;
+}) => {
+  const { data: result, error } = await supabase
+    .from('ubinan_data')
+    .insert([data])
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return result as UbinanData;
+};
+
+export const updateUbinanData = async (id: string, data: {
+  responden_name?: string;
+  sample_status?: string;
+  komoditas?: string;
+  tanggal_ubinan?: string;
+  berat_hasil?: number;
+  status?: string;
+  dokumen_diterima?: boolean;
+}) => {
+  const { data: result, error } = await supabase
+    .from('ubinan_data')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return result as UbinanData;
+};
+
+export const updateUbinanVerification = async (id: string, status: string, komentar?: string) => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .update({ status, komentar })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as UbinanData;
+};
+
 // Ubinan Data API
 export const getUbinanDataByPPL = async (pplId: string) => {
   const { data, error } = await supabase
@@ -143,7 +460,7 @@ export const getUbinanDataByPPL = async (pplId: string) => {
     throw error;
   }
   
-  return data as unknown as any[];
+  return data as UbinanData[];
 };
 
 export const getUbinanDataForVerification = async (pmlId: string) => {
@@ -157,7 +474,7 @@ export const getUbinanDataForVerification = async (pmlId: string) => {
     throw error;
   }
   
-  return data as unknown as any[];
+  return data as UbinanData[];
 };
 
 export const getSubround = async () => {
@@ -167,7 +484,7 @@ export const getSubround = async () => {
     throw error;
   }
   
-  return data as unknown as number;
+  return data;
 };
 
 export const getUbinanProgressBySubround = async (subround: number) => {
@@ -432,25 +749,33 @@ export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId:
     }
     
     let tableName = '';
-    let nksIdColumn = '';
+    let idColumn = '';
     
     if (allocation.type === 'nks') {
       tableName = 'wilayah_tugas';
-      nksIdColumn = 'nks_id';
+      idColumn = 'nks_id';
     } else if (allocation.type === 'segmen') {
       tableName = 'wilayah_tugas_segmen';
-      nksIdColumn = 'segmen_id';
+      idColumn = 'segmen_id';
     } else {
       throw new Error("Unknown allocation type");
     }
     
+    // Create the insertion object dynamically
+    const insertObj: Record<string, string> = {
+      ppl_id: pplId,
+      pml_id: pmlId,
+    };
+    insertObj[idColumn] = allocationId;
+    
     // Assign PPL to the specified NKS or Segmen
     const { data, error } = await supabase
       .from(tableName)
-      .insert([{ [nksIdColumn]: allocationId, ppl_id: pplId, pml_id: pmlId }]);
+      .insert([insertObj])
+      .select();
       
     if (error) {
-      console.error("Error assigning PPL to NKS/Segmen:", error);
+      console.error(`Error assigning PPL to ${allocation.type}:`, error);
       throw new Error(error.message);
     }
     
@@ -510,4 +835,4 @@ export async function removePPLAssignment(allocationId: string, pplId: string): 
 }
 
 // Export types for use in other components
-export type { DatabaseUser, Kecamatan, Desa, NKS, WilayahTugas };
+export type { DatabaseUser, Kecamatan, Desa, WilayahTugas };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,12 +52,10 @@ export default function WilayahPage() {
   const [activeTab, setActiveTab] = useState("kecamatan");
   const [filterText, setFilterText] = useState("");
   
-  // Dialog states
   const [isEditNKSDialogOpen, setIsEditNKSDialogOpen] = useState(false);
   const [isEditSegmenDialogOpen, setIsEditSegmenDialogOpen] = useState(false);
   const [currentEditItem, setCurrentEditItem] = useState<any>(null);
   
-  // Kecamatan states and queries
   const [newKecamatanName, setNewKecamatanName] = useState("");
   
   const { data: kecamatanList = [], isLoading: isLoadingKecamatan } = useQuery({
@@ -67,7 +64,7 @@ export default function WilayahPage() {
   });
   
   const createKecamatanMutation = useMutation({
-    mutationFn: createKecamatan,
+    mutationFn: (name: string) => createKecamatan(name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kecamatan"] });
       setNewKecamatanName("");
@@ -79,7 +76,6 @@ export default function WilayahPage() {
     }
   });
   
-  // Desa states and queries
   const [selectedKecamatanId, setSelectedKecamatanId] = useState("");
   const [newDesaName, setNewDesaName] = useState("");
   
@@ -103,17 +99,11 @@ export default function WilayahPage() {
     }
   });
   
-  // NKS states and queries
   const [selectedDesaId, setSelectedDesaId] = useState("");
   const [newNKSCode, setNewNKSCode] = useState("");
   const [targetPalawija, setTargetPalawija] = useState(0);
   const [selectedKomoditasList, setSelectedKomoditasList] = useState<string[]>([]);
   const [subroundValue, setSubroundValue] = useState(1);
-  
-  // KRT states for NKS
-  const [sampelKRTList, setSampelKRTList] = useState<{nama: string; status: 'Utama' | 'Cadangan'}[]>([]);
-  const [newKRTNama, setNewKRTNama] = useState("");
-  const [newKRTStatus, setNewKRTStatus] = useState<'Utama' | 'Cadangan'>('Utama');
   
   const { data: currentSubround = 1 } = useQuery({
     queryKey: ["subround"],
@@ -150,7 +140,6 @@ export default function WilayahPage() {
         values.targetPalawija,
         values.subround
       ).then(nks => {
-        // After creating NKS, create sampel KRT entries
         const promises = values.sampelKRTList.map(krt => 
           createSampelKRT({
             nama: krt.nama, 
@@ -177,7 +166,7 @@ export default function WilayahPage() {
   });
   
   const deleteNKSMutation = useMutation({
-    mutationFn: deleteNKS,
+    mutationFn: (id: string) => deleteNKS(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nks", selectedDesaId] });
       queryClient.invalidateQueries({ queryKey: ["nks_assignments"] });
@@ -189,7 +178,6 @@ export default function WilayahPage() {
     }
   });
   
-  // Segmen states and queries
   const [newSegmenCode, setNewSegmenCode] = useState("");
   const [targetPadi, setTargetPadi] = useState(0);
   const [selectedBulan, setSelectedBulan] = useState<number | "">("");
@@ -235,7 +223,7 @@ export default function WilayahPage() {
   });
   
   const deleteSegmenMutation = useMutation({
-    mutationFn: deleteSegmen,
+    mutationFn: (id: string) => deleteSegmen(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["segmen", selectedDesaId] });
       queryClient.invalidateQueries({ queryKey: ["segmen_assignments"] });
@@ -247,7 +235,6 @@ export default function WilayahPage() {
     }
   });
   
-  // Handlers
   const handleAddKecamatan = () => {
     if (!newKecamatanName.trim()) {
       toast.error("Nama kecamatan tidak boleh kosong");
@@ -367,26 +354,24 @@ export default function WilayahPage() {
     });
   };
 
-  // Filter functions
-  const filteredNKSData = nksWithAssignments.filter(item => {
+  const filteredNKSData = nksWithAssignments ? nksWithAssignments.filter(item => {
     const searchText = filterText.toLowerCase();
     return (
       item.code.toLowerCase().includes(searchText) || 
       (item.desa?.name && item.desa.name.toLowerCase().includes(searchText)) || 
       (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText))
     );
-  });
+  }) : [];
 
-  const filteredSegmenData = segmenWithAssignments.filter(item => {
+  const filteredSegmenData = segmenWithAssignments ? segmenWithAssignments.filter(item => {
     const searchText = filterText.toLowerCase();
     return (
       item.code.toLowerCase().includes(searchText) || 
       (item.desa?.name && item.desa.name.toLowerCase().includes(searchText)) || 
       (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText))
     );
-  });
+  }) : [];
 
-  // Helper function to get month name from number
   const getMonthName = (monthNum: number): string => {
     const month = monthsIndonesia.find(m => m.value === monthNum);
     return month ? month.label : '';
@@ -416,7 +401,6 @@ export default function WilayahPage() {
                   onChange={(e) => setFilterText(e.target.value)}
                 />
               </div>
-              {/* Additional filters can be added here */}
             </div>
           )}
           
@@ -560,7 +544,7 @@ export default function WilayahPage() {
                     <p className="text-muted-foreground">Pilih kecamatan terlebih dahulu</p>
                   ) : isLoadingDesa ? (
                     <p>Memuat data...</p>
-                  ) : desaList.length === 0 ? (
+                  ) : desaList && desaList.length === 0 ? (
                     <p className="text-muted-foreground">Belum ada data desa untuk kecamatan ini</p>
                   ) : (
                     <Table>
@@ -572,7 +556,7 @@ export default function WilayahPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {desaList.map((desa) => (
+                        {desaList && desaList.map((desa) => (
                           <TableRow key={desa.id}>
                             <TableCell>{desa.name}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{desa.id}</TableCell>
@@ -638,7 +622,7 @@ export default function WilayahPage() {
                           <SelectValue placeholder="Pilih desa" />
                         </SelectTrigger>
                         <SelectContent>
-                          {desaList.map((desa) => (
+                          {desaList && desaList.map((desa) => (
                             <SelectItem key={desa.id} value={desa.id}>
                               {desa.name}
                             </SelectItem>
@@ -914,7 +898,7 @@ export default function WilayahPage() {
                           <SelectValue placeholder="Pilih desa" />
                         </SelectTrigger>
                         <SelectContent>
-                          {desaList.map((desa) => (
+                          {desaList && desaList.map((desa) => (
                             <SelectItem key={desa.id} value={desa.id}>
                               {desa.name}
                             </SelectItem>
@@ -1059,7 +1043,6 @@ export default function WilayahPage() {
         </Tabs>
       </div>
       
-      {/* NKS Edit Dialog */}
       <Dialog open={isEditNKSDialogOpen} onOpenChange={setIsEditNKSDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1085,7 +1068,6 @@ export default function WilayahPage() {
                   readOnly
                 />
               </div>
-              {/* Add more edit fields as needed */}
             </div>
           )}
           <DialogFooter>
@@ -1099,7 +1081,6 @@ export default function WilayahPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Segmen Edit Dialog */}
       <Dialog open={isEditSegmenDialogOpen} onOpenChange={setIsEditSegmenDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1125,7 +1106,6 @@ export default function WilayahPage() {
                   readOnly
                 />
               </div>
-              {/* Add more edit fields as needed */}
             </div>
           )}
           <DialogFooter>

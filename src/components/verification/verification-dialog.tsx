@@ -1,173 +1,100 @@
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { UbinanData } from "@/types/database-schema";
-import { Badge } from "@/components/ui/badge";
-import { Check, X } from "lucide-react";
-import { format } from "date-fns";
-import { updateUbinanVerification } from "@/services/wilayah-api";
-import { toast } from "@/hooks/use-toast";
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { updateUbinanVerification } from '@/services/wilayah-api';
+import { UbinanData } from '@/types/database-schema';
 
-export interface VerificationDialogProps {
-  data: UbinanData;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onComplete: (updatedData: UbinanData) => void;
+interface VerificationDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  data: UbinanData | null;
 }
 
-export function VerificationDialog({ open, onOpenChange, data, onComplete }: VerificationDialogProps) {
-  const [loading, setLoading] = useState(false);
-  const [dokumenDiterima, setDokumenDiterima] = useState(data.dokumen_diterima);
-  const [komentar, setKomentar] = useState(data.komentar || "");
-  
-  const handleVerify = async (status: 'dikonfirmasi' | 'ditolak') => {
-    try {
-      setLoading(true);
-      
-      const updatedData = await updateUbinanVerification(
-        data.id,
-        status,
-        dokumenDiterima,
-        komentar
-      );
-      
-      toast({
-        title: status === 'dikonfirmasi' ? "Data Dikonfirmasi" : "Data Ditolak",
-        description: `Data ubinan telah berhasil ${status === 'dikonfirmasi' ? 'dikonfirmasi' : 'ditolak'}.`,
-        variant: status === 'dikonfirmasi' ? "default" : "destructive",
-      });
-      
-      onComplete(updatedData);
-    } catch (error) {
-      console.error("Error updating verification status:", error);
-      toast({
-        title: "Kesalahan",
-        description: "Gagal mengupdate status verifikasi",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+export function VerificationDialog({ isOpen, onClose, data }: VerificationDialogProps) {
+  const [status, setStatus] = useState<'dikonfirmasi' | 'ditolak'>('dikonfirmasi');
+  const [komentar, setKomentar] = useState('');
+  const queryClient = useQueryClient();
+
+  const verificationMutation = useMutation({
+    mutationFn: ({ id, status, komentar }: { id: string; status: string; komentar: string }) =>
+      updateUbinanVerification(id, status, komentar),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['verification-data'] });
+      toast.success('Data berhasil diverifikasi');
+      handleClose();
+    },
+    onError: (error) => {
+      console.error('Error verifying data:', error);
+      toast.error('Gagal memverifikasi data');
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!data?.id) return;
+    
+    verificationMutation.mutate({
+      id: data.id,
+      status,
+      komentar,
+    });
   };
 
-  const formatDateToLocale = (dateString: string) => {
-    return format(new Date(dateString), 'dd MMMM yyyy');
+  const handleClose = () => {
+    setStatus('dikonfirmasi');
+    setKomentar('');
+    onClose();
   };
-
-  const allocationType = data.nks_id ? "NKS" : "Segmen";
-  const allocationCode = data.nks_id 
-    ? (data.nks?.code || "-") 
-    : (data.segmen?.code || "-");
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Verifikasi Data Ubinan</DialogTitle>
-          <DialogDescription>
-            Periksa data ubinan dan konfirmasi atau tolak data tersebut.
-          </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Nama Responden</div>
-            <div className="col-span-2">{data.responden_name}</div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Status Sampel</div>
-            <div className="col-span-2">{data.sample_status || "Tidak ada"}</div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Alokasi</div>
-            <div className="col-span-2">{allocationType}: {allocationCode}</div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Komoditas</div>
-            <div className="col-span-2 capitalize">{data.komoditas.replace('_', ' ')}</div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Tanggal Ubinan</div>
-            <div className="col-span-2">{formatDateToLocale(data.tanggal_ubinan)}</div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Berat Hasil</div>
-            <div className="col-span-2">{data.berat_hasil} kg</div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Status</div>
-            <div className="col-span-2">
-              <Badge 
-                variant={
-                  data.status === "dikonfirmasi" ? "default" : 
-                  data.status === "sudah_diisi" ? "secondary" : 
-                  data.status === "ditolak" ? "destructive" : "outline"
-                }
-                className={data.status === "dikonfirmasi" ? "bg-green-500 hover:bg-green-600" : ""}
-              >
-                {data.status === "dikonfirmasi" && "Terverifikasi"}
-                {data.status === "sudah_diisi" && "Menunggu Verifikasi"}
-                {data.status === "ditolak" && "Ditolak"}
-                {data.status !== "dikonfirmasi" && data.status !== "sudah_diisi" && data.status !== "ditolak" && "Belum Diisi"}
-              </Badge>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2 items-center">
-            <div className="font-medium">Dokumen Diterima</div>
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 gap-2">
+            <Label htmlFor="status">Status Verifikasi</Label>
+            <RadioGroup value={status} onValueChange={(value: 'dikonfirmasi' | 'ditolak') => setStatus(value)}>
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="dokumen" 
-                  checked={dokumenDiterima} 
-                  onCheckedChange={(checked) => setDokumenDiterima(!!checked)}
-                />
-                <Label htmlFor="dokumen">Ya, dokumen telah diterima</Label>
+                <RadioGroupItem value="dikonfirmasi" id="dikonfirmasi" />
+                <Label htmlFor="dikonfirmasi">Terima</Label>
               </div>
-            </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="ditolak" id="ditolak" />
+                <Label htmlFor="ditolak">Tolak</Label>
+              </div>
+            </RadioGroup>
           </div>
-          
-          <div className="grid gap-2">
+
+          <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="komentar">Komentar</Label>
-            <Textarea 
-              id="komentar" 
-              placeholder="Tambahkan komentar atau catatan" 
-              value={komentar} 
-              onChange={(e) => setKomentar(e.target.value)} 
-              rows={3}
+            <Textarea
+              id="komentar"
+              value={komentar}
+              onChange={(e) => setKomentar(e.target.value)}
+              placeholder="Tambahkan komentar tentang verifikasi data ini..."
+              rows={4}
             />
           </div>
         </div>
-        
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            type="submit" 
-            variant="destructive" 
-            onClick={() => handleVerify('ditolak')}
-            disabled={loading}
-            className="flex-1"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Tolak Data
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Batal
           </Button>
           <Button 
-            type="submit" 
-            onClick={() => handleVerify('dikonfirmasi')}
-            disabled={loading || !dokumenDiterima}
-            className="flex-1"
+            type="button" 
+            onClick={handleSubmit}
+            disabled={verificationMutation.isPending}
           >
-            <Check className="h-4 w-4 mr-2" />
-            Konfirmasi Data
+            {verificationMutation.isPending ? 'Menyimpan...' : 'Simpan'}
           </Button>
         </DialogFooter>
       </DialogContent>
