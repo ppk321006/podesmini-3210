@@ -190,7 +190,7 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
     
     const { data: pendingData, error: pendingError } = await supabase
       .from('ubinan_data')
-      .select('id, ppl_id')
+      .select('id, ppl_id, tanggal_ubinan')
       .eq('status', 'sudah_diisi')
       .gte('tanggal_ubinan', `${year}-01-01`)
       .lte('tanggal_ubinan', `${year}-12-31`);
@@ -202,7 +202,7 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
     
     const { data: rejectedData, error: rejectedError } = await supabase
       .from('ubinan_data')
-      .select('id, ppl_id')
+      .select('id, ppl_id, tanggal_ubinan')
       .eq('status', 'ditolak')
       .gte('tanggal_ubinan', `${year}-01-01`)
       .lte('tanggal_ubinan', `${year}-12-31`);
