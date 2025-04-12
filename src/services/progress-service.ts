@@ -141,7 +141,7 @@ export async function getPPLsByPML(pmlId: string) {
       .select('id, name, username')
       .eq('pml_id', pmlId)
       .eq('role', 'ppl');
-    
+      
     if (error) {
       console.error("Error fetching PPLs by PML:", error);
       return [];
@@ -366,6 +366,102 @@ export async function getPMLProgressByMonth(pmlId: string, year: number = new Da
     return createProgressDataFromUbinan(data, totalPadiTarget, totalPalawijaTarget);
   } catch (error) {
     console.error("Error in getPMLProgressByMonth:", error);
+    return [];
+  }
+}
+
+// Implement the missing function getProgressByPML
+export async function getProgressByPML(pmlId: string) {
+  try {
+    // Get all PPLs under this PML
+    const ppls = await getPPLsByPML(pmlId);
+    
+    if (!ppls.length) {
+      return {
+        totalPadi: 0,
+        totalPalawija: 0,
+        pendingVerification: 0,
+        verified: 0,
+        rejected: 0
+      };
+    }
+    
+    // Get all ubinan data for these PPLs
+    const { data: ubinanData, error } = await supabase
+      .from('ubinan_data')
+      .select('*')
+      .in('ppl_id', ppls.map(ppl => ppl.id));
+      
+    if (error) {
+      console.error("Error fetching PML progress:", error);
+      return {
+        totalPadi: 0,
+        totalPalawija: 0,
+        pendingVerification: 0,
+        verified: 0,
+        rejected: 0
+      };
+    }
+    
+    // Count different status and types
+    const pendingVerification = ubinanData.filter(item => item.status === 'sudah_diisi').length;
+    const verified = ubinanData.filter(item => item.status === 'dikonfirmasi').length;
+    const rejected = ubinanData.filter(item => item.status === 'ditolak').length;
+    const totalPadi = ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
+    const totalPalawija = ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
+    
+    return {
+      totalPadi,
+      totalPalawija,
+      pendingVerification,
+      verified,
+      rejected
+    };
+  } catch (error) {
+    console.error("Error in getProgressByPML:", error);
+    return {
+      totalPadi: 0,
+      totalPalawija: 0,
+      pendingVerification: 0,
+      verified: 0,
+      rejected: 0
+    };
+  }
+}
+
+// Implement the missing function getUbinanDataByPML
+export async function getUbinanDataByPML(pmlId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('ubinan_data')
+      .select(`
+        *,
+        nks:nks_id(
+          id, code,
+          desa:desa_id(
+            id, name,
+            kecamatan:kecamatan_id(id, name)
+          )
+        ),
+        segmen:segmen_id(
+          id, code,
+          desa:desa_id(
+            id, name,
+            kecamatan:kecamatan_id(id, name)
+          )
+        ),
+        ppl:ppl_id(id, name, username)
+      `)
+      .eq('pml_id', pmlId);
+      
+    if (error) {
+      console.error("Error fetching ubinan data by PML:", error);
+      return [];
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getUbinanDataByPML:", error);
     return [];
   }
 }
