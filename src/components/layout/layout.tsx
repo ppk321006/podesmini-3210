@@ -3,13 +3,14 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
-import { MobileNav } from "./mobile-nav";
+import { MobileNavFixed } from "./mobile-nav-fixed"; // Import the fixed component
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false); // Add state for dialog
   const isMobile = useIsMobile();
   const { isAuthenticated } = useAuth();
   
@@ -39,8 +40,10 @@ export function Layout() {
         />
       )}
       
-      {/* Mobile Navigation */}
-      {isMobile && isAuthenticated && <MobileNav />}
+      {/* Mobile Navigation with fixed implementation */}
+      {isMobile && isAuthenticated && (
+        <MobileNavFixed dialogOpen={dialogOpen} setDialogOpen={setDialogOpen} />
+      )}
     </div>
   );
 }
