@@ -34,6 +34,14 @@ type WilayahTugas = {
   created_at: string;
 };
 
+type WilayahTugasSegmen = {
+  id: string;
+  segmen_id: string;
+  pml_id: string;
+  ppl_id: string;
+  created_at: string;
+};
+
 // Export functions first before using them as aliases
 export async function getKecamatans() {
   const { data, error } = await supabase
@@ -250,7 +258,7 @@ export const getSegmenWithAssignments = async () => {
     .select(`
       *,
       desa:desa_id(*, kecamatan:kecamatan_id(*)),
-      wilayah_tugas_segmen(*, ppl:ppl_id(*), pml:pml_id(*))
+      wilayah_tugas_segmen:wilayah_tugas_segmen(*, ppl:ppl_id(*), pml:pml_id(*))
     `);
   
   if (error) {
@@ -729,6 +737,7 @@ export async function getAllocationStatus(): Promise<AllocationStatus[]> {
   }
 }
 
+// Fix the implementation of assignPPLToNKS
 export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId: string): Promise<any> {
   try {
     // Determine the type of allocation (nks or segmen)
@@ -747,44 +756,52 @@ export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId:
       throw new Error("Allocation not found");
     }
     
-    let tableName = '';
-    let idColumn = '';
+    let result;
     
     if (allocation.type === 'nks') {
-      tableName = 'wilayah_tugas';
-      idColumn = 'nks_id';
+      const { data, error } = await supabase
+        .from('wilayah_tugas')
+        .insert({
+          nks_id: allocationId,
+          ppl_id: pplId,
+          pml_id: pmlId
+        })
+        .select();
+        
+      if (error) {
+        console.error("Error assigning PPL to NKS:", error);
+        throw new Error(error.message);
+      }
+      
+      result = data;
     } else if (allocation.type === 'segmen') {
-      tableName = 'wilayah_tugas_segmen';
-      idColumn = 'segmen_id';
+      const { data, error } = await supabase
+        .from('wilayah_tugas_segmen')
+        .insert({
+          segmen_id: allocationId,
+          ppl_id: pplId,
+          pml_id: pmlId
+        })
+        .select();
+        
+      if (error) {
+        console.error("Error assigning PPL to Segmen:", error);
+        throw new Error(error.message);
+      }
+      
+      result = data;
     } else {
       throw new Error("Unknown allocation type");
     }
     
-    // Create the insertion object dynamically
-    const insertObj: { ppl_id: string; pml_id: string; [key: string]: string } = {
-      ppl_id: pplId,
-      pml_id: pmlId,
-    };
-    insertObj[idColumn] = allocationId;
-    
-    // Assign PPL to the specified NKS or Segmen
-    const { data, error } = await supabase
-      .from(tableName)
-      .insert([insertObj])
-      .select();
-      
-    if (error) {
-      console.error(`Error assigning PPL to ${allocation.type}:`, error);
-      throw new Error(error.message);
-    }
-    
-    return data;
+    return result;
   } catch (error) {
     console.error("Error in assignPPLToNKS:", error);
     throw error;
   }
 }
 
+// Fix the implementation of removePPLAssignment
 export async function removePPLAssignment(allocationId: string, pplId: string): Promise<void> {
   try {
     // Determine the type of allocation (nks or segmen)
@@ -803,29 +820,30 @@ export async function removePPLAssignment(allocationId: string, pplId: string): 
       throw new Error("Allocation not found");
     }
     
-    let tableName = '';
-    let idColumn = '';
-    
     if (allocation.type === 'nks') {
-      tableName = 'wilayah_tugas';
-      idColumn = 'nks_id';
+      const { error } = await supabase
+        .from('wilayah_tugas')
+        .delete()
+        .eq('nks_id', allocationId)
+        .eq('ppl_id', pplId);
+        
+      if (error) {
+        console.error("Error removing PPL assignment from NKS:", error);
+        throw new Error(error.message);
+      }
     } else if (allocation.type === 'segmen') {
-      tableName = 'wilayah_tugas_segmen';
-      idColumn = 'segmen_id';
+      const { error } = await supabase
+        .from('wilayah_tugas_segmen')
+        .delete()
+        .eq('segmen_id', allocationId)
+        .eq('ppl_id', pplId);
+        
+      if (error) {
+        console.error("Error removing PPL assignment from Segmen:", error);
+        throw new Error(error.message);
+      }
     } else {
       throw new Error("Unknown allocation type");
-    }
-    
-    // Remove PPL assignment from the specified NKS or Segmen
-    const { error } = await supabase
-      .from(tableName)
-      .delete()
-      .eq(idColumn, allocationId)
-      .eq('ppl_id', pplId);
-      
-    if (error) {
-      console.error("Error removing PPL assignment:", error);
-      throw new Error(error.message);
     }
   } catch (error) {
     console.error("Error in removePPLAssignment:", error);
@@ -834,4 +852,4 @@ export async function removePPLAssignment(allocationId: string, pplId: string): 
 }
 
 // Export types for use in other components
-export type { DatabaseUser, Kecamatan, Desa, WilayahTugas };
+export type { DatabaseUser, Kecamatan, Desa, WilayahTugas, WilayahTugasSegmen };

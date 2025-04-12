@@ -1004,13 +1004,17 @@ export default function WilayahPage() {
                             <TableCell>{item.target_padi}</TableCell>
                             <TableCell>
                               {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 
-                                ? (item.wilayah_tugas_segmen[0]?.ppl ? item.wilayah_tugas_segmen[0].ppl.name : '-') 
+                                ? (item.wilayah_tugas_segmen[0]?.ppl && typeof item.wilayah_tugas_segmen[0].ppl === 'object' && 'name' in item.wilayah_tugas_segmen[0].ppl
+                                  ? item.wilayah_tugas_segmen[0].ppl.name 
+                                  : '-') 
                                 : '-'
                               }
                             </TableCell>
                             <TableCell>
                               {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 
-                                ? (item.wilayah_tugas_segmen[0]?.pml ? item.wilayah_tugas_segmen[0].pml.name : '-') 
+                                ? (item.wilayah_tugas_segmen[0]?.pml && typeof item.wilayah_tugas_segmen[0].pml === 'object' && 'name' in item.wilayah_tugas_segmen[0].pml
+                                  ? item.wilayah_tugas_segmen[0].pml.name 
+                                  : '-') 
                                 : '-'
                               }
                             </TableCell>
