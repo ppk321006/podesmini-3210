@@ -33,7 +33,9 @@ import {
   createSampelKRT,
   getSampelKRTList,
   deleteSampelKRT,
-  getSubround
+  getSubround,
+  getPMLList,
+  getPPLList
 } from "@/services/wilayah-api";
 import { 
   Dialog, 
@@ -358,6 +360,16 @@ export default function WilayahPage() {
     });
   };
 
+  const { data: pplList = [] } = useQuery({
+    queryKey: ["ppl-list"],
+    queryFn: getPPLList
+  });
+
+  const { data: pmlList = [] } = useQuery({
+    queryKey: ["pml-list"],
+    queryFn: getPMLList
+  });
+  
   const filteredNKSData = nksWithAssignments ? nksWithAssignments.filter(item => {
     const searchText = filterText.toLowerCase();
     return (
@@ -879,15 +891,4 @@ export default function WilayahPage() {
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="kecamatan-select">Pilih Kecamatan</Label>
-                      <Select 
-                        value={selectedKecamatanId} 
-                        onValueChange={(value) => {
-                          setSelectedKecamatanId(value);
-                          setSelectedDesaId("");
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih kecamatan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kecamatanList.map((kecamatan) => (
+                      <
