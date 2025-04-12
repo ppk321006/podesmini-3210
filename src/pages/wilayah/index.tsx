@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1023,13 +1022,17 @@ export default function WilayahPage() {
                             <TableCell>{getMonthName(item.bulan)}</TableCell>
                             <TableCell>{item.target_padi}</TableCell>
                             <TableCell>
-                              {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 && 
+                              {item.wilayah_tugas_segmen && 
+                               Array.isArray(item.wilayah_tugas_segmen) && 
+                               item.wilayah_tugas_segmen.length > 0 && 
                                item.wilayah_tugas_segmen[0]?.ppl ? 
                                 item.wilayah_tugas_segmen[0].ppl.name || '-' : '-'
                               }
                             </TableCell>
                             <TableCell>
-                              {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 &&
+                              {item.wilayah_tugas_segmen && 
+                               Array.isArray(item.wilayah_tugas_segmen) && 
+                               item.wilayah_tugas_segmen.length > 0 &&
                                item.wilayah_tugas_segmen[0]?.pml ?
                                 item.wilayah_tugas_segmen[0].pml.name || '-' : '-'
                               }
