@@ -1,101 +1,173 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/auth-context";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileEdit, Trash2, Plus, Filter, X } from "lucide-react";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  Table, TableBody, TableCell, TableHead, 
+  TableHeader, TableRow 
+} from "@/components/ui/table";
+import { 
+  Dialog, DialogContent, DialogHeader, 
+  DialogTitle, DialogTrigger 
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { UbinanInputForm } from "./input-form";
-import { VerificationDialog } from "@/components/verification/verification-dialog";
+import { Plus, Edit, FileInput } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { formatDateToLocale } from "@/lib/utils";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import { UbinanData } from "@/types/database-schema";
-import { UserRole } from "@/types/user";
+import { InputForm } from "./input-form";
 
 export default function InputUbinanPage() {
   const { user } = useAuth();
-  const [showForm, setShowForm] = useState(false);
-  const [editData, setEditData] = useState<UbinanData | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterKomoditas, setFilterKomoditas] = useState<string>("all");
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [ubinanData, setUbinanData] = useState<UbinanData[]>([]);
+  const [editingData, setEditingData] = useState<UbinanData | null>(null);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUbinanData = async () => {
-    if (!user?.id) return [];
-
-    const query = supabase
-      .from("ubinan_data")
-      .select(`
-        *,
-        nks:nks_id(id, code, desa:desa_id(id, name, kecamatan:kecamatan_id(id, name))),
-        segmen:segmen_id(id, code, desa:desa_id(id, name, kecamatan:kecamatan_id(id, name)))
-      `)
-      .eq("ppl_id", user.id)
-      .order("tanggal_ubinan", { ascending: false });
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching ubinan data:", error);
-      throw error;
+  useEffect(() => {
+    if (user) {
+      fetchUbinanData();
     }
+  }, [user]);
 
-    return data as UbinanData[];
-  };
-
-  const { data: ubinanData = [], isLoading, refetch } = useQuery({
-    queryKey: ["ppl_ubinan", user?.id],
-    queryFn: fetchUbinanData,
-    enabled: !!user?.id && (user?.role === UserRole.PPL),
-  });
-
-  const filteredData = ubinanData.filter(item => {
-    const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
-    const matchesKomoditas = filterKomoditas === 'all' || item.komoditas === filterKomoditas;
-    return matchesStatus && matchesKomoditas;
-  });
-
-  const handleEdit = (data: UbinanData) => {
-    setEditData(data);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
-
+  async function fetchUbinanData() {
+    setIsLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("ubinan_data")
-        .delete()
-        .eq("id", id);
+        .select(`
+          *,
+          nks:nks_id(
+            id, 
+            code,
+            desa:desa_id(
+              id, 
+              name,
+              kecamatan:kecamatan_id(
+                id, 
+                name
+              )
+            )
+          ),
+          segmen:segmen_id(
+            id, 
+            code,
+            desa:desa_id(
+              id, 
+              name,
+              kecamatan:kecamatan_id(
+                id, 
+                name
+              )
+            )
+          ),
+          pml:pml_id(name)
+        `)
+        .eq("ppl_id", user.id)
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching ubinan data:", error);
+        toast({
+          title: "Error",
+          description: "Gagal mengambil data ubinan",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      toast.success("Data berhasil dihapus");
-      refetch();
-    } catch (error) {
-      console.error("Error deleting data:", error);
-      toast.error("Gagal menghapus data");
+      // Process data to add location information
+      const processedData = data.map((item) => {
+        const desa_name = item.nks?.desa?.name || item.segmen?.desa?.name || "-";
+        const kecamatan_name = item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || "-";
+        const location_code = item.nks?.code || item.segmen?.code || "-";
+        return {
+          ...item,
+          desa_name,
+          kecamatan_name,
+          location_code,
+        };
+      });
+
+      setUbinanData(processedData);
+    } catch (err) {
+      console.error("Error in ubinan data fetch:", err);
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat mengambil data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
+  }
+
+  function handleEdit(data: UbinanData) {
+    // Only allow editing if status is not confirmed or rejected
+    if (data.status === "dikonfirmasi" || data.status === "ditolak") {
+      toast({
+        title: "Tidak dapat diedit",
+        description: "Data yang sudah dikonfirmasi atau ditolak tidak dapat diedit",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setEditingData(data);
+    setIsDialogOpen(true);
+  }
+
+  const handleUpdateSuccess = () => {
+    setIsDialogOpen(false);
+    setEditingData(null);
+    fetchUbinanData();
+    toast({
+      title: "Berhasil",
+      description: "Data ubinan berhasil diperbarui",
+    });
   };
 
-  const handleEditComplete = () => {
-    setIsEditDialogOpen(false);
-    setEditData(null);
-    refetch();
-  };
+  // Filter data based on status and search term
+  const filteredData = ubinanData.filter((item) => {
+    // Filter by status
+    if (filterStatus !== "all" && item.status !== filterStatus) {
+      return false;
+    }
 
-  const renderStatus = (status: string) => {
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        item.komoditas.toLowerCase().includes(searchLower) ||
+        item.responden_name.toLowerCase().includes(searchLower) ||
+        item.desa_name.toLowerCase().includes(searchLower) ||
+        item.kecamatan_name.toLowerCase().includes(searchLower) ||
+        item.location_code.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return true;
+  });
+
+  // Get status badge
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "belum_diisi":
         return <Badge variant="outline">Belum Diisi</Badge>;
       case "sudah_diisi":
         return <Badge variant="secondary">Menunggu Verifikasi</Badge>;
       case "dikonfirmasi":
-        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Terverifikasi</Badge>;
+        return <Badge variant="success">Terverifikasi</Badge>;
       case "ditolak":
         return <Badge variant="destructive">Ditolak</Badge>;
       default:
@@ -103,183 +175,134 @@ export default function InputUbinanPage() {
     }
   };
 
-  if (user?.role !== UserRole.PPL) {
-    return (
-      <div className="container mx-auto py-6">
-        <h1 className="text-3xl font-bold mb-6">Input Data Ubinan</h1>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              Anda tidak memiliki akses untuk menginput data ubinan
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Input Data Ubinan</h1>
-
-      {showForm ? (
-        <UbinanInputForm
-          onCancel={() => setShowForm(false)}
-          onSuccess={() => {
-            setShowForm(false);
-            refetch();
-          }}
-        />
-      ) : (
-        <div className="mb-6">
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-2" /> Input Data Baru
-          </Button>
-        </div>
-      )}
-
+    <div className="container mx-auto px-4 py-8">
       <Card>
-        <CardHeader>
-          <CardTitle>Data Ubinan Tersimpan</CardTitle>
-          <CardDescription>
-            Data yang sudah diinput dan status verifikasinya
-          </CardDescription>
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-2xl">Data Ubinan</CardTitle>
+          <div className="flex flex-col md:flex-row gap-4 mt-4 md:mt-0">
+            <Button 
+              onClick={() => {
+                setEditingData(null);
+                setIsDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Data
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Filter:</span>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <Label htmlFor="search">Cari</Label>
+              <Input
+                id="search"
+                placeholder="Cari berdasarkan nama, komoditas, desa..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <Select
-              value={filterStatus}
-              onValueChange={setFilterStatus}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="belum_diisi">Belum Diisi</SelectItem>
-                <SelectItem value="sudah_diisi">Menunggu Verifikasi</SelectItem>
-                <SelectItem value="dikonfirmasi">Terverifikasi</SelectItem>
-                <SelectItem value="ditolak">Ditolak</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select
-              value={filterKomoditas}
-              onValueChange={setFilterKomoditas}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Komoditas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Komoditas</SelectItem>
-                <SelectItem value="padi">Padi</SelectItem>
-                <SelectItem value="jagung">Jagung</SelectItem>
-                <SelectItem value="kedelai">Kedelai</SelectItem>
-                <SelectItem value="kacang_tanah">Kacang Tanah</SelectItem>
-                <SelectItem value="ubi_kayu">Ubi Kayu</SelectItem>
-                <SelectItem value="ubi_jalar">Ubi Jalar</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {(filterStatus !== 'all' || filterKomoditas !== 'all') && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setFilterStatus('all');
-                  setFilterKomoditas('all');
-                }}
-                className="h-8 px-2"
+            <div className="w-full md:w-64">
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status"
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
               >
-                <X className="h-4 w-4 mr-1" /> Reset
-              </Button>
-            )}
+                <option value="all">Semua Status</option>
+                <option value="belum_diisi">Belum Diisi</option>
+                <option value="sudah_diisi">Menunggu Verifikasi</option>
+                <option value="dikonfirmasi">Terverifikasi</option>
+                <option value="ditolak">Ditolak</option>
+              </select>
+            </div>
           </div>
 
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-600">Memuat data...</p>
-            </div>
-          ) : filteredData.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Belum ada data ubinan tersimpan{filterStatus !== 'all' ? ' dengan status yang dipilih' : ''}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Komoditas</TableHead>
+                  <TableHead>Responden</TableHead>
+                  <TableHead>Lokasi</TableHead>
+                  <TableHead>Hasil (Kg)</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Komentar PML</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
                   <TableRow>
-                    <TableHead>Komoditas</TableHead>
-                    <TableHead>Kode NKS/Segmen</TableHead>
-                    <TableHead>Responden</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Berat Hasil</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Aksi</TableHead>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      Memuat data...
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredData.map((item) => (
+                ) : filteredData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      Tidak ada data
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredData.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="capitalize">
-                        {item.komoditas?.replace("_", " ")}
-                      </TableCell>
                       <TableCell>
-                        {item.nks?.code || item.segmen?.code || "-"}
-                        <div className="text-xs text-muted-foreground">
-                          {item.nks?.desa?.name || item.segmen?.desa?.name || ""} / 
-                          {item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || ""}
-                        </div>
+                        {item.komoditas.charAt(0).toUpperCase() + item.komoditas.slice(1).replace('_', ' ')}
                       </TableCell>
                       <TableCell>{item.responden_name}</TableCell>
                       <TableCell>
-                        {item.tanggal_ubinan ? formatDateToLocale(item.tanggal_ubinan) : "-"}
+                        <div>{item.desa_name}</div>
+                        <div className="text-sm text-muted-foreground">{item.kecamatan_name}</div>
+                        <div className="text-xs text-muted-foreground">{item.location_code}</div>
                       </TableCell>
                       <TableCell>{item.berat_hasil} kg</TableCell>
-                      <TableCell>{renderStatus(item.status)}</TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleEdit(item)}
-                            disabled={item.status === 'dikonfirmasi'}
-                          >
-                            <FileEdit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => handleDelete(item.id)}
-                            disabled={item.status === 'dikonfirmasi' || item.status === 'sudah_diisi'}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {format(new Date(item.tanggal_ubinan), 'dd MMM yyyy', { locale: id })}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(item.status)}</TableCell>
+                      <TableCell>
+                        {item.komentar || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item)}
+                          disabled={item.status === "dikonfirmasi"}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      {editData && (
-        <VerificationDialog 
-          isOpen={isEditDialogOpen} 
-          onClose={() => setIsEditDialogOpen(false)}
-          onComplete={handleEditComplete}
-          data={editData}
-          mode="edit"
-        />
-      )}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingData ? "Edit Data Ubinan" : "Tambah Data Ubinan"}
+            </DialogTitle>
+          </DialogHeader>
+          <InputForm 
+            initialData={editingData} 
+            onSuccess={handleUpdateSuccess} 
+            onCancel={() => {
+              setIsDialogOpen(false);
+              setEditingData(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

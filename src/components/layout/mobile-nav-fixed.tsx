@@ -2,8 +2,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
-  Home, Clipboard, Users, Map, 
-  BarChart2, ClipboardCheck, Settings 
+  Home, FileText, User, 
+  CheckCircle, BarChart2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -24,43 +24,39 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
 
   // Navigation items based on user role
   const navItems = React.useMemo(() => {
-    const items = [
-      { 
-        title: "Dashboard", 
-        icon: <Home className="h-5 w-5" />, 
-        href: "/", 
-        roles: [UserRole.ADMIN, UserRole.KCD, UserRole.PML, UserRole.PPL] 
-      },
-    ];
-
+    // Default items
+    const items = [];
+    
     // Add role-specific navigation items
     if (user?.role === UserRole.ADMIN) {
       items.push(
-        { title: "Petugas", icon: <Users className="h-5 w-5" />, href: "/petugas" },
-        { title: "Wilayah", icon: <Map className="h-5 w-5" />, href: "/wilayah" },
-        { title: "Alokasi Petugas", icon: <Users className="h-5 w-5" />, href: "/alokasi-petugas" },
-        { title: "Alokasi Wilayah", icon: <Map className="h-5 w-5" />, href: "/alokasi-wilayah" },
-        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progress-ubinan" },
-        { title: "Verifikasi", icon: <ClipboardCheck className="h-5 w-5" />, href: "/verifikasi-data" }
+        { title: "Dashboard", icon: <Home className="h-5 w-5" />, href: "/" },
+        { title: "Petugas", icon: <User className="h-5 w-5" />, href: "/petugas" },
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
-    }
-    
-    if (user?.role === UserRole.PML) {
+    } else if (user?.role === UserRole.PML) {
+      // For PML: Progress, Verification, Profile
       items.push(
-        { title: "Verifikasi", icon: <ClipboardCheck className="h-5 w-5" />, href: "/verifikasi" }
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Verifikasi", icon: <CheckCircle className="h-5 w-5" />, href: "/verifikasi" },
+        { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
-    }
-
-    if (user?.role === UserRole.PPL) {
+    } else if (user?.role === UserRole.PPL) {
+      // For PPL: Progress, Input Data, Profile
       items.push(
-        { title: "Input Ubinan", icon: <Clipboard className="h-5 w-5" />, href: "/input-ubinan" }
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Input Data", icon: <FileText className="h-5 w-5" />, href: "/input-data" },
+        { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
+      );
+    } else {
+      // Viewer or other roles
+      items.push(
+        { title: "Dashboard", icon: <Home className="h-5 w-5" />, href: "/" },
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
     }
-
-    // Add common items for all roles
-    items.push(
-      { title: "Profil", icon: <Settings className="h-5 w-5" />, href: "/profil" }
-    );
 
     return items;
   }, [user?.role]);
@@ -69,7 +65,7 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40">
         <div className="flex justify-around items-center h-16">
-          {navItems.slice(0, 5).map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               to={item.href}
@@ -79,13 +75,12 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
                   ? "text-primary"
                   : "text-muted-foreground hover:text-primary"
               )}
+              onClick={() => setDialogOpen(false)}
             >
-              <DialogTrigger asChild>
-                <div>
-                  {item.icon}
-                  <span className="mt-1">{item.title}</span>
-                </div>
-              </DialogTrigger>
+              <div>
+                {item.icon}
+                <span className="mt-1">{item.title}</span>
+              </div>
             </Link>
           ))}
         </div>

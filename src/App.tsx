@@ -82,7 +82,7 @@ function App() {
                   <Route path="/verifikasi" element={
                     <RoleBasedRoute 
                       element={<VerifikasiPage />} 
-                      allowedRoles={[UserRole.ADMIN, UserRole.PML]} 
+                      allowedRoles={[UserRole.PML]} 
                     />
                   } />
                   <Route path="/profil" element={<ProfilePage />} />

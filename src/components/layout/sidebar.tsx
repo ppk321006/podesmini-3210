@@ -4,8 +4,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3,
   Users,
-  ClipboardList,
-  FileSpreadsheet,
+  FileText,
+  CheckCircle,
   Settings,
   Map,
   Home,
@@ -51,7 +51,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       title: "Dashboard",
       icon: Home,
       href: "/",
-      allowedRoles: [UserRole.ADMIN, UserRole.VIEWER], // Removed PML and PPL from Dashboard
+      allowedRoles: [UserRole.ADMIN, UserRole.VIEWER],
     },
     {
       title: "Progres Ubinan",
@@ -67,7 +67,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
     },
     {
       title: "Input Data Ubinan",
-      icon: ClipboardList,
+      icon: FileText,
       href: "/input-data",
       allowedRoles: [UserRole.PPL],
     },
@@ -85,9 +85,9 @@ export function Sidebar({ isOpen }: SidebarProps) {
     },
     {
       title: "Verifikasi Data",
-      icon: FileSpreadsheet,
+      icon: CheckCircle,
       href: "/verifikasi",
-      allowedRoles: [UserRole.ADMIN, UserRole.PML],
+      allowedRoles: [UserRole.PML],
     },
     {
       title: "Profil",
