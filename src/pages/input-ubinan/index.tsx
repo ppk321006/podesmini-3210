@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
@@ -50,7 +49,7 @@ export default function InputUbinanPage() {
   const { data: ubinanData = [], isLoading, refetch } = useQuery({
     queryKey: ["ppl_ubinan", user?.id],
     queryFn: fetchUbinanData,
-    enabled: !!user?.id && (user?.role === UserRole.PPL || user?.role === UserRole.ROLE_PPL),
+    enabled: !!user?.id && (user?.role === UserRole.PPL),
   });
 
   const filteredData = ubinanData.filter(item => {
@@ -94,9 +93,9 @@ export default function InputUbinanPage() {
       case "belum_diisi":
         return <Badge variant="outline">Belum Diisi</Badge>;
       case "sudah_diisi":
-        return <Badge variant="warning">Menunggu Verifikasi</Badge>;
+        return <Badge variant="secondary">Menunggu Verifikasi</Badge>;
       case "dikonfirmasi":
-        return <Badge variant="success">Terverifikasi</Badge>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Terverifikasi</Badge>;
       case "ditolak":
         return <Badge variant="destructive">Ditolak</Badge>;
       default:
@@ -104,7 +103,7 @@ export default function InputUbinanPage() {
     }
   };
 
-  if (user?.role !== UserRole.PPL && user?.role !== UserRole.ROLE_PPL) {
+  if (user?.role !== UserRole.PPL) {
     return (
       <div className="container mx-auto py-6">
         <h1 className="text-3xl font-bold mb-6">Input Data Ubinan</h1>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getPPLAllocations } from "@/services/allocation-service";
 import { createUbinanData, updateUbinanData } from "@/services/wilayah-api";
 import { getSampelKRTList } from "@/services/wilayah-api";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { SampelKRT, UbinanData } from "@/types/database-schema";
 
@@ -21,13 +22,14 @@ interface UsedSample {
   responden_name: string;
 }
 
-interface InputUbinanFormProps {
-  onSubmitSuccess: () => void;
+interface UbinanInputFormProps {
+  onCancel: () => void;
+  onSuccess: () => void;
   initialData?: UbinanData | null;
   usedSamples?: UsedSample[];
 }
 
-export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSamples = [] }: InputUbinanFormProps) {
+export function UbinanInputForm({ onCancel, onSuccess, initialData = null, usedSamples = [] }: UbinanInputFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -224,14 +226,12 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
         toast({
           title: "Sukses",
           description: "Data ubinan berhasil diperbarui",
-          variant: "default",
         });
       } else {
         await createUbinanData(ubinanData);
         toast({
           title: "Sukses",
           description: "Data ubinan berhasil disimpan",
-          variant: "default",
         });
       }
       
@@ -245,7 +245,7 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
       setBeratHasil("");
       setEditMode(false);
       
-      onSubmitSuccess();
+      onSuccess();
       
     } catch (error) {
       console.error("Error submitting ubinan data:", error);
@@ -461,20 +461,29 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
         </form>
       </CardContent>
       <CardFooter>
-        <Button 
-          onClick={handleSubmit} 
-          disabled={isSubmitting}
-          className="w-full"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {editMode ? "Memperbarui..." : "Menyimpan..."}
-            </>
-          ) : (
-            editMode ? "Perbarui Data Ubinan" : "Simpan Data Ubinan"
-          )}
-        </Button>
+        <div className="flex w-full justify-between gap-4">
+          <Button 
+            variant="outline" 
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Batal
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting}
+            className="flex-1"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {editMode ? "Memperbarui..." : "Menyimpan..."}
+              </>
+            ) : (
+              editMode ? "Perbarui Data Ubinan" : "Simpan Data Ubinan"
+            )}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

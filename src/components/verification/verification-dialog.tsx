@@ -31,7 +31,7 @@ export function VerificationDialog({
 }: VerificationDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isPPL = user?.role === UserRole.ROLE_PPL || user?.role === UserRole.PPL;
+  const isPPL = user?.role === UserRole.PPL;
 
   // Form state
   const [responden, setResponden] = useState(data.responden_name || "");
@@ -92,7 +92,7 @@ export function VerificationDialog({
           berat_hasil: parseFloat(beratHasil),
           komentar: komentar,
           status: newStatus,
-          updated_at: new Date()
+          updated_at: new Date().toISOString()
         })
         .eq('id', data.id)
         .select('*')
@@ -186,7 +186,7 @@ export function VerificationDialog({
               <Label htmlFor="tanggal">Tanggal Ubinan</Label>
               <DatePicker
                 date={tanggalUbinan}
-                setDate={setTanggalUbinan}
+                onSelect={setTanggalUbinan}
                 disabled={!isPPL || isSubmitting}
               />
             </div>
