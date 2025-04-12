@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AllocationStatus, Petugas, NKS, UbinanData } from '@/types/database-schema';
 
@@ -760,7 +761,7 @@ export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId:
     }
     
     // Create the insertion object dynamically
-    const insertObj: Record<string, string> = {
+    const insertObj: { ppl_id: string; pml_id: string; [key: string]: string } = {
       ppl_id: pplId,
       pml_id: pmlId,
     };
@@ -803,14 +804,14 @@ export async function removePPLAssignment(allocationId: string, pplId: string): 
     }
     
     let tableName = '';
-    let nksIdColumn = '';
+    let idColumn = '';
     
     if (allocation.type === 'nks') {
       tableName = 'wilayah_tugas';
-      nksIdColumn = 'nks_id';
+      idColumn = 'nks_id';
     } else if (allocation.type === 'segmen') {
       tableName = 'wilayah_tugas_segmen';
-      nksIdColumn = 'segmen_id';
+      idColumn = 'segmen_id';
     } else {
       throw new Error("Unknown allocation type");
     }
@@ -819,7 +820,7 @@ export async function removePPLAssignment(allocationId: string, pplId: string): 
     const { error } = await supabase
       .from(tableName)
       .delete()
-      .eq(nksIdColumn, allocationId)
+      .eq(idColumn, allocationId)
       .eq('ppl_id', pplId);
       
     if (error) {
