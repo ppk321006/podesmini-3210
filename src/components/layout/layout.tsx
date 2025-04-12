@@ -3,12 +3,15 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
+import { MobileNav } from "./mobile-nav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
+  const { isAuthenticated } = useAuth();
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -20,11 +23,12 @@ export function Layout() {
       <div
         className={cn(
           "flex flex-1 flex-col transition-all duration-300",
-          sidebarOpen ? "md:ml-64" : "md:ml-20"
+          sidebarOpen ? "md:ml-64" : "md:ml-20",
+          isMobile ? "mb-16" : "" // Add bottom margin for mobile navigation
         )}
       >
         <Header toggleSidebar={toggleSidebar} isSidebarOpen={sidebarOpen} />
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
           <Outlet />
         </main>
       </div>
@@ -34,6 +38,9 @@ export function Layout() {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+      
+      {/* Mobile Navigation */}
+      {isMobile && isAuthenticated && <MobileNav />}
     </div>
   );
 }

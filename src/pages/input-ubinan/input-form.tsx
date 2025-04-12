@@ -1,452 +1,328 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DatePicker } from "@/components/ui/date-picker";
-import { useToast } from "@/hooks/use-toast";
-import { getPPLAllocations } from "@/services/allocation-service";
-import { createUbinanData, updateUbinanData } from "@/services/wilayah-api";
-import { getSampelKRTList } from "@/services/wilayah-api";
-import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { SampelKRT, UbinanData } from "@/types/database-schema";
 
-interface UsedSample {
-  nks_id: string | null;
-  segmen_id: string | null;
-  responden_name: string;
-}
-
-interface UbinanInputFormProps {
+interface InputFormProps {
   onCancel: () => void;
   onSuccess: () => void;
-  initialData?: UbinanData | null;
-  usedSamples?: UsedSample[];
 }
 
-export function UbinanInputForm({ onCancel, onSuccess, initialData = null, usedSamples = [] }: UbinanInputFormProps) {
+export function UbinanInputForm({ onCancel, onSuccess }: InputFormProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [allocationType, setAllocationType] = useState<"nks" | "segmen">("nks");
-  const [allocations, setAllocations] = useState<{
-    nks: any[];
-    segmen: any[];
-  }>({ nks: [], segmen: [] });
-  const [selectedAllocation, setSelectedAllocation] = useState<string>("");
-  const [sampelList, setSampelList] = useState<SampelKRT[]>([]);
-  const [selectedSampel, setSelectedSampel] = useState<string>("");
-  const [useManualInput, setUseManualInput] = useState(false);
-  const [responden, setResponden] = useState("");
-  const [sampelStatus, setSampelStatus] = useState<string>("Utama");
-  const [komoditas, setKomoditas] = useState("padi");
+  const [selectedKomoditasType, setSelectedKomoditasType] = useState<string>("padi");
+  const [isSegmen, setIsSegmen] = useState<boolean>(true);
+
+  // Form state
+  const [komoditas, setKomoditas] = useState<string>("padi");
+  const [segmenId, setSegmenId] = useState<string>("");
+  const [nksId, setNksId] = useState<string>("");
+  const [respondenName, setRespondenName] = useState<string>("");
   const [tanggalUbinan, setTanggalUbinan] = useState<Date | undefined>(new Date());
-  const [beratHasil, setBeratHasil] = useState("");
-  const [editMode, setEditMode] = useState(false);
-
-  const komoditasList = [
-    { value: "padi", label: "Padi" },
-    { value: "jagung", label: "Jagung" },
-    { value: "kedelai", label: "Kedelai" },
-    { value: "kacang_tanah", label: "Kacang Tanah" },
-    { value: "ubi_kayu", label: "Ubi Kayu" },
-    { value: "ubi_jalar", label: "Ubi Jalar" },
-  ];
-
-  useEffect(() => {
-    if (initialData) {
-      setEditMode(true);
-      setAllocationType(initialData.nks_id ? "nks" : "segmen");
-      setSelectedAllocation(initialData.nks_id || initialData.segmen_id || "");
-      setResponden(initialData.responden_name);
-      setSampelStatus(initialData.sample_status || "Utama");
-      setKomoditas(initialData.komoditas);
-      setTanggalUbinan(new Date(initialData.tanggal_ubinan));
-      setBeratHasil(initialData.berat_hasil.toString());
-      setUseManualInput(true);
-    } else {
-      setEditMode(false);
-      setAllocationType("nks");
-      setSelectedAllocation("");
-      setResponden("");
-      setSampelStatus("Utama");
-      setKomoditas("padi");
-      setTanggalUbinan(new Date());
-      setBeratHasil("");
-      setUseManualInput(false);
-      setSelectedSampel("");
-    }
-  }, [initialData]);
-
-  useEffect(() => {
-    const fetchAllocations = async () => {
-      if (!user) return;
+  const [beratHasil, setBeratHasil] = useState<string>("0");
+  const [komentar, setKomentar] = useState<string>("");
+  
+  // Fetch assigned segmen for the logged-in PPL
+  const { data: segmenData = [], isLoading: isLoadingSegmen } = useQuery({
+    queryKey: ['ppl_segmen', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
       
-      try {
-        setIsLoading(true);
-        const data = await getPPLAllocations(user.id);
-        setAllocations(data);
-      } catch (error) {
-        console.error("Error fetching allocations:", error);
-        toast({
-          title: "Error",
-          description: "Gagal memuat data alokasi",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      const { data, error } = await supabase
+        .from('wilayah_tugas_segmen')
+        .select(`
+          segmen_id,
+          segmen:segmen_id(
+            id,
+            code,
+            desa:desa_id(
+              id,
+              name,
+              kecamatan:kecamatan_id(
+                id,
+                name
+              )
+            )
+          )
+        `)
+        .eq('ppl_id', user.id);
+        
+      if (error) throw error;
+      
+      return data.map(item => item.segmen);
+    },
+    enabled: !!user?.id,
+  });
 
-    fetchAllocations();
-  }, [user]);
+  // Fetch assigned NKS for the logged-in PPL
+  const { data: nksData = [], isLoading: isLoadingNks } = useQuery({
+    queryKey: ['ppl_nks', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('wilayah_tugas')
+        .select(`
+          nks_id,
+          nks:nks_id(
+            id,
+            code,
+            desa:desa_id(
+              id,
+              name,
+              kecamatan:kecamatan_id(
+                id,
+                name
+              )
+            )
+          )
+        `)
+        .eq('ppl_id', user.id);
+        
+      if (error) throw error;
+      
+      return data.map(item => item.nks);
+    },
+    enabled: !!user?.id,
+  });
 
+  // Effect to switch between segmen and nks based on komoditas
   useEffect(() => {
-    const fetchSampelKRT = async () => {
-      if (!selectedAllocation) {
-        setSampelList([]);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        
-        const params = allocationType === "nks"
-          ? { nks_id: selectedAllocation }
-          : { segmen_id: selectedAllocation };
-          
-        const data = await getSampelKRTList(params);
-        
-        const filteredData = data.filter(sample => {
-          if (editMode && initialData && initialData.responden_name === sample.nama) {
-            return true;
-          }
-          
-          const isUsed = usedSamples.some(used => {
-            const matchesAllocation = 
-              (allocationType === "nks" && used.nks_id === selectedAllocation) ||
-              (allocationType === "segmen" && used.segmen_id === selectedAllocation);
-            
-            return matchesAllocation && used.responden_name === sample.nama;
-          });
-          
-          return !isUsed;
-        });
-        
-        setSampelList(filteredData);
-      } catch (error) {
-        console.error("Error fetching sampel KRT:", error);
-        toast({
-          title: "Error",
-          description: "Gagal memuat data sampel",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSampelKRT();
-  }, [selectedAllocation, allocationType, usedSamples, editMode, initialData]);
-
-  useEffect(() => {
-    if (!useManualInput && selectedSampel) {
-      const sampel = sampelList.find(s => s.id === selectedSampel);
-      if (sampel) {
-        setResponden(sampel.nama);
-        setSampelStatus(sampel.status);
-      }
+    if (selectedKomoditasType === "padi") {
+      setIsSegmen(true);
+      setNksId("");
+      setKomoditas("padi");
+    } else {
+      setIsSegmen(false);
+      setSegmenId("");
+      // Don't set komoditas here, let the user select it
     }
-  }, [selectedSampel, sampelList, useManualInput]);
+  }, [selectedKomoditasType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "User tidak ditemukan",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!tanggalUbinan) {
-      toast({
-        title: "Error",
-        description: "Tanggal ubinan harus diisi",
-        variant: "destructive",
-      });
+      toast.error("Tanggal ubinan harus diisi");
       return;
     }
 
-    if (!beratHasil || isNaN(Number(beratHasil))) {
-      toast({
-        title: "Error",
-        description: "Berat hasil harus diisi dengan angka",
-        variant: "destructive",
-      });
+    if (!beratHasil || parseFloat(beratHasil) <= 0) {
+      toast.error("Berat hasil harus lebih dari 0");
       return;
     }
+
+    if (!respondenName.trim()) {
+      toast.error("Nama responden harus diisi");
+      return;
+    }
+
+    if (isSegmen && !segmenId) {
+      toast.error("Segmen harus dipilih");
+      return;
+    }
+
+    if (!isSegmen && !nksId) {
+      toast.error("NKS harus dipilih");
+      return;
+    }
+
+    if (!isSegmen && !komoditas) {
+      toast.error("Komoditas harus dipilih");
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      setIsSubmitting(true);
-      
-      let pmlId = null;
-      if (!editMode) {
-        pmlId = allocationType === "nks" 
-          ? allocations.nks.find(item => item.nks?.id === selectedAllocation)?.pml?.id
-          : allocations.segmen.find(item => item.segmen?.id === selectedAllocation)?.pml?.id;
-      } else {
-        pmlId = initialData?.pml_id || null;
-      }
-      
-      const ubinanData: any = {
-        nks_id: allocationType === "nks" ? selectedAllocation : null,
-        segmen_id: allocationType === "segmen" ? selectedAllocation : null,
-        ppl_id: user.id,
-        responden_name: responden,
-        sample_status: sampelStatus,
-        komoditas,
-        tanggal_ubinan: format(tanggalUbinan, "yyyy-MM-dd"),
-        berat_hasil: Number(beratHasil),
-        pml_id: pmlId,
-        status: editMode ? initialData?.status || 'sudah_diisi' : 'sudah_diisi'
-      };
+      // Get the PML ID for this PPL
+      const { data: pplData, error: pplError } = await supabase
+        .from('users')
+        .select('pml_id')
+        .eq('id', user?.id)
+        .single();
+        
+      if (pplError) throw pplError;
 
-      if (editMode && initialData) {
-        await updateUbinanData(initialData.id, ubinanData);
-        toast({
-          title: "Sukses",
-          description: "Data ubinan berhasil diperbarui",
+      const { error } = await supabase
+        .from('ubinan_data')
+        .insert({
+          ppl_id: user?.id,
+          pml_id: pplData?.pml_id,
+          segmen_id: isSegmen ? segmenId : null,
+          nks_id: !isSegmen ? nksId : null,
+          komoditas: komoditas,
+          responden_name: respondenName,
+          tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
+          berat_hasil: parseFloat(beratHasil),
+          komentar: komentar,
+          status: 'sudah_diisi'
         });
-      } else {
-        await createUbinanData(ubinanData);
-        toast({
-          title: "Sukses",
-          description: "Data ubinan berhasil disimpan",
-        });
-      }
-      
-      setSelectedAllocation("");
-      setSelectedSampel("");
-      setUseManualInput(false);
-      setResponden("");
-      setSampelStatus("Utama");
-      setKomoditas("padi");
-      setTanggalUbinan(new Date());
-      setBeratHasil("");
-      setEditMode(false);
-      
+
+      if (error) throw error;
+
+      toast.success("Data berhasil disimpan");
       onSuccess();
-      
     } catch (error) {
-      console.error("Error submitting ubinan data:", error);
-      toast({
-        title: "Error",
-        description: `Gagal ${editMode ? 'memperbarui' : 'menyimpan'} data ubinan`,
-        variant: "destructive",
-      });
+      console.error("Error submitting data:", error);
+      toast.error("Gagal menyimpan data");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{editMode ? "Edit Data Ubinan" : "Input Data Ubinan"}</CardTitle>
-        <CardDescription>
-          {editMode ? "Edit data ubinan" : "Isi formulir berikut untuk menambahkan data ubinan"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Tipe Alokasi</Label>
-              <RadioGroup
-                value={allocationType}
-                onValueChange={(value: "nks" | "segmen") => {
-                  setAllocationType(value);
-                  if (!editMode) {
-                    setSelectedAllocation("");
-                  }
-                }}
-                className="flex gap-4"
-                disabled={editMode}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nks" id="nks" disabled={editMode} />
-                  <Label htmlFor="nks">NKS (Palawija)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="segmen" id="segmen" disabled={editMode} />
-                  <Label htmlFor="segmen">Segmen (Padi)</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="allocation">
-                {allocationType === "nks" ? "NKS" : "Segmen"}
-              </Label>
+    <Card className="mb-6">
+      <CardContent className="pt-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Jenis Komoditas */}
+            <div>
+              <Label htmlFor="komoditas-type">Jenis Komoditas</Label>
               <Select
-                value={selectedAllocation}
-                onValueChange={setSelectedAllocation}
-                disabled={editMode}
+                value={selectedKomoditasType}
+                onValueChange={setSelectedKomoditasType}
+                disabled={isLoading}
               >
-                <SelectTrigger id="allocation">
-                  <SelectValue placeholder={`Pilih ${allocationType === "nks" ? "NKS" : "Segmen"}`} />
+                <SelectTrigger id="komoditas-type">
+                  <SelectValue placeholder="Pilih Jenis Komoditas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : allocationType === "nks" ? (
-                    allocations.nks.length > 0 ? (
-                      allocations.nks.map((item) => (
-                        <SelectItem key={item.nks?.id} value={item.nks?.id}>
-                          {item.nks?.code} - {item.nks?.desa?.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="text-center py-2 text-muted-foreground">
-                        Tidak ada NKS yang tersedia
-                      </div>
-                    )
-                  ) : allocations.segmen.length > 0 ? (
-                    allocations.segmen.map((item) => (
-                      <SelectItem key={item.segmen?.id} value={item.segmen?.id}>
-                        {item.segmen?.code} - {item.segmen?.desa?.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="text-center py-2 text-muted-foreground">
-                      Tidak ada Segmen yang tersedia
-                    </div>
-                  )}
+                  <SelectItem value="padi">Padi</SelectItem>
+                  <SelectItem value="palawija">Palawija</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="sampel">Sampel KRT</Label>
-                {!editMode && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setUseManualInput(!useManualInput)}
-                  >
-                    {useManualInput ? "Pilih dari Sampel" : "Input Manual"}
-                  </Button>
-                )}
-              </div>
-
-              {!useManualInput && !editMode ? (
+            {/* Komoditas - Only show for Palawija */}
+            {!isSegmen && (
+              <div>
+                <Label htmlFor="komoditas">Komoditas</Label>
                 <Select
-                  value={selectedSampel}
-                  onValueChange={setSelectedSampel}
-                  disabled={!selectedAllocation || isLoading}
+                  value={komoditas}
+                  onValueChange={setKomoditas}
+                  disabled={isLoading}
                 >
-                  <SelectTrigger id="sampel">
-                    <SelectValue placeholder="Pilih Sampel KRT" />
+                  <SelectTrigger id="komoditas">
+                    <SelectValue placeholder="Pilih Komoditas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {isLoading ? (
-                      <div className="flex justify-center py-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : sampelList.length > 0 ? (
-                      sampelList.map((sampel) => (
-                        <SelectItem key={sampel.id} value={sampel.id}>
-                          {sampel.nama} ({sampel.status})
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="text-center py-2 text-muted-foreground">
-                        Tidak ada Sampel KRT yang tersedia atau semua sampel sudah digunakan
-                      </div>
-                    )}
+                    <SelectItem value="jagung">Jagung</SelectItem>
+                    <SelectItem value="kedelai">Kedelai</SelectItem>
+                    <SelectItem value="kacang_tanah">Kacang Tanah</SelectItem>
+                    <SelectItem value="ubi_kayu">Ubi Kayu</SelectItem>
+                    <SelectItem value="ubi_jalar">Ubi Jalar</SelectItem>
                   </SelectContent>
                 </Select>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="responden">Nama Responden</Label>
-                    <Input
-                      id="responden"
-                      value={responden}
-                      onChange={(e) => setResponden(e.target.value)}
-                      placeholder="Masukkan nama responden"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status Sampel</Label>
-                    <RadioGroup
-                      value={sampelStatus}
-                      onValueChange={(value: string) => setSampelStatus(value)}
-                      className="flex gap-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Utama" id="utama" />
-                        <Label htmlFor="utama">Utama</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Cadangan" id="cadangan" />
-                        <Label htmlFor="cadangan">Cadangan</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                </>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="komoditas">Komoditas</Label>
-              <Select value={komoditas} onValueChange={setKomoditas}>
-                <SelectTrigger id="komoditas">
-                  <SelectValue placeholder="Pilih Komoditas" />
-                </SelectTrigger>
-                <SelectContent>
-                  {komoditasList.map((item) => (
-                    <SelectItem
-                      key={item.value}
-                      value={item.value}
-                      disabled={
-                        !editMode && (
-                          (allocationType === "nks" && item.value === "padi") ||
-                          (allocationType === "segmen" && item.value !== "padi")
-                        )
-                      }
-                    >
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Segmen/NKS selection (conditionally rendered) */}
+            {isSegmen ? (
+              <div>
+                <Label htmlFor="segmen">Segmen</Label>
+                {isLoadingSegmen ? (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Loading...</span>
+                  </div>
+                ) : (
+                  <Select
+                    key="segmen-select"
+                    value={segmenId}
+                    onValueChange={setSegmenId}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="segmen">
+                      <SelectValue placeholder="Pilih Segmen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {segmenData && segmenData.length > 0 ? (
+                        segmenData.map((segmen: any) => (
+                          <SelectItem key={segmen.id} value={segmen.id}>
+                            {segmen.code} - {segmen.desa?.name || ""}, {segmen.desa?.kecamatan?.name || ""}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Tidak ada segmen yang tersedia
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="nks">NKS</Label>
+                {isLoadingNks ? (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Loading...</span>
+                  </div>
+                ) : (
+                  <Select
+                    key="nks-select"
+                    value={nksId}
+                    onValueChange={setNksId}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="nks">
+                      <SelectValue placeholder="Pilih NKS" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nksData && nksData.length > 0 ? (
+                        nksData.map((nks: any) => (
+                          <SelectItem key={nks.id} value={nks.id}>
+                            {nks.code} - {nks.desa?.name || ""}, {nks.desa?.kecamatan?.name || ""}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Tidak ada NKS yang tersedia
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label>Tanggal Ubinan</Label>
-              <DatePicker
-                date={tanggalUbinan}
-                onSelect={setTanggalUbinan}
-                className="w-full"
+            {/* Responden */}
+            <div>
+              <Label htmlFor="responden">Nama Responden</Label>
+              <Input
+                id="responden"
+                value={respondenName}
+                onChange={(e) => setRespondenName(e.target.value)}
+                disabled={isLoading}
+                placeholder="Masukkan nama responden"
               />
             </div>
 
-            <div className="space-y-2">
+            {/* Tanggal Ubinan */}
+            <div>
+              <Label htmlFor="tanggal">Tanggal Ubinan</Label>
+              <DatePicker
+                date={tanggalUbinan}
+                onSelect={setTanggalUbinan}
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Berat Hasil */}
+            <div>
               <Label htmlFor="berat">Berat Hasil (kg)</Label>
               <Input
                 id="berat"
@@ -454,36 +330,34 @@ export function UbinanInputForm({ onCancel, onSuccess, initialData = null, usedS
                 step="0.01"
                 value={beratHasil}
                 onChange={(e) => setBeratHasil(e.target.value)}
-                placeholder="Masukkan berat hasil dalam kg"
+                disabled={isLoading}
+                placeholder="0.00"
               />
             </div>
           </div>
+
+          {/* Komentar */}
+          <div>
+            <Label htmlFor="komentar">Komentar</Label>
+            <Textarea
+              id="komentar"
+              value={komentar}
+              onChange={(e) => setKomentar(e.target.value)}
+              disabled={isLoading}
+              placeholder="Tambahkan komentar atau catatan (opsional)"
+              rows={3}
+            />
+          </div>
         </form>
       </CardContent>
-      <CardFooter>
-        <div className="flex w-full justify-between gap-4">
-          <Button 
-            variant="outline" 
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Batal
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isSubmitting}
-            className="flex-1"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {editMode ? "Memperbarui..." : "Menyimpan..."}
-              </>
-            ) : (
-              editMode ? "Perbarui Data Ubinan" : "Simpan Data Ubinan"
-            )}
-          </Button>
-        </div>
+      <CardFooter className="flex justify-between border-t p-4">
+        <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+          Batalkan
+        </Button>
+        <Button onClick={handleSubmit} disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Simpan Data
+        </Button>
       </CardFooter>
     </Card>
   );

@@ -13,6 +13,7 @@ import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserRole } from "@/types/user";
+import { Loader2 } from "lucide-react";
 
 interface VerificationDialogProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export function VerificationDialog({
   const [komentar, setKomentar] = useState(data.komentar || "");
   const [status, setStatus] = useState(data.status || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationValue, setVerificationValue] = useState<string | null>(null);
 
   // Set default form values when dialog opens with new data
   useEffect(() => {
@@ -51,6 +53,7 @@ export function VerificationDialog({
       setBeratHasil(data.berat_hasil?.toString() || "0");
       setKomentar(data.komentar || "");
       setStatus(data.status || "");
+      setVerificationValue(null);
     }
   }, [isOpen, data]);
 
@@ -70,6 +73,12 @@ export function VerificationDialog({
       return;
     }
 
+    // For verification mode, ensure a verification decision was made
+    if (!isPPL && mode === 'verify' && !verificationValue) {
+      toast.error("Pilih hasil verifikasi (Konfirmasi atau Tolak)");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -79,9 +88,9 @@ export function VerificationDialog({
       if (isPPL && mode === 'edit') {
         newStatus = 'sudah_diisi';
       } 
-      // If PML is verifying, set status based on the action
+      // If PML is verifying, set status based on the selected radio button
       else if (!isPPL && mode === 'verify') {
-        newStatus = document.querySelector<HTMLInputElement>('input[name="verification"]:checked')?.value || status;
+        newStatus = verificationValue || status;
       }
 
       const { data: updatedData, error } = await supabase
@@ -113,6 +122,11 @@ export function VerificationDialog({
         queryClient.invalidateQueries({ queryKey: ['ubinan_verification'] });
         queryClient.invalidateQueries({ queryKey: ['pml_progress'] });
       }
+
+      // Also invalidate admin-related queries
+      queryClient.invalidateQueries({ queryKey: ['admin_verification'] });
+      queryClient.invalidateQueries({ queryKey: ['admin_progress'] });
+      queryClient.invalidateQueries({ queryKey: ['verification_status'] });
 
       toast.success("Data berhasil disimpan");
       onComplete(updatedData);
@@ -223,6 +237,7 @@ export function VerificationDialog({
                       id="konfirmasi"
                       name="verification"
                       value="dikonfirmasi"
+                      onChange={(e) => setVerificationValue(e.target.value)}
                       className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
                     />
                     <Label htmlFor="konfirmasi" className="text-sm font-normal">
@@ -235,6 +250,7 @@ export function VerificationDialog({
                       id="tolak"
                       name="verification"
                       value="ditolak"
+                      onChange={(e) => setVerificationValue(e.target.value)}
                       className="h-4 w-4 border-gray-300 text-destructive focus:ring-destructive"
                     />
                     <Label htmlFor="tolak" className="text-sm font-normal">
@@ -252,7 +268,13 @@ export function VerificationDialog({
             Batal
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Menyimpan..." : "Simpan"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...
+              </>
+            ) : (
+              "Simpan"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

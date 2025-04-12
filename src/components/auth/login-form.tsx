@@ -49,14 +49,14 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <Card className="w-[350px]">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 flex flex-col items-center justify-center">
-          {/* Increased the image size significantly */}
-          <div className="w-72 h-72 flex items-center justify-center mb-4">
+          {/* Using the new, larger image */}
+          <div className="w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center">
             <img 
-              src="/placeholder.svg" 
-              alt="Logo Aplikasi" 
+              src="/lovable-uploads/f2bc2019-2bdd-455c-bc1c-bc519a5f801b.png" 
+              alt="Sistem Informasi Monitoring Tanaman Pangan Palawija" 
               className="w-full h-full object-contain" 
             />
           </div>
@@ -117,7 +117,7 @@ export function LoginForm() {
         </CardContent>
         <CardFooter className="border-t p-4">
           <div className="text-xs text-center w-full text-muted-foreground">
-            © {new Date().getFullYear()} Aplikasi Ubinan
+            © {new Date().getFullYear()} BPS Kabupaten Majalengka
           </div>
         </CardFooter>
       </Card>
