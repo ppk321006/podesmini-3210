@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { UserRole } from "@/types/user";
-import { getPetugasList, createPetugas } from "@/services/wilayah-api";
+import { getPetugasList, createPetugas, deletePetugas } from "@/services/wilayah-api";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 export default function PetugasPage() {
   const queryClient = useQueryClient();
@@ -67,6 +69,19 @@ export default function PetugasPage() {
     }
   });
   
+  // Delete petugas mutation
+  const deletePetugasMutation = useMutation({
+    mutationFn: (petugasId: string) => deletePetugas(petugasId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["petugas"] });
+      toast.success("Petugas berhasil dihapus");
+    },
+    onError: (error) => {
+      console.error("Error deleting petugas:", error);
+      toast.error("Gagal menghapus petugas");
+    }
+  });
+  
   // Handle form submission
   const handleAddPetugas = () => {
     if (!newUsername.trim() || !newPassword.trim() || !newName.trim()) {
@@ -87,6 +102,11 @@ export default function PetugasPage() {
       role: selectedRole,
       pmlId: selectedRole === "ppl" ? selectedPmlId : undefined
     });
+  };
+  
+  // Handle delete petugas
+  const handleDeletePetugas = (petugasId: string) => {
+    deletePetugasMutation.mutate(petugasId);
   };
   
   const roleFilteredData = () => {
@@ -222,6 +242,7 @@ export default function PetugasPage() {
                           <th className="p-3 text-left">Username</th>
                           <th className="p-3 text-left">Peran</th>
                           <th className="p-3 text-left">PML</th>
+                          <th className="p-3 text-right">Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -234,6 +255,34 @@ export default function PetugasPage() {
                               {petugas.pml_id ? (
                                 allPetugas.find(p => p.id === petugas.pml_id)?.name || "-"
                               ) : "-"}
+                            </td>
+                            <td className="p-3 text-right">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700">
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Hapus
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Hapus Petugas</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Apakah Anda yakin ingin menghapus petugas "{petugas.name}"? 
+                                      Tindakan ini tidak dapat dibatalkan.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeletePetugas(petugas.id)}
+                                      className="bg-red-500 hover:bg-red-700"
+                                    >
+                                      Hapus
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </td>
                           </tr>
                         ))}

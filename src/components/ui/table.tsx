@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -105,6 +106,45 @@ const TableCaption = React.forwardRef<
 ))
 TableCaption.displayName = "TableCaption"
 
+// Add utility components for displaying target per komoditas
+const TableTargetBadge = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { value: number; type: string }
+>(({ className, value, type, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
+      type === "padi" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800",
+      className
+    )}
+    {...props}
+  >
+    {type === "padi" ? "Padi" : "Palawija"}: {value}
+  </div>
+))
+TableTargetBadge.displayName = "TableTargetBadge"
+
+const TableTargetGroup = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { 
+    padiTarget?: number; 
+    palawijaTarget?: number;
+    onClick?: () => void;
+  }
+>(({ className, padiTarget = 0, palawijaTarget = 0, onClick, ...props }, ref) => (
+  <div 
+    ref={ref}
+    className={cn("space-y-1", className, onClick ? "cursor-pointer" : "")}
+    onClick={onClick}
+    {...props}
+  >
+    {padiTarget > 0 && <TableTargetBadge value={padiTarget} type="padi" />}
+    {palawijaTarget > 0 && <TableTargetBadge value={palawijaTarget} type="palawija" />}
+  </div>
+))
+TableTargetGroup.displayName = "TableTargetGroup"
+
 export {
   Table,
   TableHeader,
@@ -114,4 +154,6 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  TableTargetBadge,
+  TableTargetGroup,
 }

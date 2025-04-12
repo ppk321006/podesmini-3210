@@ -4,15 +4,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableTargetGroup } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { getPPLList, getPMLList, getAllocationStatus, assignPPLToNKS, removePPLAssignment } from "@/services/wilayah-api";
 import { AllocationStatus, Petugas } from "@/types/database-schema";
-import { Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Search, Trash2, X, Filter } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function AlokasiPetugasPage() {
   const { user } = useAuth();
@@ -22,13 +25,15 @@ export default function AlokasiPetugasPage() {
   const [selectedPML, setSelectedPML] = useState<string>("");
   const [selectedListViewPPL, setSelectedListViewPPL] = useState<string>("");
   const [selectedAllocations, setSelectedAllocations] = useState<string[]>([]);
-  const [filter, setFilter] = useState<"all" | "allocated" | "unallocated">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  
+  // Advanced filters
   const [filterTypeNKS, setFilterTypeNKS] = useState<boolean>(true);
   const [filterTypeSegmen, setFilterTypeSegmen] = useState<boolean>(true);
   const [filterAllocated, setFilterAllocated] = useState<boolean>(true);
   const [filterUnallocated, setFilterUnallocated] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
+  
   // Get all PPL
   const { data: pplList = [], isLoading: isLoadingPPL } = useQuery({
     queryKey: ["ppl_list"],
@@ -49,13 +54,6 @@ export default function AlokasiPetugasPage() {
   } = useQuery({
     queryKey: ["allocation_status"],
     queryFn: () => getAllocationStatus(),
-  });
-
-  // Filter allocations for the tab "Alokasikan Petugas"
-  const filteredAllocations = allocationStatus.filter((item) => {
-    if (filter === "allocated") return item.is_allocated;
-    if (filter === "unallocated") return !item.is_allocated;
-    return true;
   });
 
   // Filter allocations for search and filtering in the "Status Alokasi" tab
@@ -165,7 +163,7 @@ export default function AlokasiPetugasPage() {
   useEffect(() => {
     // Reset selected allocations when filter changes
     setSelectedAllocations([]);
-  }, [filter]);
+  }, [filterTypeNKS, filterTypeSegmen, filterAllocated, filterUnallocated]);
 
   // Set current user's ID as selectedPML if they are a PML
   useEffect(() => {
@@ -199,17 +197,17 @@ export default function AlokasiPetugasPage() {
 
         {/* Alokasikan Petugas Tab */}
         <TabsContent value="alokasikan">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Selection Cards */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pilih Petugas</CardTitle>
-                <CardDescription>
-                  Pilih PPL dan PML yang akan dialokasikan
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Alokasi Wilayah ke Petugas</CardTitle>
+              <CardDescription>
+                Pilih wilayah dan petugas untuk melakukan alokasi
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Selection Fields */}
+                <div className="space-y-4">
                   {/* PPL Selection */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
@@ -278,65 +276,124 @@ export default function AlokasiPetugasPage() {
                     </Select>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* NKS/Segmen Selection Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pilih NKS/Segmen</CardTitle>
-                <CardDescription>
-                  Pilih NKS atau Segmen yang akan dialokasikan ke PPL
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                
+                {/* Search and Filter */}
                 <div className="space-y-4">
-                  <div className="flex gap-2 flex-wrap">
-                    <Badge 
-                      className="cursor-pointer" 
-                      variant="outline" 
-                      onClick={() => setFilter("all")}
-                      style={{
-                        backgroundColor: filter === "all" ? "#4a6741" : undefined,
-                        color: filter === "all" ? "white" : undefined
-                      }}
-                    >
-                      Semua Tipe
-                    </Badge>
-                    <Badge 
-                      className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                      variant="outline" 
-                      onClick={() => setFilter("allocated")}
-                      style={{
-                        backgroundColor: filter === "allocated" ? "#4a6741" : undefined,
-                        color: filter === "allocated" ? "white" : undefined
-                      }}
-                    >
-                      Teralokasi
-                    </Badge>
-                    <Badge 
-                      className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                      variant="outline" 
-                      onClick={() => setFilter("unallocated")}
-                      style={{
-                        backgroundColor: filter === "unallocated" ? "#4a6741" : undefined,
-                        color: filter === "unallocated" ? "white" : undefined
-                      }}
-                    >
-                      Belum Teralokasi
-                    </Badge>
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari NKS/Segmen..."
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      value={searchQuery}
+                      className="pl-8 w-full"
+                    />
+                    <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="icon" className="ml-2">
+                          <Filter className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-3" align="end">
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm">Tipe Wilayah</h4>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge 
+                              className="cursor-pointer" 
+                              variant="outline" 
+                              style={{
+                                backgroundColor: filterTypeNKS && filterTypeSegmen ? "#4a6741" : undefined,
+                                color: filterTypeNKS && filterTypeSegmen ? "white" : undefined
+                              }}
+                              onClick={() => {
+                                setFilterTypeNKS(true);
+                                setFilterTypeSegmen(true);
+                              }}
+                            >
+                              Semua Tipe
+                            </Badge>
+                            <Badge 
+                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
+                              variant="outline" 
+                              style={{
+                                backgroundColor: filterTypeNKS && !filterTypeSegmen ? "#4a6741" : undefined,
+                                color: filterTypeNKS && !filterTypeSegmen ? "white" : undefined
+                              }}
+                              onClick={() => {
+                                setFilterTypeNKS(true);
+                                setFilterTypeSegmen(false);
+                              }}
+                            >
+                              NKS
+                            </Badge>
+                            <Badge 
+                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
+                              variant="outline" 
+                              style={{
+                                backgroundColor: !filterTypeNKS && filterTypeSegmen ? "#4a6741" : undefined,
+                                color: !filterTypeNKS && filterTypeSegmen ? "white" : undefined
+                              }}
+                              onClick={() => {
+                                setFilterTypeNKS(false);
+                                setFilterTypeSegmen(true);
+                              }}
+                            >
+                              Segmen
+                            </Badge>
+                          </div>
+                          
+                          <h4 className="font-medium text-sm mt-3">Status Alokasi</h4>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge 
+                              className="cursor-pointer" 
+                              variant="outline" 
+                              style={{
+                                backgroundColor: filterAllocated && filterUnallocated ? "#4a6741" : undefined,
+                                color: filterAllocated && filterUnallocated ? "white" : undefined
+                              }}
+                              onClick={() => {
+                                setFilterAllocated(true);
+                                setFilterUnallocated(true);
+                              }}
+                            >
+                              Semua Status
+                            </Badge>
+                            <Badge 
+                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
+                              variant="outline" 
+                              style={{
+                                backgroundColor: filterAllocated && !filterUnallocated ? "#4a6741" : undefined,
+                                color: filterAllocated && !filterUnallocated ? "white" : undefined
+                              }}
+                              onClick={() => {
+                                setFilterAllocated(true);
+                                setFilterUnallocated(false);
+                              }}
+                            >
+                              Teralokasi
+                            </Badge>
+                            <Badge 
+                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
+                              variant="outline" 
+                              style={{
+                                backgroundColor: !filterAllocated && filterUnallocated ? "#4a6741" : undefined,
+                                color: !filterAllocated && filterUnallocated ? "white" : undefined
+                              }}
+                              onClick={() => {
+                                setFilterAllocated(false);
+                                setFilterUnallocated(true);
+                              }}
+                            >
+                              Belum Dialokasi
+                            </Badge>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
-
-                  <Input
-                    placeholder="Cari NKS/Segmen..."
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    value={searchQuery}
-                    className="w-full"
-                  />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* NKS/Segmen List Card */}
           <Card className="mt-6">
@@ -346,7 +403,7 @@ export default function AlokasiPetugasPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   <span className="ml-2">Memuat data alokasi...</span>
                 </div>
-              ) : filteredAllocations.length === 0 ? (
+              ) : statusFilteredAllocations.length === 0 ? (
                 <div className="text-center p-8 text-muted-foreground">
                   Tidak ada data NKS/Segmen yang sesuai filter
                 </div>
@@ -354,7 +411,7 @@ export default function AlokasiPetugasPage() {
                 <>
                   <div className="mb-4 flex justify-between items-center px-4 sm:px-0">
                     <span className="text-sm text-muted-foreground">
-                      {selectedAllocations.length} item dipilih dari {filteredAllocations.length} total
+                      {selectedAllocations.length} item dipilih dari {statusFilteredAllocations.length} total
                     </span>
                     <Button 
                       onClick={handleAssign} 
@@ -385,12 +442,13 @@ export default function AlokasiPetugasPage() {
                           <TableHead>Tipe</TableHead>
                           <TableHead>Kode</TableHead>
                           <TableHead>Desa/Kecamatan</TableHead>
+                          <TableHead>Target</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredAllocations
+                        {statusFilteredAllocations
                           .filter(allocation => 
                             searchQuery ? 
                               allocation.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -416,6 +474,12 @@ export default function AlokasiPetugasPage() {
                             </TableCell>
                             <TableCell className="font-medium">{allocation.code}</TableCell>
                             <TableCell>{allocation.desa_name} / {allocation.kecamatan_name}</TableCell>
+                            <TableCell>
+                              <TableTargetGroup
+                                padiTarget={allocation.padi_target}
+                                palawijaTarget={allocation.palawija_target}
+                              />
+                            </TableCell>
                             <TableCell>
                               {allocation.is_allocated ? (
                                 <Badge className="bg-green-100 text-green-800">
@@ -463,39 +527,48 @@ export default function AlokasiPetugasPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {/* PPL Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Pilih PPL
-                  </label>
-                  <Select
-                    value={selectedListViewPPL}
-                    onValueChange={setSelectedListViewPPL}
-                    disabled={isLoadingPPL}
-                  >
-                    <SelectTrigger className="w-full md:w-80">
-                      <SelectValue placeholder="Pilih PPL" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingPPL ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="ml-2">Memuat...</span>
-                        </div>
-                      ) : pplList.length === 0 ? (
-                        <div className="p-2 text-center text-muted-foreground">
-                          Tidak ada PPL
-                        </div>
-                      ) : (
-                        pplList.map((ppl) => (
-                          <SelectItem key={ppl.id} value={ppl.id}>
-                            {ppl.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* PPL Selection with enhanced UI */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={false}
+                      className="w-full md:w-80 flex justify-between"
+                    >
+                      {selectedListViewPPL ? getPPLName(selectedListViewPPL) : "Pilih Petugas PPL..."}
+                      <Search className="ml-2 h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full md:w-80 p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Cari petugas PPL..." />
+                      <CommandList>
+                        <CommandEmpty>Petugas tidak ditemukan.</CommandEmpty>
+                        <CommandGroup>
+                          {pplList.map((ppl) => (
+                            <CommandItem
+                              key={ppl.id}
+                              value={ppl.id}
+                              onSelect={() => {
+                                setSelectedListViewPPL(ppl.id);
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <Avatar className="h-7 w-7">
+                                <AvatarFallback>{ppl.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{ppl.name}</p>
+                                <p className="text-xs text-muted-foreground">{ppl.username}</p>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
 
                 {/* Allocation List */}
                 {selectedListViewPPL && (
@@ -503,25 +576,40 @@ export default function AlokasiPetugasPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Kode NKS</TableHead>
+                          <TableHead>Tipe</TableHead>
+                          <TableHead>Kode</TableHead>
                           <TableHead>Desa</TableHead>
                           <TableHead>Kecamatan</TableHead>
+                          <TableHead>Target</TableHead>
+                          <TableHead>PML</TableHead>
                           <TableHead>Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {pplAllocations.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={4} className="text-center py-4">
+                            <TableCell colSpan={7} className="text-center py-4">
                               Tidak ada data alokasi untuk PPL ini
                             </TableCell>
                           </TableRow>
                         ) : (
                           pplAllocations.map((allocation) => (
                             <TableRow key={allocation.id}>
+                              <TableCell>
+                                <Badge className="bg-gray-100 text-gray-800">
+                                  {allocation.type === "nks" ? "NKS" : "Segmen"}
+                                </Badge>
+                              </TableCell>
                               <TableCell className="font-medium">{allocation.code}</TableCell>
                               <TableCell>{allocation.desa_name}</TableCell>
                               <TableCell>{allocation.kecamatan_name}</TableCell>
+                              <TableCell>
+                                <TableTargetGroup
+                                  padiTarget={allocation.padi_target}
+                                  palawijaTarget={allocation.palawija_target}
+                                />
+                              </TableCell>
+                              <TableCell>{allocation.pml_name || getPMLName(allocation.pml_id!)}</TableCell>
                               <TableCell>
                                 <Button
                                   variant="destructive"
@@ -671,6 +759,7 @@ export default function AlokasiPetugasPage() {
                         <TableHead>Kode</TableHead>
                         <TableHead>Desa</TableHead>
                         <TableHead>Kecamatan</TableHead>
+                        <TableHead>Target</TableHead>
                         <TableHead>Status Alokasi</TableHead>
                         <TableHead>PPL</TableHead>
                         <TableHead>PML</TableHead>
@@ -679,14 +768,14 @@ export default function AlokasiPetugasPage() {
                     <TableBody>
                       {isLoadingAllocations ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4">
+                          <TableCell colSpan={8} className="text-center py-4">
                             <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                             <span className="block mt-2">Memuat data alokasi...</span>
                           </TableCell>
                         </TableRow>
                       ) : statusFilteredAllocations.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4">
+                          <TableCell colSpan={8} className="text-center py-4">
                             Tidak ada data alokasi yang sesuai filter
                           </TableCell>
                         </TableRow>
@@ -701,6 +790,12 @@ export default function AlokasiPetugasPage() {
                             <TableCell className="font-medium">{allocation.code}</TableCell>
                             <TableCell>{allocation.desa_name}</TableCell>
                             <TableCell>{allocation.kecamatan_name}</TableCell>
+                            <TableCell>
+                              <TableTargetGroup
+                                padiTarget={allocation.padi_target}
+                                palawijaTarget={allocation.palawija_target}
+                              />
+                            </TableCell>
                             <TableCell>
                               {allocation.is_allocated ? (
                                 <div className="flex items-center">
@@ -718,7 +813,7 @@ export default function AlokasiPetugasPage() {
                               {allocation.ppl_id ? getPPLName(allocation.ppl_id) : "-"}
                             </TableCell>
                             <TableCell>
-                              {allocation.pml_id ? getPMLName(allocation.pml_id) : "-"}
+                              {allocation.pml_id ? allocation.pml_name || getPMLName(allocation.pml_id) : "-"}
                             </TableCell>
                           </TableRow>
                         ))

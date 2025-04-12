@@ -1,4 +1,3 @@
-
 export interface Kecamatan {
   id: string;
   name: string;
@@ -182,6 +181,10 @@ export interface AllocationStatus {
   is_allocated: boolean;
   ppl_id: string | null;
   pml_id: string | null;
+  padi_target?: number;
+  palawija_target?: number;
+  komoditas?: string[];
+  pml_name?: string;
 }
 
 export interface DetailProgressData {

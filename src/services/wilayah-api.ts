@@ -1,752 +1,176 @@
-import { supabase } from "@/integrations/supabase/client";
-import { 
-  Kecamatan, 
-  Desa, 
-  NKS, 
-  Segmen, 
-  SampelKRT, 
-  Petugas, 
-  UbinanData, 
-  WilayahTugas,
-  AllocationStatus,
-  ProgressReport 
-} from "@/types/database-schema";
+import { supabase } from '@/integrations/supabase/client';
+import { AllocationStatus, Petugas, NKS } from '@/types/database-schema';
+
+// Define types based on our custom database schema
+type DatabaseUser = Database['public']['Tables']['users']['Row'];
+type Kecamatan = Database['public']['Tables']['kecamatan']['Row'];
+type Desa = Database['public']['Tables']['desa']['Row'];
+type WilayahTugas = Database['public']['Tables']['wilayah_tugas']['Row'];
+
+// Users API
+export const getUsers = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as DatabaseUser[];
+};
+
+export const getUserById = async (id: string) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select()
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as DatabaseUser;
+};
 
 // Kecamatan API
-export async function getKecamatanList(): Promise<Kecamatan[]> {
-  try {
-    const { data, error } = await supabase
-      .from('kecamatan')
-      .select()
-      .order('name');
-      
-    if (error) {
-      console.error("Error fetching kecamatan:", error);
-      throw error;
-    }
-    
-    return data as Kecamatan[];
-  } catch (error) {
-    console.error("Error in getKecamatanList:", error);
-    return [];
+export const getKecamatans = async () => {
+  const { data, error } = await supabase
+    .from('kecamatan')
+    .select()
+    .order('name');
+  
+  if (error) {
+    throw error;
   }
-}
-
-export async function createKecamatan(name: string): Promise<Kecamatan | null> {
-  try {
-    const { data, error } = await supabase
-      .from('kecamatan')
-      .insert([{ name }])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating kecamatan:", error);
-      throw error;
-    }
-    
-    return data as Kecamatan;
-  } catch (error) {
-    console.error("Error in createKecamatan:", error);
-    return null;
-  }
-}
+  
+  return data as Kecamatan[];
+};
 
 // Desa API
-export async function getDesaList(kecamatanId?: string): Promise<Desa[]> {
-  try {
-    let query = supabase
-      .from('desa')
-      .select('*, kecamatan:kecamatan_id(*)');
-      
-    if (kecamatanId) {
-      query = query.eq('kecamatan_id', kecamatanId);
-    }
-    
-    const { data, error } = await query.order('name');
-      
-    if (error) {
-      console.error("Error fetching desa:", error);
-      throw error;
-    }
-    
-    return data as unknown as Desa[];
-  } catch (error) {
-    console.error("Error in getDesaList:", error);
-    return [];
+export const getDesasByKecamatan = async (kecamatanId: string) => {
+  const { data, error } = await supabase
+    .from('desa')
+    .select()
+    .eq('kecamatan_id', kecamatanId)
+    .order('name');
+  
+  if (error) {
+    throw error;
   }
-}
+  
+  return data as Desa[];
+};
 
-export async function createDesa(name: string, kecamatanId: string): Promise<Desa | null> {
-  try {
-    const { data, error } = await supabase
-      .from('desa')
-      .insert([{ name, kecamatan_id: kecamatanId }])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating desa:", error);
-      throw error;
-    }
-    
-    return data as Desa;
-  } catch (error) {
-    console.error("Error in createDesa:", error);
-    return null;
+export const getDesaById = async (desaId: string) => {
+  const { data, error } = await supabase
+    .from('desa')
+    .select('*, kecamatan:kecamatan_id(*)')
+    .eq('id', desaId)
+    .single();
+  
+  if (error) {
+    throw error;
   }
-}
+  
+  return data;
+};
 
 // NKS API
-export async function getNKSList(desaId?: string): Promise<NKS[]> {
-  try {
-    let query = supabase
-      .from('nks')
-      .select(`
-        *,
-        desa:desa_id(*, kecamatan:kecamatan_id(*))
-      `);
-      
-    if (desaId) {
-      query = query.eq('desa_id', desaId);
-    }
-    
-    const { data, error } = await query.order('code');
-      
-    if (error) {
-      console.error("Error fetching NKS:", error);
-      throw error;
-    }
-    
-    return data as unknown as NKS[];
-  } catch (error) {
-    console.error("Error in getNKSList:", error);
-    return [];
+export const getNKSByDesa = async (desaId: string) => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select()
+    .eq('desa_id', desaId);
+  
+  if (error) {
+    throw error;
   }
-}
+  
+  return data as NKS[];
+};
 
-export async function createNKS(
-  code: string, 
-  desaId: string, 
-  targetPalawija: number,
-  subround: number
-): Promise<NKS | null> {
-  try {
-    const { data, error } = await supabase
-      .from('nks')
-      .insert([{ 
-        code, 
-        desa_id: desaId, 
-        target_palawija: targetPalawija,
-        subround
-      }])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating NKS:", error);
-      throw error;
-    }
+export const getNKSDetails = async (nksId: string) => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select('*, desa:desa_id(*)')
+    .eq('id', nksId)
+    .single();
     
-    return data as NKS;
-  } catch (error) {
-    console.error("Error in createNKS:", error);
-    return null;
+  if (error) {
+    throw error;
   }
-}
+  
+  return data;
+};
 
-export async function getNKSWithAssignments(): Promise<NKS[]> {
-  try {
-    const { data, error } = await supabase
-      .from('nks')
-      .select(`
-        *,
-        desa:desa_id(*, kecamatan:kecamatan_id(*)),
-        wilayah_tugas(*) 
-      `)
-      .order('code');
-      
-    if (error) {
-      console.error("Error fetching NKS with assignments:", error);
-      throw error;
-    }
-    
-    return data as unknown as NKS[];
-  } catch (error) {
-    console.error("Error in getNKSWithAssignments:", error);
-    return [];
+// Wilayah Tugas API
+export const getWilayahTugasByPML = async (pmlId: string) => {
+  const { data, error } = await supabase
+    .from('wilayah_tugas')
+    .select('*, nks:nks_id(*), ppl:ppl_id(*)')
+    .eq('pml_id', pmlId);
+  
+  if (error) {
+    throw error;
   }
-}
+  
+  return data;
+};
 
-export async function deleteNKS(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('nks')
-      .delete()
-      .eq('id', id);
-      
-    if (error) {
-      console.error("Error deleting NKS:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in deleteNKS:", error);
-    return false;
+export const getWilayahTugasByPPL = async (pplId: string) => {
+  const { data, error } = await supabase
+    .from('wilayah_tugas')
+    .select('*, nks:nks_id(*), pml:pml_id(*)')
+    .eq('ppl_id', pplId);
+  
+  if (error) {
+    throw error;
   }
-}
-
-// Segmen API
-export async function getSegmenList(desaId?: string): Promise<Segmen[]> {
-  try {
-    let query = supabase
-      .from('segmen')
-      .select(`
-        *,
-        desa:desa_id(*, kecamatan:kecamatan_id(*))
-      `);
-      
-    if (desaId) {
-      query = query.eq('desa_id', desaId);
-    }
-    
-    const { data, error } = await query.order('code');
-      
-    if (error) {
-      console.error("Error fetching segmen:", error);
-      throw error;
-    }
-    
-    return data as unknown as Segmen[];
-  } catch (error) {
-    console.error("Error in getSegmenList:", error);
-    return [];
-  }
-}
-
-export async function createSegmen(
-  code: string, 
-  desaId: string, 
-  targetPadi: number,
-  bulan: number
-): Promise<Segmen | null> {
-  try {
-    const { data, error } = await supabase
-      .from('segmen')
-      .insert([{ 
-        code, 
-        desa_id: desaId, 
-        target_padi: targetPadi,
-        bulan
-      }])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating segmen:", error);
-      throw error;
-    }
-    
-    return data as Segmen;
-  } catch (error) {
-    console.error("Error in createSegmen:", error);
-    return null;
-  }
-}
-
-export async function getSegmenWithAssignments(): Promise<Segmen[]> {
-  try {
-    const { data, error } = await supabase
-      .from('segmen')
-      .select(`
-        *,
-        desa:desa_id(*, kecamatan:kecamatan_id(*)),
-        wilayah_tugas_segmen(*)
-      `)
-      .order('code');
-      
-    if (error) {
-      console.error("Error fetching segmen with assignments:", error);
-      throw error;
-    }
-    
-    return data as unknown as Segmen[];
-  } catch (error) {
-    console.error("Error in getSegmenWithAssignments:", error);
-    return [];
-  }
-}
-
-export async function deleteSegmen(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('segmen')
-      .delete()
-      .eq('id', id);
-      
-    if (error) {
-      console.error("Error deleting segmen:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in deleteSegmen:", error);
-    return false;
-  }
-}
-
-// Sampel KRT API
-export async function createSampelKRT(data: { 
-  nama: string; 
-  status: "Utama" | "Cadangan"; 
-  nks_id?: string; 
-  segmen_id?: string; 
-}): Promise<SampelKRT | null> {
-  try {
-    const { data: newData, error } = await supabase
-      .from('sampel_krt')
-      .insert([data])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating sampel KRT:", error);
-      throw error;
-    }
-    
-    return newData as SampelKRT;
-  } catch (error) {
-    console.error("Error in createSampelKRT:", error);
-    return null;
-  }
-}
-
-export async function getSampelKRTList(params: {
-  nks_id?: string;
-  segmen_id?: string;
-}): Promise<SampelKRT[]> {
-  try {
-    let query = supabase.from('sampel_krt').select('*');
-    
-    if (params.nks_id) {
-      query = query.eq('nks_id', params.nks_id);
-    }
-    
-    if (params.segmen_id) {
-      query = query.eq('segmen_id', params.segmen_id);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error("Error fetching sampel KRT:", error);
-      throw error;
-    }
-    
-    return data as SampelKRT[];
-  } catch (error) {
-    console.error("Error in getSampelKRTList:", error);
-    return [];
-  }
-}
-
-export async function deleteSampelKRT(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('sampel_krt')
-      .delete()
-      .eq('id', id);
-      
-    if (error) {
-      console.error("Error deleting sampel KRT:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in deleteSampelKRT:", error);
-    return false;
-  }
-}
-
-// Users & Petugas API
-export async function getPetugasList(role?: string): Promise<Petugas[]> {
-  try {
-    let query = supabase
-      .from('users')
-      .select();
-      
-    if (role) {
-      query = query.eq('role', role);
-    }
-    
-    const { data, error } = await query;
-      
-    if (error) {
-      console.error("Error fetching petugas:", error);
-      throw error;
-    }
-    
-    return data.map(user => ({
-      ...user,
-      role: user.role as "admin" | "pml" | "ppl" | "viewer"
-    })) as Petugas[];
-  } catch (error) {
-    console.error("Error in getPetugasList:", error);
-    return [];
-  }
-}
-
-export async function getPPLList(): Promise<Petugas[]> {
-  return getPetugasList("ppl");
-}
-
-export async function getPMLList(): Promise<Petugas[]> {
-  return getPetugasList("pml");
-}
-
-export async function createPetugas(
-  username: string,
-  password: string,
-  name: string,
-  role: "admin" | "pml" | "ppl" | "viewer",
-  pmlId?: string
-): Promise<Petugas | null> {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .insert([{ 
-        username, 
-        password, 
-        name, 
-        role,
-        pml_id: pmlId
-      }])
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("Error creating petugas:", error);
-      throw error;
-    }
-    
-    return {
-      ...data,
-      role: data.role as "admin" | "pml" | "ppl" | "viewer"
-    } as Petugas;
-  } catch (error) {
-    console.error("Error in createPetugas:", error);
-    return null;
-  }
-}
-
-// Allocation Status API
-export async function getAllocationStatus(): Promise<AllocationStatus[]> {
-  try {
-    const { data, error } = await supabase
-      .from('allocation_status')
-      .select('*')
-      .order('type')
-      .order('code');
-      
-    if (error) {
-      console.error("Error fetching allocation status:", error);
-      throw error;
-    }
-    
-    return data.map(item => ({
-      ...item,
-      type: item.type as "nks" | "segmen"
-    })) as AllocationStatus[];
-  } catch (error) {
-    console.error("Error in getAllocationStatus:", error);
-    return [];
-  }
-}
-
-export async function getWilayahTugasList(): Promise<WilayahTugas[]> {
-  try {
-    const { data, error } = await supabase
-      .from('wilayah_tugas')
-      .select('*');
-      
-    if (error) {
-      console.error("Error fetching wilayah tugas:", error);
-      throw error;
-    }
-    
-    return data as WilayahTugas[];
-  } catch (error) {
-    console.error("Error in getWilayahTugasList:", error);
-    return [];
-  }
-}
-
-export async function createWilayahTugas(
-  nksId: string,
-  pmlId: string,
-  pplId: string
-): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('wilayah_tugas')
-      .insert([{ 
-        nks_id: nksId, 
-        pml_id: pmlId, 
-        ppl_id: pplId 
-      }]);
-      
-    if (error) {
-      console.error("Error creating wilayah tugas:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in createWilayahTugas:", error);
-    return false;
-  }
-}
-
-export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId: string): Promise<boolean> {
-  try {
-    // First check if this is an NKS or a Segmen based on allocation ID
-    const { data: allocData, error: allocError } = await supabase
-      .from('allocation_status')
-      .select('*')
-      .eq('id', allocationId)
-      .single();
-    
-    if (allocError) {
-      throw allocError;
-    }
-    
-    if (allocData.type === 'nks') {
-      // Handle NKS assignment
-      const { error } = await supabase
-        .from('wilayah_tugas')
-        .insert([{ 
-          nks_id: allocationId, 
-          ppl_id: pplId, 
-          pml_id: pmlId 
-        }]);
-        
-      if (error) throw error;
-    } else {
-      // Handle Segmen assignment
-      const { error } = await supabase
-        .from('wilayah_tugas_segmen')
-        .insert([{ 
-          segmen_id: allocationId, 
-          ppl_id: pplId, 
-          pml_id: pmlId 
-        }]);
-        
-      if (error) throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in assignPPLToNKS:", error);
-    return false;
-  }
-}
-
-export async function removePPLAssignment(allocationId: string, pplId: string): Promise<boolean> {
-  try {
-    // First check if this is an NKS or a Segmen based on allocation ID
-    const { data: allocData, error: allocError } = await supabase
-      .from('allocation_status')
-      .select('*')
-      .eq('id', allocationId)
-      .single();
-    
-    if (allocError) {
-      throw allocError;
-    }
-    
-    if (allocData.type === 'nks') {
-      // Handle NKS assignment removal
-      const { error } = await supabase
-        .from('wilayah_tugas')
-        .delete()
-        .match({ 
-          nks_id: allocationId, 
-          ppl_id: pplId 
-        });
-        
-      if (error) throw error;
-    } else {
-      // Handle Segmen assignment removal
-      const { error } = await supabase
-        .from('wilayah_tugas_segmen')
-        .delete()
-        .match({ 
-          segmen_id: allocationId, 
-          ppl_id: pplId 
-        });
-        
-      if (error) throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in removePPLAssignment:", error);
-    return false;
-  }
-}
+  
+  return data;
+};
 
 // Ubinan Data API
-export async function createUbinanData(data: any) {
-  try {
-    const { error } = await supabase
-      .from('ubinan_data')
-      .insert(data);
-
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error("Error creating ubinan data:", error);
+export const getUbinanDataByPPL = async (pplId: string) => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .select('*, nks:nks_id(*)')
+    .eq('ppl_id', pplId);
+  
+  if (error) {
     throw error;
   }
-}
+  
+  return data as unknown as any[];
+};
 
-export async function updateUbinanData(id: string, data: any) {
-  try {
-    const { error } = await supabase
-      .from('ubinan_data')
-      .update(data)
-      .eq('id', id);
-
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error("Error updating ubinan data:", error);
+export const getUbinanDataForVerification = async (pmlId: string) => {
+  const { data, error } = await supabase
+    .from('ubinan_data')
+    .select('*, nks:nks_id(*), ppl:ppl_id(*)')
+    .eq('pml_id', pmlId)
+    .eq('status', 'sudah_diisi');
+  
+  if (error) {
     throw error;
   }
-}
+  
+  return data as unknown as any[];
+};
 
-export async function getUbinanDataByPPL(pplId: string): Promise<UbinanData[]> {
-  try {
-    const { data, error } = await supabase
-      .from('ubinan_data')
-      .select(`
-        *,
-        nks:nks_id(*),
-        segmen:segmen_id(*)
-      `)
-      .eq('ppl_id', pplId);
-      
-    if (error) {
-      console.error("Error fetching ubinan data by PPL:", error);
-      throw error;
-    }
-    
-    return data as unknown as UbinanData[];
-  } catch (error) {
-    console.error("Error in getUbinanDataByPPL:", error);
-    return [];
+export const getSubround = async () => {
+  const { data, error } = await supabase.rpc('get_subround');
+  
+  if (error) {
+    throw error;
   }
-}
+  
+  return data as unknown as number;
+};
 
-export async function getUbinanDataForVerification(pmlId: string): Promise<UbinanData[]> {
-  try {
-    const { data, error } = await supabase
-      .from('ubinan_data')
-      .select(`
-        *,
-        nks:nks_id(*),
-        ppl:ppl_id(id, name)
-      `)
-      .eq('pml_id', pmlId)
-      .eq('status', 'sudah_diisi');
-      
-    if (error) {
-      console.error("Error fetching ubinan data for verification:", error);
-      throw error;
-    }
-    
-    return data as unknown as UbinanData[];
-  } catch (error) {
-    console.error("Error in getUbinanDataForVerification:", error);
-    return [];
-  }
-}
-
-export async function verifyUbinanData(id: string, isApproved: boolean, komentar?: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('ubinan_data')
-      .update({ 
-        status: isApproved ? 'dikonfirmasi' : 'ditolak',
-        komentar: komentar || null
-      })
-      .eq('id', id);
-      
-    if (error) {
-      console.error("Error verifying ubinan data:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in verifyUbinanData:", error);
-    return false;
-  }
-}
-
-export async function updateUbinanVerification(
-  id: string,
-  status: 'dikonfirmasi' | 'ditolak',
-  dokumenDiterima: boolean,
-  komentar?: string
-): Promise<UbinanData | null> {
-  try {
-    const { data, error } = await supabase
-      .from('ubinan_data')
-      .update({
-        status,
-        dokumen_diterima: dokumenDiterima,
-        komentar: komentar || null
-      })
-      .eq('id', id)
-      .select(`
-        *,
-        nks:nks_id(*),
-        segmen:segmen_id(*)
-      `)
-      .single();
-      
-    if (error) {
-      console.error("Error updating ubinan verification:", error);
-      throw error;
-    }
-    
-    return data as unknown as UbinanData;
-  } catch (error) {
-    console.error("Error in updateUbinanVerification:", error);
-    return null;
-  }
-}
-
-export async function getUbinanProgressByYear(year: number = new Date().getFullYear()) {
-  try {
-    const { data, error } = await supabase.rpc('get_ubinan_progress_by_year', { year_param: year });
-    
-    if (error) {
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error("Error in getUbinanProgressByYear:", error);
-    return [];
-  }
-}
-
-export async function getUbinanProgressDetailBySubround(subround: number) {
+export const getUbinanProgressBySubround = async (subround: number) => {
   try {
     const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { 
       subround_param: subround 
@@ -758,118 +182,332 @@ export async function getUbinanProgressDetailBySubround(subround: number) {
     
     return data;
   } catch (error) {
-    console.error("Error in getUbinanProgressDetailBySubround:", error);
+    console.error("Error in getUbinanProgressBySubround:", error);
     return [];
+  }
+};
+
+export const getUbinanProgressByYear = async (year: number = new Date().getFullYear()) => {
+  const { data, error } = await supabase.rpc('get_ubinan_progress_by_year', { year_param: year });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const getNKSByKomoditas = async (komoditas: string) => {
+  const { data, error } = await supabase
+    .from('nks')
+    .select('*')
+    .or(`target_${komoditas.toLowerCase()}=gt.0`);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as NKS[];
+};
+
+// Add the deletePetugas function
+export async function deletePetugas(petugasId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', petugasId);
+
+    if (error) {
+      console.error('Error deleting petugas:', error);
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error('Error in deletePetugas:', error);
+    throw error;
   }
 }
 
-export async function getVerificationStatusCounts() {
+export async function createPetugas(
+  username: string,
+  password: string,
+  name: string,
+  role: "admin" | "pml" | "ppl" | "viewer",
+  pmlId?: string
+): Promise<Petugas> {
   try {
-    const { data, error } = await supabase.rpc('get_verification_status_counts');
-    
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ username, password, name, role, pml_id: pmlId }])
+      .select()
+      .single();
+      
     if (error) {
-      throw error;
+      console.error("Error creating petugas:", error);
+      throw new Error(error.message);
     }
     
-    return data;
+    return data as Petugas;
   } catch (error) {
-    console.error("Error in getVerificationStatusCounts:", error);
-    return [];
+    console.error("Error in createPetugas:", error);
+    throw error;
   }
 }
 
-export async function getPalawijaTypeCounts() {
+export async function getPetugasList(role?: "admin" | "pml" | "ppl" | "viewer"): Promise<Petugas[]> {
   try {
-    const { data, error } = await supabase.rpc('get_palawija_by_type');
-    
-    if (error) {
-      throw error;
+    let query = supabase
+      .from('users')
+      .select('*');
+      
+    if (role) {
+      query = query.eq('role', role);
     }
     
-    return data;
-  } catch (error) {
-    console.error("Error in getPalawijaTypeCounts:", error);
-    return [];
-  }
-}
-
-export async function getUbinanTotalsBySubround(subround: number) {
-  try {
-    const { data, error } = await supabase.rpc('get_ubinan_totals_by_subround', { 
-      subround_param: subround 
-    });
+    const { data, error } = await query;
     
     if (error) {
-      throw error;
+      console.error("Error fetching petugas list:", error);
+      return [];
     }
     
-    return data;
+    return data as Petugas[];
   } catch (error) {
-    console.error("Error in getUbinanTotalsBySubround:", error);
+    console.error("Error in getPetugasList:", error);
     return [];
   }
 }
 
-// Progress API
-export async function getPPLTargets(pplId: string): Promise<{ padi: number; palawija: number }> {
+export async function getPPLList(): Promise<Petugas[]> {
   try {
-    // Get targets from NKS assignments
-    const { data: nksData, error: nksError } = await supabase
-      .from('wilayah_tugas')
-      .select('nks:nks_id(target_palawija)')
-      .eq('ppl_id', pplId);
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 'ppl');
+      
+    if (error) {
+      console.error("Error fetching PPL list:", error);
+      return [];
+    }
     
+    return data as Petugas[];
+  } catch (error) {
+    console.error("Error in getPPLList:", error);
+    return [];
+  }
+}
+
+export async function getPMLList(): Promise<Petugas[]> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 'pml');
+      
+    if (error) {
+      console.error("Error fetching PML list:", error);
+      return [];
+    }
+    
+    return data as Petugas[];
+  } catch (error) {
+    console.error("Error in getPMLList:", error);
+    return [];
+  }
+}
+
+export async function getAllocationStatus(): Promise<AllocationStatus[]> {
+  try {
+    const { data: viewData, error: viewError } = await supabase
+      .from('allocation_status')
+      .select('*');
+      
+    if (viewError) {
+      console.error("Error fetching allocation status:", viewError);
+      return [];
+    }
+    
+    // Get NKS items with target information
+    const { data: nksWithTargets, error: nksError } = await supabase
+      .from('nks')
+      .select('id, target_padi, target_palawija');
+      
     if (nksError) {
-      throw nksError;
+      console.error("Error fetching NKS targets:", nksError);
     }
     
-    // Get targets from Segmen assignments
-    const { data: segmenData, error: segmenError } = await supabase
-      .from('wilayah_tugas_segmen')
-      .select('segmen:segmen_id(target_padi)')
-      .eq('ppl_id', pplId);
-    
+    // Get Segmen items with target information
+    const { data: segmenWithTargets, error: segmenError } = await supabase
+      .from('segmen')
+      .select('id, target_padi');
+      
     if (segmenError) {
-      throw segmenError;
+      console.error("Error fetching Segmen targets:", segmenError);
     }
     
-    // Calculate total targets
-    let palawijaTarget = 0;
-    nksData.forEach(item => {
-      if (item.nks && typeof item.nks.target_palawija === 'number') {
-        palawijaTarget += item.nks.target_palawija;
-      }
-    });
+    // Get komoditas information for NKS
+    const { data: nksKomoditas, error: komoditasError } = await supabase
+      .from('nks_komoditas')
+      .select('nks_id, komoditas');
+      
+    if (komoditasError) {
+      console.error("Error fetching NKS komoditas:", komoditasError);
+    }
     
-    let padiTarget = 0;
-    segmenData.forEach(item => {
-      if (item.segmen && typeof item.segmen.target_padi === 'number') {
-        padiTarget += item.segmen.target_padi;
+    // Get PML names
+    const { data: pmlList, error: pmlError } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('role', 'pml');
+      
+    if (pmlError) {
+      console.error("Error fetching PML names:", pmlError);
+    }
+
+    // Combine data
+    const komoditasByNks = nksKomoditas?.reduce((acc, item) => {
+      if (!acc[item.nks_id]) {
+        acc[item.nks_id] = [];
       }
-    });
+      acc[item.nks_id].push(item.komoditas);
+      return acc;
+    }, {} as Record<string, string[]>) || {};
     
-    return {
-      padi: padiTarget,
-      palawija: palawijaTarget
-    };
+    const nksTargetsMap = nksWithTargets?.reduce((acc, item) => {
+      acc[item.id] = { padi_target: item.target_padi, palawija_target: item.target_palawija };
+      return acc;
+    }, {} as Record<string, { padi_target: number, palawija_target: number }>) || {};
+    
+    const segmenTargetsMap = segmenWithTargets?.reduce((acc, item) => {
+      acc[item.id] = { padi_target: item.target_padi };
+      return acc;
+    }, {} as Record<string, { padi_target: number }>) || {};
+    
+    const pmlNameMap = pmlList?.reduce((acc, item) => {
+      acc[item.id] = item.name;
+      return acc;
+    }, {} as Record<string, string>) || {};
+    
+    // Add target and komoditas information to each allocation status
+    return (viewData || []).map(item => {
+      const enhancedItem = { ...item } as AllocationStatus;
+      
+      if (item.type === 'nks' && nksTargetsMap[item.id]) {
+        enhancedItem.padi_target = nksTargetsMap[item.id].padi_target;
+        enhancedItem.palawija_target = nksTargetsMap[item.id].palawija_target;
+        enhancedItem.komoditas = komoditasByNks[item.id] || [];
+      } else if (item.type === 'segmen' && segmenTargetsMap[item.id]) {
+        enhancedItem.padi_target = segmenTargetsMap[item.id].padi_target;
+        enhancedItem.palawija_target = 0;
+      }
+      
+      if (item.pml_id && pmlNameMap[item.pml_id]) {
+        enhancedItem.pml_name = pmlNameMap[item.pml_id];
+      }
+      
+      return enhancedItem;
+    });
   } catch (error) {
-    console.error("Error in getPPLTargets:", error);
-    return { padi: 0, palawija: 0 };
+    console.error("Error in getAllocationStatus:", error);
+    return [];
   }
 }
 
-// Subround API
-export async function getSubround(): Promise<number> {
+export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId: string): Promise<any> {
   try {
-    const { data, error } = await supabase.rpc('get_subround');
-    
-    if (error) {
-      throw error;
+    // Determine the type of allocation (nks or segmen)
+    const { data: allocation, error: allocationError } = await supabase
+      .from('allocation_status')
+      .select('type')
+      .eq('id', allocationId)
+      .single();
+      
+    if (allocationError) {
+      console.error("Error fetching allocation type:", allocationError);
+      throw new Error(allocationError.message);
     }
     
-    return data as number;
+    if (!allocation) {
+      throw new Error("Allocation not found");
+    }
+    
+    let tableName = '';
+    let nksIdColumn = '';
+    
+    if (allocation.type === 'nks') {
+      tableName = 'wilayah_tugas';
+      nksIdColumn = 'nks_id';
+    } else if (allocation.type === 'segmen') {
+      tableName = 'wilayah_tugas_segmen';
+      nksIdColumn = 'segmen_id';
+    } else {
+      throw new Error("Unknown allocation type");
+    }
+    
+    // Assign PPL to the specified NKS or Segmen
+    const { data, error } = await supabase
+      .from(tableName)
+      .insert([{ [nksIdColumn]: allocationId, ppl_id: pplId, pml_id: pmlId }]);
+      
+    if (error) {
+      console.error("Error assigning PPL to NKS/Segmen:", error);
+      throw new Error(error.message);
+    }
+    
+    return data;
   } catch (error) {
-    console.error("Error in getSubround:", error);
-    return 1; // Default to subround 1 if error
+    console.error("Error in assignPPLToNKS:", error);
+    throw error;
   }
 }
+
+export async function removePPLAssignment(allocationId: string, pplId: string): Promise<void> {
+  try {
+    // Determine the type of allocation (nks or segmen)
+    const { data: allocation, error: allocationError } = await supabase
+      .from('allocation_status')
+      .select('type')
+      .eq('id', allocationId)
+      .single();
+      
+    if (allocationError) {
+      console.error("Error fetching allocation type:", allocationError);
+      throw new Error(allocationError.message);
+    }
+    
+    if (!allocation) {
+      throw new Error("Allocation not found");
+    }
+    
+    let tableName = '';
+    let nksIdColumn = '';
+    
+    if (allocation.type === 'nks') {
+      tableName = 'wilayah_tugas';
+      nksIdColumn = 'nks_id';
+    } else if (allocation.type === 'segmen') {
+      tableName = 'wilayah_tugas_segmen';
+      nksIdColumn = 'segmen_id';
+    } else {
+      throw new Error("Unknown allocation type");
+    }
+    
+    // Remove PPL assignment from the specified NKS or Segmen
+    const { error } = await supabase
+      .from(tableName)
+      .delete()
+      .eq(nksIdColumn, allocationId)
+      .eq('ppl_id', pplId);
+      
+    if (error) {
+      console.error("Error removing PPL assignment:", error);
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error("Error in removePPLAssignment:", error);
+    throw error;
+  }
+}
+
+// Export types for use in other components
+export type { DatabaseUser, Kecamatan, Desa, NKS, WilayahTugas };
