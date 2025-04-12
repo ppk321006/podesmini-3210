@@ -454,8 +454,15 @@ export function createProgressDataFromUbinan(
     const padiCount = monthItems.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
     const palawijaCount = monthItems.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
     
-    const monthlyPadiTarget = Math.ceil(padiTarget / 12);
-    const monthlyPalawijaTarget = Math.ceil(palawijaTarget / 12);
+    let monthlyPadiTarget = 0;
+    let monthlyPalawijaTarget = 0;
+    
+    const subroundNum = i <= 4 ? 1 : (i <= 8 ? 2 : 3);
+    
+    if (subroundNum === 1) {
+      monthlyPadiTarget = Math.ceil(padiTarget / 4);
+      monthlyPalawijaTarget = Math.ceil(palawijaTarget / 4);
+    }
     
     const padiPercentage = monthlyPadiTarget > 0 ? (padiCount / monthlyPadiTarget) * 100 : 0;
     const palawijaPercentage = monthlyPalawijaTarget > 0 ? (palawijaCount / monthlyPalawijaTarget) * 100 : 0;

@@ -1,102 +1,126 @@
 
 import { useState } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose
-} from "@/components/ui/dialog";
-import { UserRound, KeyRound } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { useAuth } from "@/context/auth-context";
+
+const formSchema = z.object({
+  username: z.string().min(2, {
+    message: "Username harus diisi",
+  }),
+  password: z.string().min(1, {
+    message: "Password harus diisi",
+  }),
+});
 
 export function LoginForm() {
-  const [username, setUsername] = useState("admin"); // Pre-fill with admin username
-  const [password, setPassword] = useState("admin123"); // Pre-fill with admin password
-  const [isOpen, setIsOpen] = useState(false);
-  const { login, isLoading, isAuthenticated, logout } = useAuth();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Submitting login form with:", username, password);
-    await login(username, password);
-    if (!isLoading) {
-      setIsOpen(false);
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      await login(values.username, values.password);
+      navigate("/");
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Username atau password salah");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
 
-  return isAuthenticated ? (
-    <Button variant="outline" onClick={logout} className="gap-2">
-      <UserRound size={16} />
-      Logout
-    </Button>
-  ) : (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 bg-simonita-green hover:bg-simonita-green/90">
-          <UserRound size={16} />
-          Login
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader className="items-center">
-          <img 
-            src="/lovable-uploads/6faa01a9-cc07-4092-89f3-a6c83a2690d0.png" 
-            alt="Si Monita Logo" 
-            className="h-24 w-24 mb-4" // Increased size from default
-          />
-          <DialogTitle className="text-center text-2xl font-bold text-simonita-brown">Login Si Monita</DialogTitle>
-          <DialogDescription className="text-center">
-            Silakan masukkan username dan password Anda untuk login
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <div className="relative">
-              <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-              <Input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Card className="w-[350px]">
+        <CardHeader className="space-y-4 flex flex-col items-center justify-center">
+          {/* Increased the image size significantly */}
+          <div className="w-72 h-72 flex items-center justify-center mb-4">
+            <img 
+              src="/placeholder.svg" 
+              alt="Logo Aplikasi" 
+              className="w-full h-full object-contain" 
+            />
           </div>
-          <div className="space-y-2">
-            <div className="relative">
-              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
+          <div className="space-y-2 text-center">
+            <h1 className="text-2xl font-bold">Selamat Datang</h1>
+            <p className="text-sm text-muted-foreground">
+              Silahkan login untuk melanjutkan
+            </p>
           </div>
-          <div className="flex justify-end space-x-2 pt-4">
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Batal
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Masukkan username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Masukkan password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {error && (
+                <div className="text-sm font-medium text-destructive">{error}</div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? "Loading..." : "Login"}
               </Button>
-            </DialogClose>
-            <Button 
-              type="submit" 
-              disabled={isLoading} 
-              className="bg-simonita-green hover:bg-simonita-green/90"
-            >
-              {isLoading ? "Loading..." : "Login"}
-            </Button>
+            </form>
+          </Form>
+        </CardContent>
+        <CardFooter className="border-t p-4">
+          <div className="text-xs text-center w-full text-muted-foreground">
+            © {new Date().getFullYear()} Aplikasi Ubinan
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </CardFooter>
+      </Card>
+    </div>
   );
 }

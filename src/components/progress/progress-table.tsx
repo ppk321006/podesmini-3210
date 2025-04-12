@@ -122,6 +122,9 @@ export function ProgressTable({
 
       subrounds[subroundNum].padi_count += monthData.padi_count;
       subrounds[subroundNum].palawija_count += monthData.palawija_count;
+      
+      // Only add targets for the corresponding subround months
+      // This fixes the issue where targets were being shown incorrectly
       subrounds[subroundNum].padi_target += monthData.padi_target;
       subrounds[subroundNum].palawija_target += monthData.palawija_target;
     });
@@ -135,8 +138,36 @@ export function ProgressTable({
     return Object.values(subrounds);
   };
 
+  // Calculate the totals for all subrounds
+  const calculateTotals = (subroundsData: SubroundProgressData[]): SubroundProgressData => {
+    const totals: SubroundProgressData = {
+      subround: 0,
+      subround_name: "Total",
+      padi_count: 0,
+      palawija_count: 0,
+      padi_target: 0,
+      palawija_target: 0,
+      padi_percentage: 0,
+      palawija_percentage: 0,
+    };
+
+    subroundsData.forEach(subround => {
+      totals.padi_count += subround.padi_count;
+      totals.palawija_count += subround.palawija_count;
+      totals.padi_target += subround.padi_target;
+      totals.palawija_target += subround.palawija_target;
+    });
+
+    // Calculate percentages for totals
+    totals.padi_percentage = totals.padi_target > 0 ? (totals.padi_count / totals.padi_target) * 100 : 0;
+    totals.palawija_percentage = totals.palawija_target > 0 ? (totals.palawija_count / totals.palawija_target) * 100 : 0;
+
+    return totals;
+  };
+
   // Group the data by subround
   const subroundData = groupBySubround(data);
+  const totalsData = calculateTotals(subroundData);
 
   // Filter data based on search term - if we're showing monthly view
   const filteredData = selectedSubround === 0 
@@ -395,21 +426,37 @@ export function ProgressTable({
                 <TableBody>
                   {selectedSubround === 0 ? (
                     // Show subround data
-                    sortedSubroundData.map((item) => (
-                      <TableRow key={item.subround}>
-                        <TableCell>{item.subround_name}</TableCell>
-                        <TableCell>{item.padi_target}</TableCell>
-                        <TableCell>{item.padi_count}</TableCell>
+                    <>
+                      {sortedSubroundData.map((item) => (
+                        <TableRow key={item.subround}>
+                          <TableCell>{item.subround_name}</TableCell>
+                          <TableCell>{item.padi_target}</TableCell>
+                          <TableCell>{item.padi_count}</TableCell>
+                          <TableCell>
+                            {renderPercentageBadge(item.padi_percentage)}
+                          </TableCell>
+                          <TableCell>{item.palawija_target}</TableCell>
+                          <TableCell>{item.palawija_count}</TableCell>
+                          <TableCell>
+                            {renderPercentageBadge(item.palawija_percentage)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Total row */}
+                      <TableRow className="font-medium bg-muted/20 border-t-2">
+                        <TableCell>{totalsData.subround_name}</TableCell>
+                        <TableCell>{totalsData.padi_target}</TableCell>
+                        <TableCell>{totalsData.padi_count}</TableCell>
                         <TableCell>
-                          {renderPercentageBadge(item.padi_percentage)}
+                          {renderPercentageBadge(totalsData.padi_percentage)}
                         </TableCell>
-                        <TableCell>{item.palawija_target}</TableCell>
-                        <TableCell>{item.palawija_count}</TableCell>
+                        <TableCell>{totalsData.palawija_target}</TableCell>
+                        <TableCell>{totalsData.palawija_count}</TableCell>
                         <TableCell>
-                          {renderPercentageBadge(item.palawija_percentage)}
+                          {renderPercentageBadge(totalsData.palawija_percentage)}
                         </TableCell>
                       </TableRow>
-                    ))
+                    </>
                   ) : (
                     // Show monthly data for the selected subround
                     sortedData.map((month) => (
