@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AllocationStatus, Petugas, NKS, UbinanData } from '@/types/database-schema';
 
@@ -177,7 +176,7 @@ export const getNKSWithAssignments = async () => {
       *,
       desa:desa_id(*, kecamatan:kecamatan_id(*)),
       komoditas_list:nks_komoditas(*),
-      wilayah_tugas(*, ppl:ppl_id(*), pml:pml_id(*))
+      wilayah_tugas(*, ppl:ppl_id(id, name, role), pml:pml_id(id, name, role))
     `);
   
   if (error) {
@@ -258,7 +257,11 @@ export const getSegmenWithAssignments = async () => {
     .select(`
       *,
       desa:desa_id(*, kecamatan:kecamatan_id(*)),
-      wilayah_tugas_segmen:wilayah_tugas_segmen(*, ppl:ppl_id(*), pml:pml_id(*))
+      wilayah_tugas_segmen:wilayah_tugas_segmen(
+        *, 
+        ppl:ppl_id(id, name, role), 
+        pml:pml_id(id, name, role)
+      )
     `);
   
   if (error) {
