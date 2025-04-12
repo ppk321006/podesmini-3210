@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AllocationStatus, Petugas, NKS, UbinanData } from '@/types/database-schema';
 
@@ -33,6 +32,47 @@ type WilayahTugas = {
   ppl_id: string;
   created_at: string;
 };
+
+// Export functions first before using them as aliases
+export async function getKecamatans() {
+  const { data, error } = await supabase
+    .from('kecamatan')
+    .select()
+    .order('name');
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as Kecamatan[];
+}
+
+export async function getDesasByKecamatan(kecamatanId?: string) {
+  const { data, error } = await supabase
+    .from('desa')
+    .select()
+    .eq('kecamatan_id', kecamatanId || '')
+    .order('name');
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as Desa[];
+}
+
+export async function getNKSByDesa(desaId?: string) {
+  const { data, error } = await supabase
+    .from('nks')
+    .select()
+    .eq('desa_id', desaId || '');
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data as NKS[];
+}
 
 // Alias functions for backward compatibility
 export const getKecamatanList = getKecamatans;
@@ -77,20 +117,6 @@ export const getUserById = async (id: string) => {
   return data as DatabaseUser;
 };
 
-// Kecamatan API
-export const getKecamatans = async () => {
-  const { data, error } = await supabase
-    .from('kecamatan')
-    .select()
-    .order('name');
-  
-  if (error) {
-    throw error;
-  }
-  
-  return data as Kecamatan[];
-};
-
 // Create Kecamatan
 export const createKecamatan = async (name: string) => {
   const { data, error } = await supabase
@@ -104,35 +130,6 @@ export const createKecamatan = async (name: string) => {
   }
   
   return data as Kecamatan;
-};
-
-// Desa API
-export const getDesasByKecamatan = async (kecamatanId: string) => {
-  const { data, error } = await supabase
-    .from('desa')
-    .select()
-    .eq('kecamatan_id', kecamatanId)
-    .order('name');
-  
-  if (error) {
-    throw error;
-  }
-  
-  return data as Desa[];
-};
-
-export const getDesaById = async (desaId: string) => {
-  const { data, error } = await supabase
-    .from('desa')
-    .select('*, kecamatan:kecamatan_id(*)')
-    .eq('id', desaId)
-    .single();
-  
-  if (error) {
-    throw error;
-  }
-  
-  return data;
 };
 
 // Create Desa
@@ -150,18 +147,18 @@ export const createDesa = async (name: string, kecamatanId: string) => {
   return data as Desa;
 };
 
-// NKS API
-export const getNKSByDesa = async (desaId: string) => {
+export const getDesaById = async (desaId: string) => {
   const { data, error } = await supabase
-    .from('nks')
-    .select()
-    .eq('desa_id', desaId);
+    .from('desa')
+    .select('*, kecamatan:kecamatan_id(*)')
+    .eq('id', desaId)
+    .single();
   
   if (error) {
     throw error;
   }
   
-  return data as NKS[];
+  return data;
 };
 
 export const getNKSWithAssignments = async () => {
@@ -295,6 +292,27 @@ export const deleteSegmen = async (segmenId: string) => {
 };
 
 // Sampel KRT API
+// Updated to accept an object with either nks_id or segmen_id
+export const getSampelKRTList = async (params: { nks_id?: string; segmen_id?: string }) => {
+  let query = supabase
+    .from('sampel_krt')
+    .select();
+  
+  if (params.nks_id) {
+    query = query.eq('nks_id', params.nks_id);
+  } else if (params.segmen_id) {
+    query = query.eq('segmen_id', params.segmen_id);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
 export const createSampelKRT = async (data: { nama: string; status: string; nks_id?: string; segmen_id?: string; }) => {
   const { data: result, error } = await supabase
     .from('sampel_krt')
@@ -307,26 +325,6 @@ export const createSampelKRT = async (data: { nama: string; status: string; nks_
   }
   
   return result;
-};
-
-export const getSampelKRTList = async (nksId?: string, segmenId?: string) => {
-  let query = supabase
-    .from('sampel_krt')
-    .select();
-  
-  if (nksId) {
-    query = query.eq('nks_id', nksId);
-  } else if (segmenId) {
-    query = query.eq('segmen_id', segmenId);
-  }
-  
-  const { data, error } = await query;
-  
-  if (error) {
-    throw error;
-  }
-  
-  return data;
 };
 
 export const deleteSampelKRT = async (krtId: string) => {

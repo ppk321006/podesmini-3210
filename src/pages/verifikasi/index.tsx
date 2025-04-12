@@ -347,8 +347,8 @@ export default function VerifikasiPage() {
       {selectedUbinan && (
         <VerificationDialog 
           data={selectedUbinan}
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
           onComplete={handleDialogClose}
         />
       )}

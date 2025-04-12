@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -34,7 +33,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Form state
   const [allocationType, setAllocationType] = useState<"nks" | "segmen">("nks");
   const [allocations, setAllocations] = useState<{
     nks: any[];
@@ -51,7 +49,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
   const [beratHasil, setBeratHasil] = useState("");
   const [editMode, setEditMode] = useState(false);
 
-  // Available komoditas list
   const komoditasList = [
     { value: "padi", label: "Padi" },
     { value: "jagung", label: "Jagung" },
@@ -61,7 +58,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
     { value: "ubi_jalar", label: "Ubi Jalar" },
   ];
 
-  // Load initial data if in edit mode
   useEffect(() => {
     if (initialData) {
       setEditMode(true);
@@ -74,7 +70,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
       setBeratHasil(initialData.berat_hasil.toString());
       setUseManualInput(true);
     } else {
-      // Reset form when not in edit mode
       setEditMode(false);
       setAllocationType("nks");
       setSelectedAllocation("");
@@ -88,7 +83,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
     }
   }, [initialData]);
 
-  // Load allocations when component mounts
   useEffect(() => {
     const fetchAllocations = async () => {
       if (!user) return;
@@ -112,7 +106,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
     fetchAllocations();
   }, [user]);
 
-  // Load sampel KRT when allocation is selected
   useEffect(() => {
     const fetchSampelKRT = async () => {
       if (!selectedAllocation) {
@@ -129,14 +122,11 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
           
         const data = await getSampelKRTList(params);
         
-        // Filter out samples that are already used
         const filteredData = data.filter(sample => {
-          // In edit mode, don't filter out the current responden
           if (editMode && initialData && initialData.responden_name === sample.nama) {
             return true;
           }
           
-          // Check if this sample is already used in another entry
           const isUsed = usedSamples.some(used => {
             const matchesAllocation = 
               (allocationType === "nks" && used.nks_id === selectedAllocation) ||
@@ -164,7 +154,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
     fetchSampelKRT();
   }, [selectedAllocation, allocationType, usedSamples, editMode, initialData]);
 
-  // Handle sampel selection change
   useEffect(() => {
     if (!useManualInput && selectedSampel) {
       const sampel = sampelList.find(s => s.id === selectedSampel);
@@ -208,7 +197,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
     try {
       setIsSubmitting(true);
       
-      // Get the PML ID based on the allocation type
       let pmlId = null;
       if (!editMode) {
         pmlId = allocationType === "nks" 
@@ -247,7 +235,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
         });
       }
       
-      // Reset form
       setSelectedAllocation("");
       setSelectedSampel("");
       setUseManualInput(false);
@@ -258,7 +245,6 @@ export function InputUbinanForm({ onSubmitSuccess, initialData = null, usedSampl
       setBeratHasil("");
       setEditMode(false);
       
-      // Call the success callback
       onSubmitSuccess();
       
     } catch (error) {

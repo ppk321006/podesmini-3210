@@ -14,9 +14,13 @@ interface VerificationDialogProps {
   isOpen: boolean;
   onClose: () => void;
   data: UbinanData | null;
+  // Add the new props that are being used in verifikasi/index.tsx
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onComplete?: (updatedData?: UbinanData) => void;
 }
 
-export function VerificationDialog({ isOpen, onClose, data }: VerificationDialogProps) {
+export function VerificationDialog({ isOpen, onClose, data, open, onOpenChange, onComplete }: VerificationDialogProps) {
   const [status, setStatus] = useState<'dikonfirmasi' | 'ditolak'>('dikonfirmasi');
   const [komentar, setKomentar] = useState('');
   const queryClient = useQueryClient();
@@ -28,6 +32,10 @@ export function VerificationDialog({ isOpen, onClose, data }: VerificationDialog
       queryClient.invalidateQueries({ queryKey: ['verification-data'] });
       toast.success('Data berhasil diverifikasi');
       handleClose();
+      // Call the onComplete callback if it exists
+      if (onComplete) {
+        onComplete();
+      }
     },
     onError: (error) => {
       console.error('Error verifying data:', error);
@@ -49,10 +57,17 @@ export function VerificationDialog({ isOpen, onClose, data }: VerificationDialog
     setStatus('dikonfirmasi');
     setKomentar('');
     onClose();
+    // Call onOpenChange if it exists
+    if (onOpenChange) {
+      onOpenChange(false);
+    }
   };
 
+  // Use either isOpen or open based on which is provided
+  const dialogOpen = open !== undefined ? open : isOpen;
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={dialogOpen} onOpenChange={onOpenChange || handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Verifikasi Data Ubinan</DialogTitle>

@@ -58,6 +58,10 @@ export default function WilayahPage() {
   
   const [newKecamatanName, setNewKecamatanName] = useState("");
   
+  const [sampelKRTList, setSampelKRTList] = useState<Array<{nama: string; status: 'Utama' | 'Cadangan'}>>([]);
+  const [newKRTNama, setNewKRTNama] = useState("");
+  const [newKRTStatus, setNewKRTStatus] = useState<'Utama' | 'Cadangan'>('Utama');
+  
   const { data: kecamatanList = [], isLoading: isLoadingKecamatan } = useQuery({
     queryKey: ["kecamatan"],
     queryFn: getKecamatanList,
@@ -1000,13 +1004,13 @@ export default function WilayahPage() {
                             <TableCell>{item.target_padi}</TableCell>
                             <TableCell>
                               {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 
-                                ? (item.wilayah_tugas_segmen[0])?.ppl?.name || '-'
+                                ? (item.wilayah_tugas_segmen[0]?.ppl?.name) || '-'
                                 : '-'
                               }
                             </TableCell>
                             <TableCell>
                               {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 
-                                ? (item.wilayah_tugas_segmen[0])?.pml?.name || '-'
+                                ? (item.wilayah_tugas_segmen[0]?.pml?.name) || '-'
                                 : '-'
                               }
                             </TableCell>
