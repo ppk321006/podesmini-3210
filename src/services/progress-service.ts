@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount, SubroundProgressData, PetugasPerformance } from "@/types/database-schema";
 
@@ -386,10 +387,10 @@ export async function getProgressByPML(pmlId: string) {
       };
     }
     
-    // Get all ubinan data for these PPLs
+    // Get all ubinan data for these PPLs - make sure to select all needed fields
     const { data: ubinanData, error } = await supabase
       .from('ubinan_data')
-      .select('*')
+      .select('id, ppl_id, komoditas, status, tanggal_ubinan')
       .in('ppl_id', ppls.map(ppl => ppl.id));
       
     if (error) {
