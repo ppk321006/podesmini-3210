@@ -4,7 +4,6 @@ import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserRole } from "@/types/user";
 import { ProgressChart, convertProgressDataToChartData } from "@/components/progress/progress-chart";
 import { ProgressTable } from "@/components/progress/progress-table";
@@ -27,16 +26,9 @@ export default function ProgressUbinanPage() {
   const [selectedSubround, setSelectedSubround] = useState<number>(0); // 0 = all, 1 = Jan-Apr, 2 = May-Aug, 3 = Sep-Dec
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   
-  // Generate years starting from 2025
-  const currentYear = new Date().getFullYear();
-  const years = [];
-  for (let year = 2025; year <= currentYear; year++) {
-    years.push(year);
-  }
-  if (years.length === 0) {
-    years.push(2025); // At minimum, include 2025
-  }
-
+  // Generate years from 2025 to 2030
+  const years = [2025, 2026, 2027, 2028, 2029, 2030];
+  
   // Get totals for the selected subround
   const { data: totals, isLoading: isLoadingTotals } = useQuery({
     queryKey: ['ubinan_totals', selectedSubround, selectedYear],
@@ -108,18 +100,17 @@ export default function ProgressUbinanPage() {
             </SelectContent>
           </Select>
 
-          <Tabs 
-            value={selectedSubround.toString()} 
-            onValueChange={handleChangeSubround}
-            className="w-full md:w-[400px]"
-          >
-            <TabsList className="grid grid-cols-4 w-full">
-              <TabsTrigger value="0">Semua</TabsTrigger>
-              <TabsTrigger value="1">Subround 1</TabsTrigger>
-              <TabsTrigger value="2">Subround 2</TabsTrigger>
-              <TabsTrigger value="3">Subround 3</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <Select value={selectedSubround.toString()} onValueChange={handleChangeSubround}>
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="Pilih Subround" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Semua</SelectItem>
+              <SelectItem value="1">Subround 1</SelectItem>
+              <SelectItem value="2">Subround 2</SelectItem>
+              <SelectItem value="3">Subround 3</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       

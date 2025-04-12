@@ -60,25 +60,31 @@ export function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
       
       <div className="ml-auto flex items-center gap-4">
         {isAuthenticated ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <UserRound className="h-5 w-5 text-simonita-green" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span>{user?.name}</span>
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {user?.role && getRoleName(user.role)}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <>
+            <div className="hidden md:flex flex-col items-end mr-2">
+              <span className="font-medium text-sm">{user?.name}</span>
+              <span className="text-xs text-muted-foreground">{user?.role && getRoleName(user.role)}</span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <UserRound className="h-5 w-5 text-simonita-green" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span>{user?.name}</span>
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {user?.role && getRoleName(user.role)}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         ) : (
           <LoginForm />
         )}

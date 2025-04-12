@@ -24,20 +24,14 @@ export default function DashboardPage() {
   const [sortColumn, setSortColumn] = useState<string>("completion_percentage");
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedSubround, setSelectedSubround] = useState<number>(0); // 0 = all, 1 = Jan-Apr, 2 = May-Aug, 3 = Sep-Dec
   
-  // Generate years starting from 2025
-  const currentYear = new Date().getFullYear();
-  const years = [];
-  for (let year = 2025; year <= currentYear; year++) {
-    years.push(year);
-  }
-  if (years.length === 0) {
-    years.push(2025); // At minimum, include 2025
-  }
+  // Generate years from 2025 to 2030
+  const years = [2025, 2026, 2027, 2028, 2029, 2030];
   
   const { data: petugasPerformance = [], isLoading } = useQuery({
-    queryKey: ['petugas_performance', selectedYear],
-    queryFn: () => getAllPPLPerformance(selectedYear),
+    queryKey: ['petugas_performance', selectedYear, selectedSubround],
+    queryFn: () => getAllPPLPerformance(selectedYear, selectedSubround),
     enabled: !!user && user.role === UserRole.ADMIN,
   });
 
@@ -129,6 +123,14 @@ export default function DashboardPage() {
     );
   };
 
+  const handleChangeYear = (value: string) => {
+    setSelectedYear(parseInt(value));
+  };
+
+  const handleChangeSubround = (value: string) => {
+    setSelectedSubround(parseInt(value));
+  };
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
@@ -142,7 +144,7 @@ export default function DashboardPage() {
               <CardHeader className="flex flex-col md:flex-row gap-4 justify-between md:items-center">
                 <CardTitle>Capaian Petugas</CardTitle>
                 <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                  <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                  <Select value={selectedYear.toString()} onValueChange={handleChangeYear}>
                     <SelectTrigger className="w-full md:w-[150px]">
                       <SelectValue placeholder="Tahun" />
                     </SelectTrigger>
@@ -154,6 +156,19 @@ export default function DashboardPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  <Select value={selectedSubround.toString()} onValueChange={handleChangeSubround}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Pilih Subround" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Semua</SelectItem>
+                      <SelectItem value="1">Subround 1</SelectItem>
+                      <SelectItem value="2">Subround 2</SelectItem>
+                      <SelectItem value="3">Subround 3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
                   <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input

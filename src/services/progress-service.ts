@@ -3,17 +3,21 @@ import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaType
 
 export async function getProgressDetailBySubround(subround: number, year: number = new Date().getFullYear()): Promise<DetailProgressData[]> {
   try {
-    const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', {
-      subround_param: subround,
-      year_param: year
-    });
+    console.log(`Getting progress detail for subround: ${subround}, year: ${year}`);
+    
+    // Call the database function with both subround and year parameters
+    const { data, error } = await supabase
+      .rpc('get_ubinan_progress_detail_by_subround', { 
+        subround_param: subround,
+        year_param: year
+      });
     
     if (error) {
       console.error("Error fetching progress detail:", error);
-      throw error;
+      return [];
     }
     
-    return data || [];
+    return data as DetailProgressData[];
   } catch (error) {
     console.error("Error in getProgressDetailBySubround:", error);
     return [];
@@ -22,23 +26,27 @@ export async function getProgressDetailBySubround(subround: number, year: number
 
 export async function getUbinanTotalsBySubround(subround: number, year: number = new Date().getFullYear()): Promise<UbinanTotals> {
   try {
-    const { data, error } = await supabase.rpc('get_ubinan_totals_by_subround', {
-      subround_param: subround,
-      year_param: year
-    });
+    console.log(`Getting ubinan totals for subround: ${subround}, year: ${year}`);
+    
+    // Call the database function with both subround and year parameters
+    const { data, error } = await supabase
+      .rpc('get_ubinan_totals_by_subround', { 
+        subround_param: subround,
+        year_param: year
+      });
     
     if (error) {
       console.error("Error fetching ubinan totals:", error);
-      throw error;
+      return {
+        total_padi: 0,
+        total_palawija: 0,
+        padi_target: 0,
+        palawija_target: 0,
+        pending_verification: 0
+      };
     }
     
-    return data?.[0] || {
-      total_padi: 0,
-      total_palawija: 0,
-      padi_target: 0,
-      palawija_target: 0,
-      pending_verification: 0
-    };
+    return data[0] as UbinanTotals;
   } catch (error) {
     console.error("Error in getUbinanTotalsBySubround:", error);
     return {
@@ -51,219 +59,78 @@ export async function getUbinanTotalsBySubround(subround: number, year: number =
   }
 }
 
-export async function getVerificationStatusCounts(pml_id?: string): Promise<VerificationStatusCount[]> {
+export async function getVerificationStatusCounts(): Promise<VerificationStatusCount[]> {
   try {
-    let query;
+    const { data, error } = await supabase.rpc('get_verification_status_counts');
     
-    if (pml_id) {
-      // Get counts specific to a PML
-      const { data, error } = await supabase
-        .from('ubinan_data')
-        .select('status, count', { count: 'exact' })
-        .eq('pml_id', pml_id);
-      
-      if (error) throw error;
-      
-      // Group results manually since we can't use group() in the query
-      const counts: { [key: string]: number } = {};
-      data?.forEach(item => {
-        if (counts[item.status]) {
-          counts[item.status]++;
-        } else {
-          counts[item.status] = 1;
-        }
-      });
-      
-      return Object.entries(counts).map(([status, count]) => ({
-        status,
-        count
-      }));
-    } else {
-      // Get global counts
-      const { data, error } = await supabase.rpc('get_verification_status_counts');
-      if (error) throw error;
-      return data || [];
+    if (error) {
+      console.error("Error fetching verification status counts:", error);
+      return [];
     }
+    
+    return data as VerificationStatusCount[];
   } catch (error) {
     console.error("Error in getVerificationStatusCounts:", error);
     return [];
   }
 }
 
-export async function getPalawijaTypeCounts(): Promise<PalawijaTypeCount[]> {
+export async function getPalawijaByType(): Promise<PalawijaTypeCount[]> {
   try {
     const { data, error } = await supabase.rpc('get_palawija_by_type');
     
     if (error) {
-      console.error("Error fetching palawija type counts:", error);
-      throw error;
+      console.error("Error fetching palawija by type:", error);
+      return [];
     }
     
-    return data || [];
+    return data as PalawijaTypeCount[];
   } catch (error) {
-    console.error("Error in getPalawijaTypeCounts:", error);
+    console.error("Error in getPalawijaByType:", error);
     return [];
   }
 }
 
-export async function getUbinanDataByPPL(pplId: string) {
+export async function getPPLTargets(pplId: string): Promise<{ padi: number, palawija: number }> {
   try {
-    const { data, error } = await supabase
-      .from('ubinan_data')
-      .select(`
-        *,
-        nks:nks_id(
-          id, code,
-          desa:desa_id(
-            id, name,
-            kecamatan:kecamatan_id(id, name)
-          )
-        ),
-        segmen:segmen_id(
-          id, code,
-          desa:desa_id(
-            id, name,
-            kecamatan:kecamatan_id(id, name)
-          )
-        ),
-        ppl:ppl_id(id, name, username)
-      `)
-      .eq('ppl_id', pplId);
-      
-    if (error) {
-      console.error("Error fetching ubinan data by PPL:", error);
-      throw error;
-    }
-    
-    // Process data to add easier access to location information
-    const processedData = data.map(item => {
-      const desa = item.nks?.desa || item.segmen?.desa;
-      
-      // Safely handle PPL data with better type checking
-      let pplName = "Unknown";
-      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
-        // Create a type-safe temporary variable
-        const pplObj = item.ppl as Record<string, unknown>;
-        // Check if name property exists and is a string
-        if ('name' in pplObj && typeof pplObj['name'] === 'string') {
-          pplName = pplObj['name'];
-        }
-      }
-      
-      return {
-        ...item,
-        desa_name: desa?.name || '-',
-        kecamatan_name: desa?.kecamatan?.name || '-',
-        ppl_name: pplName
-      };
-    });
-    
-    return processedData;
-  } catch (error) {
-    console.error("Error in getUbinanDataByPPL:", error);
-    return [];
-  }
-}
-
-export async function getUbinanDataByPML(pmlId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('ubinan_data')
-      .select(`
-        *,
-        nks:nks_id(
-          id, code,
-          desa:desa_id(
-            id, name,
-            kecamatan:kecamatan_id(id, name)
-          )
-        ),
-        segmen:segmen_id(
-          id, code,
-          desa:desa_id(
-            id, name,
-            kecamatan:kecamatan_id(id, name)
-          )
-        ),
-        ppl:ppl_id(id, name, username)
-      `)
-      .eq('pml_id', pmlId);
-      
-    if (error) {
-      console.error("Error fetching ubinan data by PML:", error);
-      throw error;
-    }
-    
-    // Process data to add easier access to location information
-    const processedData = data.map(item => {
-      const desa = item.nks?.desa || item.segmen?.desa;
-      
-      // Safely handle PPL data with better type checking
-      let pplName = "Unknown";
-      if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
-        // Create a type-safe temporary variable
-        const pplObj = item.ppl as Record<string, unknown>;
-        // Check if name property exists and is a string
-        if ('name' in pplObj && typeof pplObj['name'] === 'string') {
-          pplName = pplObj['name'];
-        }
-      }
-      
-      return {
-        ...item,
-        desa_name: desa?.name || '-',
-        kecamatan_name: desa?.kecamatan?.name || '-',
-        ppl_name: pplName
-      };
-    });
-    
-    return processedData;
-  } catch (error) {
-    console.error("Error in getUbinanDataByPML:", error);
-    return [];
-  }
-}
-
-export async function getWilayahTugasByPPL(pplId: string) {
-  try {
-    // Get NKS assignments
-    const { data: nksData, error: nksError } = await supabase
+    // Get all NKS assigned to this PPL
+    const { data: nksAssignments, error: nksError } = await supabase
       .from('wilayah_tugas')
-      .select(`
-        nks:nks_id(*),
-        pml:pml_id(*)
-      `)
+      .select('nks_id, nks!inner(target_padi, target_palawija)')
       .eq('ppl_id', pplId);
       
     if (nksError) {
       console.error("Error fetching NKS assignments:", nksError);
-      throw nksError;
+      return { padi: 0, palawija: 0 };
     }
     
-    // Get Segmen assignments
-    const { data: segmenData, error: segmenError } = await supabase
+    // Get all Segmen assigned to this PPL
+    const { data: segmenAssignments, error: segmenError } = await supabase
       .from('wilayah_tugas_segmen')
-      .select(`
-        segmen:segmen_id(*),
-        pml:pml_id(*)
-      `)
+      .select('segmen_id, segmen!inner(target_padi)')
       .eq('ppl_id', pplId);
       
     if (segmenError) {
       console.error("Error fetching Segmen assignments:", segmenError);
-      throw segmenError;
+      return { padi: 0, palawija: 0 };
     }
     
+    // Calculate total targets
+    const padiTarget = segmenAssignments.reduce((sum, item) => {
+      return sum + (item.segmen?.target_padi || 0);
+    }, 0);
+    
+    const palawijaTarget = nksAssignments.reduce((sum, item) => {
+      return sum + (item.nks?.target_palawija || 0);
+    }, 0);
+    
     return {
-      nks: nksData || [],
-      segmen: segmenData || []
+      padi: padiTarget,
+      palawija: palawijaTarget
     };
   } catch (error) {
-    console.error("Error in getWilayahTugasByPPL:", error);
-    return {
-      nks: [],
-      segmen: []
-    };
+    console.error("Error in getPPLTargets:", error);
+    return { padi: 0, palawija: 0 };
   }
 }
 
@@ -271,13 +138,13 @@ export async function getPPLsByPML(pmlId: string) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select('id, name, username')
       .eq('pml_id', pmlId)
       .eq('role', 'ppl');
-      
+    
     if (error) {
       console.error("Error fetching PPLs by PML:", error);
-      throw error;
+      return [];
     }
     
     return data || [];
@@ -287,258 +154,23 @@ export async function getPPLsByPML(pmlId: string) {
   }
 }
 
-export async function getPPLTargets(pplId: string) {
-  try {
-    const wilayahTugas = await getWilayahTugasByPPL(pplId);
+export async function filterUbinanBySubround(ubinanData: any[], subround: number) {
+  if (subround === 0) return ubinanData;
+  
+  return ubinanData.filter(item => {
+    const date = new Date(item.tanggal_ubinan);
+    const month = date.getMonth() + 1; // JavaScript months are 0-indexed
     
-    let totalPadiTarget = 0;
-    let totalPalawijaTarget = 0;
+    if (subround === 1) return month >= 1 && month <= 4;
+    if (subround === 2) return month >= 5 && month <= 8;
+    if (subround === 3) return month >= 9 && month <= 12;
     
-    // Calculate targets from NKS
-    wilayahTugas.nks.forEach(item => {
-      if (item.nks && typeof item.nks.target_palawija === 'number') {
-        totalPalawijaTarget += item.nks.target_palawija;
-      }
-    });
-    
-    // Calculate targets from Segmen
-    wilayahTugas.segmen.forEach(item => {
-      if (item.segmen && typeof item.segmen.target_padi === 'number') {
-        totalPadiTarget += item.segmen.target_padi;
-      }
-    });
-    
-    return {
-      padi: totalPadiTarget,
-      palawija: totalPalawijaTarget
-    };
-  } catch (error) {
-    console.error("Error in getPPLTargets:", error);
-    return {
-      padi: 0,
-      palawija: 0
-    };
-  }
+    return true;
+  });
 }
 
-export async function getProgressByPML(pmlId: string) {
-  try {
-    // Get all PPLs under this PML
-    const ppls = await getPPLsByPML(pmlId);
-    
-    let totalPadiTarget = 0;
-    let totalPalawijaTarget = 0;
-    let pmlProgress = {
-      totalPadi: 0,
-      totalPalawija: 0,
-      pendingVerification: 0,
-      verified: 0,
-      rejected: 0
-    };
-    
-    // For each PPL, get their targets and progress
-    for (const ppl of ppls) {
-      // Get targets
-      const targets = await getPPLTargets(ppl.id);
-      totalPadiTarget += targets.padi;
-      totalPalawijaTarget += targets.palawija;
-      
-      // Get ubinan data
-      const ubinanData = await getUbinanDataByPPL(ppl.id);
-      
-      // Count by status and type
-      pmlProgress.totalPadi += ubinanData.filter(item => 
-        item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
-      
-      pmlProgress.totalPalawija += ubinanData.filter(item => 
-        item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
-      
-      pmlProgress.pendingVerification += ubinanData.filter(item => 
-        item.status === 'sudah_diisi').length;
-      
-      pmlProgress.verified += ubinanData.filter(item => 
-        item.status === 'dikonfirmasi').length;
-      
-      pmlProgress.rejected += ubinanData.filter(item => 
-        item.status === 'ditolak').length;
-    }
-    
-    return {
-      ...pmlProgress,
-      padiTarget: totalPadiTarget,
-      palawijaTarget: totalPalawijaTarget
-    };
-  } catch (error) {
-    console.error("Error in getProgressByPML:", error);
-    return {
-      totalPadi: 0,
-      totalPalawija: 0,
-      pendingVerification: 0,
-      verified: 0,
-      rejected: 0,
-      padiTarget: 0,
-      palawijaTarget: 0
-    };
-  }
-}
-
-export async function getPPLProgressByMonth(pplId: string, year: number = new Date().getFullYear()) {
-  try {
-    const targets = await getPPLTargets(pplId);
-    const { data, error } = await supabase
-      .from('ubinan_data')
-      .select('*')
-      .eq('ppl_id', pplId)
-      .gte('tanggal_ubinan', `${year}-01-01`)
-      .lte('tanggal_ubinan', `${year}-12-31`);
-      
-    if (error) {
-      throw error;
-    }
-    
-    // Initialize monthly data
-    const monthlyData = [];
-    
-    for (let month = 1; month <= 12; month++) {
-      const monthItems = data?.filter(item => {
-        const itemDate = new Date(item.tanggal_ubinan);
-        return itemDate.getMonth() + 1 === month;
-      }) || [];
-      
-      const padiCount = monthItems.filter(item => 
-        item.komoditas === 'padi' && item.status === 'dikonfirmasi'
-      ).length;
-      
-      const palawijaCount = monthItems.filter(item => 
-        item.komoditas !== 'padi' && item.status === 'dikonfirmasi'
-      ).length;
-      
-      // Calculate monthly targets (distributed evenly across months)
-      const monthlyPadiTarget = Math.ceil(targets.padi / 12);
-      const monthlyPalawijaTarget = Math.ceil(targets.palawija / 12);
-      
-      // Calculate percentages
-      const padiPercentage = monthlyPadiTarget > 0 ? 
-        (padiCount / monthlyPadiTarget) * 100 : 0;
-      
-      const palawijaPercentage = monthlyPalawijaTarget > 0 ? 
-        (palawijaCount / monthlyPalawijaTarget) * 100 : 0;
-      
-      monthlyData.push({
-        month,
-        padi_count: padiCount,
-        palawija_count: palawijaCount,
-        padi_target: monthlyPadiTarget,
-        palawija_target: monthlyPalawijaTarget,
-        padi_percentage: padiPercentage,
-        palawija_percentage: palawijaPercentage
-      });
-    }
-    
-    return monthlyData;
-  } catch (error) {
-    console.error("Error in getPPLProgressByMonth:", error);
-    return [];
-  }
-}
-
-export async function getPMLProgressByMonth(pmlId: string, year: number = new Date().getFullYear()) {
-  try {
-    // Get all PPLs under this PML
-    const ppls = await getPPLsByPML(pmlId);
-    
-    // Initialize monthly data with zeros
-    const monthlyData = Array.from({ length: 12 }, (_, i) => ({
-      month: i + 1,
-      padi_count: 0,
-      palawija_count: 0,
-      padi_target: 0,
-      palawija_target: 0,
-      padi_percentage: 0,
-      palawija_percentage: 0
-    }));
-    
-    // For each PPL, get their monthly progress and add to the total
-    for (const ppl of ppls) {
-      const pplMonthlyData = await getPPLProgressByMonth(ppl.id, year);
-      
-      // Add this PPL's data to the total
-      pplMonthlyData.forEach((monthData, index) => {
-        monthlyData[index].padi_count += monthData.padi_count;
-        monthlyData[index].palawija_count += monthData.palawija_count;
-        monthlyData[index].padi_target += monthData.padi_target;
-        monthlyData[index].palawija_target += monthData.palawija_target;
-      });
-    }
-    
-    // Recalculate percentages
-    monthlyData.forEach(data => {
-      data.padi_percentage = data.padi_target > 0 ? 
-        (data.padi_count / data.padi_target) * 100 : 0;
-      
-      data.palawija_percentage = data.palawija_target > 0 ? 
-        (data.palawija_count / data.palawija_target) * 100 : 0;
-    });
-    
-    return monthlyData;
-  } catch (error) {
-    console.error("Error in getPMLProgressByMonth:", error);
-    return [];
-  }
-}
-
-export async function getAllPPLProgress(year: number = new Date().getFullYear()) {
-  try {
-    // Get all PPL users
-    const { data: pplUsers, error: pplError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', 'ppl');
-      
-    if (pplError) {
-      console.error("Error fetching PPL users:", pplError);
-      throw pplError;
-    }
-    
-    // Get all ubinan data
-    const { data: ubinanData, error: ubinanError } = await supabase
-      .from('ubinan_data')
-      .select(`
-        *,
-        ppl:ppl_id(*)
-      `)
-      .gte('tanggal_ubinan', `${year}-01-01`)
-      .lte('tanggal_ubinan', `${year}-12-31`);
-      
-    if (ubinanError) {
-      console.error("Error fetching ubinan data:", ubinanError);
-      throw ubinanError;
-    }
-    
-    // Process data by PPL
-    const progressByPPL = {};
-    
-    if (pplUsers) {
-      for (const ppl of pplUsers) {
-        const pplUbinanData = ubinanData?.filter(item => item.ppl_id === ppl.id) || [];
-        const targets = await getPPLTargets(ppl.id);
-        
-        progressByPPL[ppl.id] = {
-          ppl,
-          ubinanData: pplUbinanData,
-          targets
-        };
-      }
-    }
-    
-    return progressByPPL;
-  } catch (error) {
-    console.error("Error in getAllPPLProgress:", error);
-    return {};
-  }
-}
-
-export async function getAllPPLPerformance(year: number = new Date().getFullYear()): Promise<PetugasPerformance[]> {
+// Updated to filter by subround if provided
+export async function getAllPPLPerformance(year: number = new Date().getFullYear(), subround: number = 0): Promise<PetugasPerformance[]> {
   try {
     // Get all PPL users
     const { data: pplUsers, error: pplError } = await supabase
@@ -548,25 +180,75 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
       
     if (pplError) {
       console.error("Error fetching PPL users:", pplError);
-      throw pplError;
+      return [];
     }
     
-    // Get all verified ubinan data for the specified year
+    // Get all ubinan data for calculating performance
     const { data: ubinanData, error: ubinanError } = await supabase
       .from('ubinan_data')
-      .select(`
-        id,
-        ppl_id,
-        komoditas,
-        status,
-        tanggal_ubinan
-      `)
+      .select('id, ppl_id, komoditas, status, tanggal_ubinan')
+      .eq('status', 'dikonfirmasi')
       .gte('tanggal_ubinan', `${year}-01-01`)
       .lte('tanggal_ubinan', `${year}-12-31`);
       
     if (ubinanError) {
       console.error("Error fetching ubinan data:", ubinanError);
-      throw ubinanError;
+      return [];
+    }
+    
+    // Get all pending verification data
+    const { data: pendingData, error: pendingError } = await supabase
+      .from('ubinan_data')
+      .select('id, ppl_id')
+      .eq('status', 'sudah_diisi')
+      .gte('tanggal_ubinan', `${year}-01-01`)
+      .lte('tanggal_ubinan', `${year}-12-31`);
+      
+    if (pendingError) {
+      console.error("Error fetching pending data:", pendingError);
+      return [];
+    }
+    
+    // Get all rejected data
+    const { data: rejectedData, error: rejectedError } = await supabase
+      .from('ubinan_data')
+      .select('id, ppl_id')
+      .eq('status', 'ditolak')
+      .gte('tanggal_ubinan', `${year}-01-01`)
+      .lte('tanggal_ubinan', `${year}-12-31`);
+      
+    if (rejectedError) {
+      console.error("Error fetching rejected data:", rejectedError);
+      return [];
+    }
+    
+    // Filter data by subround if specified
+    let filteredUbinanData = ubinanData;
+    let filteredPendingData = pendingData;
+    let filteredRejectedData = rejectedData;
+    
+    if (subround > 0) {
+      // Filter data based on the subround (months range)
+      const startMonth = (subround - 1) * 4 + 1; // 1, 5, 9
+      const endMonth = subround * 4; // 4, 8, 12
+      
+      filteredUbinanData = ubinanData.filter(item => {
+        const date = new Date(item.tanggal_ubinan);
+        const month = date.getMonth() + 1; // JavaScript months are 0-indexed
+        return month >= startMonth && month <= endMonth;
+      });
+      
+      filteredPendingData = pendingData.filter(item => {
+        const date = new Date(item.tanggal_ubinan);
+        const month = date.getMonth() + 1;
+        return month >= startMonth && month <= endMonth;
+      });
+      
+      filteredRejectedData = rejectedData.filter(item => {
+        const date = new Date(item.tanggal_ubinan);
+        const month = date.getMonth() + 1;
+        return month >= startMonth && month <= endMonth;
+      });
     }
     
     // Process performance data for each PPL
@@ -574,27 +256,31 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
     
     if (pplUsers) {
       for (const ppl of pplUsers) {
-        const pplUbinanData = ubinanData?.filter(item => item.ppl_id === ppl.id) || [];
+        // Get targets for this PPL
         const targets = await getPPLTargets(ppl.id);
         
-        const padiCompleted = pplUbinanData.filter(item => 
-          item.komoditas === 'padi' && item.status === 'dikonfirmasi'
+        // Count completed ubinan entries by komoditas
+        const completedPadi = filteredUbinanData.filter(
+          item => item.ppl_id === ppl.id && item.komoditas === 'padi'
         ).length;
         
-        const palawijaCompleted = pplUbinanData.filter(item => 
-          item.komoditas !== 'padi' && item.status === 'dikonfirmasi'
+        const completedPalawija = filteredUbinanData.filter(
+          item => item.ppl_id === ppl.id && item.komoditas !== 'padi'
         ).length;
         
-        const pendingVerification = pplUbinanData.filter(item => 
-          item.status === 'sudah_diisi'
+        // Count pending verification entries
+        const pendingVerification = filteredPendingData.filter(
+          item => item.ppl_id === ppl.id
         ).length;
         
-        const rejected = pplUbinanData.filter(item => 
-          item.status === 'ditolak'
+        // Count rejected entries
+        const rejected = filteredRejectedData.filter(
+          item => item.ppl_id === ppl.id
         ).length;
         
+        // Calculate total and completion percentage
         const totalTarget = targets.padi + targets.palawija;
-        const totalCompleted = padiCompleted + palawijaCompleted;
+        const totalCompleted = completedPadi + completedPalawija;
         const completionPercentage = totalTarget > 0 ? (totalCompleted / totalTarget) * 100 : 0;
         
         performances.push({
@@ -603,8 +289,8 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
           ppl_username: ppl.username,
           padi_target: targets.padi,
           palawija_target: targets.palawija,
-          padi_completed: padiCompleted,
-          palawija_completed: palawijaCompleted,
+          padi_completed: completedPadi,
+          palawija_completed: completedPalawija,
           total_target: totalTarget,
           total_completed: totalCompleted,
           completion_percentage: completionPercentage,
@@ -619,4 +305,107 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
     console.error("Error in getAllPPLPerformance:", error);
     return [];
   }
+}
+
+export async function getPPLProgressByMonth(pplId: string, year: number = new Date().getFullYear()) {
+  try {
+    const targets = await getPPLTargets(pplId);
+    const { data, error } = await supabase
+      .from('ubinan_data')
+      .select('*')
+      .eq('ppl_id', pplId)
+      .gte('tanggal_ubinan', `${year}-01-01`)
+      .lte('tanggal_ubinan', `${year}-12-31`);
+      
+    if (error) {
+      console.error("Error fetching PPL progress:", error);
+      return [];
+    }
+    
+    // Create monthly data from fetched ubinan data
+    return createProgressDataFromUbinan(data, targets.padi, targets.palawija);
+  } catch (error) {
+    console.error("Error in getPPLProgressByMonth:", error);
+    return [];
+  }
+}
+
+export async function getPMLProgressByMonth(pmlId: string, year: number = new Date().getFullYear()) {
+  try {
+    // Get all PPLs under this PML
+    const ppls = await getPPLsByPML(pmlId);
+    
+    if (!ppls.length) {
+      return [];
+    }
+    
+    // Get all ubinan data for these PPLs
+    const { data, error } = await supabase
+      .from('ubinan_data')
+      .select('*')
+      .in('ppl_id', ppls.map(ppl => ppl.id))
+      .gte('tanggal_ubinan', `${year}-01-01`)
+      .lte('tanggal_ubinan', `${year}-12-31`);
+      
+    if (error) {
+      console.error("Error fetching PML progress:", error);
+      return [];
+    }
+    
+    // Calculate total targets for all PPLs
+    let totalPadiTarget = 0;
+    let totalPalawijaTarget = 0;
+    
+    for (const ppl of ppls) {
+      const targets = await getPPLTargets(ppl.id);
+      totalPadiTarget += targets.padi;
+      totalPalawijaTarget += targets.palawija;
+    }
+    
+    // Create monthly data from fetched ubinan data
+    return createProgressDataFromUbinan(data, totalPadiTarget, totalPalawijaTarget);
+  } catch (error) {
+    console.error("Error in getPMLProgressByMonth:", error);
+    return [];
+  }
+}
+
+// Make sure other necessary functions are available
+export function createProgressDataFromUbinan(
+  ubinanData: any[],
+  padiTarget: number,
+  palawijaTarget: number
+): DetailProgressData[] {
+  // Initialize an array for all months
+  const monthlyData: DetailProgressData[] = [];
+  
+  for (let i = 1; i <= 12; i++) {
+    const monthItems = ubinanData.filter(item => {
+      const itemDate = new Date(item.tanggal_ubinan);
+      return itemDate.getMonth() + 1 === i;
+    });
+    
+    const padiCount = monthItems.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
+    const palawijaCount = monthItems.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
+    
+    // Calculate monthly target (distributed evenly across months)
+    const monthlyPadiTarget = Math.ceil(padiTarget / 12);
+    const monthlyPalawijaTarget = Math.ceil(palawijaTarget / 12);
+    
+    // Calculate percentages
+    const padiPercentage = monthlyPadiTarget > 0 ? (padiCount / monthlyPadiTarget) * 100 : 0;
+    const palawijaPercentage = monthlyPalawijaTarget > 0 ? (palawijaCount / monthlyPalawijaTarget) * 100 : 0;
+    
+    monthlyData.push({
+      month: i,
+      padi_count: padiCount,
+      palawija_count: palawijaCount,
+      padi_target: monthlyPadiTarget,
+      palawija_target: monthlyPalawijaTarget,
+      padi_percentage: padiPercentage,
+      palawija_percentage: palawijaPercentage
+    });
+  }
+  
+  return monthlyData;
 }
