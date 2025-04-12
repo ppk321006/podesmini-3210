@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -891,4 +892,179 @@ export default function WilayahPage() {
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="kecamatan-select">Pilih Kecamatan</Label>
-                      <
+                      <Select 
+                        value={selectedKecamatanId} 
+                        onValueChange={(value) => {
+                          setSelectedKecamatanId(value);
+                          setSelectedDesaId("");
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih kecamatan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {kecamatanList.map((kecamatan) => (
+                            <SelectItem key={kecamatan.id} value={kecamatan.id}>
+                              {kecamatan.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="desa-select">Pilih Desa</Label>
+                      <Select 
+                        value={selectedDesaId} 
+                        onValueChange={setSelectedDesaId}
+                        disabled={!selectedKecamatanId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih desa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {desaList && desaList.map((desa) => (
+                            <SelectItem key={desa.id} value={desa.id}>
+                              {desa.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="segmen-code">Kode Segmen</Label>
+                      <Input
+                        id="segmen-code"
+                        placeholder="Masukkan kode segmen"
+                        value={newSegmenCode}
+                        onChange={(e) => setNewSegmenCode(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="bulan-select">Pilih Bulan</Label>
+                      <Select 
+                        value={selectedBulan !== "" ? selectedBulan.toString() : ""} 
+                        onValueChange={(value) => setSelectedBulan(parseInt(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthsIndonesia.map((month) => (
+                            <SelectItem key={month.value} value={month.value.toString()}>
+                              {month.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="target-padi">Target Ubinan Padi</Label>
+                      <Input
+                        id="target-padi"
+                        type="number"
+                        placeholder="Jumlah target padi"
+                        value={targetPadi.toString()}
+                        onChange={(e) => setTargetPadi(parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button 
+                    onClick={handleAddSegmen}
+                    disabled={
+                      createSegmenMutation.isPending || 
+                      !newSegmenCode.trim() || 
+                      !selectedDesaId ||
+                      selectedBulan === ""
+                    }
+                  >
+                    {createSegmenMutation.isPending ? "Menyimpan..." : "Simpan"}
+                  </Button>
+                </CardFooter>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daftar Segmen</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingSegmenAssignments ? (
+                    <p>Memuat data...</p>
+                  ) : filteredSegmenData.length === 0 ? (
+                    <p className="text-muted-foreground">
+                      {filterText ? "Tidak ada data Segmen yang sesuai filter" : "Belum ada data Segmen"}
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Kode Segmen</TableHead>
+                          <TableHead>Desa</TableHead>
+                          <TableHead>Kecamatan</TableHead>
+                          <TableHead>Bulan</TableHead>
+                          <TableHead>Target Ubinan Padi</TableHead>
+                          <TableHead>PPL</TableHead>
+                          <TableHead>PML</TableHead>
+                          <TableHead>Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSegmenData.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.code}</TableCell>
+                            <TableCell>{item.desa?.name || '-'}</TableCell>
+                            <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
+                            <TableCell>{item.bulan ? getMonthName(item.bulan) : '-'}</TableCell>
+                            <TableCell>{item.target_padi}</TableCell>
+                            <TableCell>
+                              {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 && item.wilayah_tugas_segmen[0]?.ppl
+                                ? item.wilayah_tugas_segmen[0].ppl.name || '-'
+                                : '-'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {item.wilayah_tugas_segmen && Array.isArray(item.wilayah_tugas_segmen) && item.wilayah_tugas_segmen.length > 0 && item.wilayah_tugas_segmen[0]?.pml
+                                ? item.wilayah_tugas_segmen[0].pml.name || '-'
+                                : '-'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setCurrentEditItem(item);
+                                    setIsEditSegmenDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => handleDeleteSegmen(item.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
