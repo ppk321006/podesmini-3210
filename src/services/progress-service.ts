@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount, SubroundProgressData, PetugasPerformance } from "@/types/database-schema";
 
@@ -6,7 +5,6 @@ export async function getProgressDetailBySubround(subround: number, year: number
   try {
     console.log(`Getting progress detail for subround: ${subround}, year: ${year}`);
     
-    // Call the database function with both subround and year parameters
     const { data, error } = await supabase
       .rpc('get_ubinan_progress_detail_by_subround', { 
         subround_param: subround,
@@ -29,7 +27,6 @@ export async function getUbinanTotalsBySubround(subround: number, year: number =
   try {
     console.log(`Getting ubinan totals for subround: ${subround}, year: ${year}`);
     
-    // Call the database function with both subround and year parameters
     const { data, error } = await supabase
       .rpc('get_ubinan_totals_by_subround', { 
         subround_param: subround,
@@ -94,7 +91,6 @@ export async function getPalawijaByType(): Promise<PalawijaTypeCount[]> {
 
 export async function getPPLTargets(pplId: string): Promise<{ padi: number, palawija: number }> {
   try {
-    // Get all NKS assigned to this PPL
     const { data: nksAssignments, error: nksError } = await supabase
       .from('wilayah_tugas')
       .select('nks_id, nks!inner(target_padi, target_palawija)')
@@ -105,7 +101,6 @@ export async function getPPLTargets(pplId: string): Promise<{ padi: number, pala
       return { padi: 0, palawija: 0 };
     }
     
-    // Get all Segmen assigned to this PPL
     const { data: segmenAssignments, error: segmenError } = await supabase
       .from('wilayah_tugas_segmen')
       .select('segmen_id, segmen!inner(target_padi)')
@@ -116,7 +111,6 @@ export async function getPPLTargets(pplId: string): Promise<{ padi: number, pala
       return { padi: 0, palawija: 0 };
     }
     
-    // Calculate total targets
     const padiTarget = segmenAssignments.reduce((sum, item) => {
       return sum + (item.segmen?.target_padi || 0);
     }, 0);
@@ -170,10 +164,8 @@ export async function filterUbinanBySubround(ubinanData: any[], subround: number
   });
 }
 
-// Updated to filter by subround if provided
 export async function getAllPPLPerformance(year: number = new Date().getFullYear(), subround: number = 0): Promise<PetugasPerformance[]> {
   try {
-    // Get all PPL users
     const { data: pplUsers, error: pplError } = await supabase
       .from('users')
       .select('id, name, username')
@@ -184,7 +176,6 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
       return [];
     }
     
-    // Get all ubinan data for calculating performance
     const { data: ubinanData, error: ubinanError } = await supabase
       .from('ubinan_data')
       .select('id, ppl_id, komoditas, status, tanggal_ubinan')
@@ -197,7 +188,6 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
       return [];
     }
     
-    // Get all pending verification data
     const { data: pendingData, error: pendingError } = await supabase
       .from('ubinan_data')
       .select('id, ppl_id')
@@ -210,7 +200,6 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
       return [];
     }
     
-    // Get all rejected data
     const { data: rejectedData, error: rejectedError } = await supabase
       .from('ubinan_data')
       .select('id, ppl_id')
@@ -223,13 +212,11 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
       return [];
     }
     
-    // Filter data by subround if specified
     let filteredUbinanData = ubinanData;
     let filteredPendingData = pendingData;
     let filteredRejectedData = rejectedData;
     
     if (subround > 0) {
-      // Filter data based on the subround (months range)
       const startMonth = (subround - 1) * 4 + 1; // 1, 5, 9
       const endMonth = subround * 4; // 4, 8, 12
       
@@ -252,15 +239,12 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
       });
     }
     
-    // Process performance data for each PPL
     const performances: PetugasPerformance[] = [];
     
     if (pplUsers) {
       for (const ppl of pplUsers) {
-        // Get targets for this PPL
         const targets = await getPPLTargets(ppl.id);
         
-        // Count completed ubinan entries by komoditas
         const completedPadi = filteredUbinanData.filter(
           item => item.ppl_id === ppl.id && item.komoditas === 'padi'
         ).length;
@@ -269,17 +253,14 @@ export async function getAllPPLPerformance(year: number = new Date().getFullYear
           item => item.ppl_id === ppl.id && item.komoditas !== 'padi'
         ).length;
         
-        // Count pending verification entries
         const pendingVerification = filteredPendingData.filter(
           item => item.ppl_id === ppl.id
         ).length;
         
-        // Count rejected entries
         const rejected = filteredRejectedData.filter(
           item => item.ppl_id === ppl.id
         ).length;
         
-        // Calculate total and completion percentage
         const totalTarget = targets.padi + targets.palawija;
         const totalCompleted = completedPadi + completedPalawija;
         const completionPercentage = totalTarget > 0 ? (totalCompleted / totalTarget) * 100 : 0;
@@ -323,7 +304,6 @@ export async function getPPLProgressByMonth(pplId: string, year: number = new Da
       return [];
     }
     
-    // Create monthly data from fetched ubinan data
     return createProgressDataFromUbinan(data, targets.padi, targets.palawija);
   } catch (error) {
     console.error("Error in getPPLProgressByMonth:", error);
@@ -333,14 +313,12 @@ export async function getPPLProgressByMonth(pplId: string, year: number = new Da
 
 export async function getPMLProgressByMonth(pmlId: string, year: number = new Date().getFullYear()) {
   try {
-    // Get all PPLs under this PML
     const ppls = await getPPLsByPML(pmlId);
     
     if (!ppls.length) {
       return [];
     }
     
-    // Get all ubinan data for these PPLs
     const { data, error } = await supabase
       .from('ubinan_data')
       .select('*')
@@ -353,7 +331,6 @@ export async function getPMLProgressByMonth(pmlId: string, year: number = new Da
       return [];
     }
     
-    // Calculate total targets for all PPLs
     let totalPadiTarget = 0;
     let totalPalawijaTarget = 0;
     
@@ -363,7 +340,6 @@ export async function getPMLProgressByMonth(pmlId: string, year: number = new Da
       totalPalawijaTarget += targets.palawija;
     }
     
-    // Create monthly data from fetched ubinan data
     return createProgressDataFromUbinan(data, totalPadiTarget, totalPalawijaTarget);
   } catch (error) {
     console.error("Error in getPMLProgressByMonth:", error);
@@ -371,10 +347,8 @@ export async function getPMLProgressByMonth(pmlId: string, year: number = new Da
   }
 }
 
-// Implement the missing function getProgressByPML
 export async function getProgressByPML(pmlId: string) {
   try {
-    // Get all PPLs under this PML
     const ppls = await getPPLsByPML(pmlId);
     
     if (!ppls.length) {
@@ -387,7 +361,6 @@ export async function getProgressByPML(pmlId: string) {
       };
     }
     
-    // Get all ubinan data for these PPLs - make sure to select all needed fields
     const { data: ubinanData, error } = await supabase
       .from('ubinan_data')
       .select('id, ppl_id, komoditas, status, tanggal_ubinan')
@@ -404,7 +377,6 @@ export async function getProgressByPML(pmlId: string) {
       };
     }
     
-    // Count different status and types
     const pendingVerification = ubinanData.filter(item => item.status === 'sudah_diisi').length;
     const verified = ubinanData.filter(item => item.status === 'dikonfirmasi').length;
     const rejected = ubinanData.filter(item => item.status === 'ditolak').length;
@@ -430,7 +402,6 @@ export async function getProgressByPML(pmlId: string) {
   }
 }
 
-// Implement the missing function getUbinanDataByPML
 export async function getUbinanDataByPML(pmlId: string) {
   try {
     const { data, error } = await supabase
@@ -467,13 +438,11 @@ export async function getUbinanDataByPML(pmlId: string) {
   }
 }
 
-// Make sure other necessary functions are available
 export function createProgressDataFromUbinan(
   ubinanData: any[],
   padiTarget: number,
   palawijaTarget: number
 ): DetailProgressData[] {
-  // Initialize an array for all months
   const monthlyData: DetailProgressData[] = [];
   
   for (let i = 1; i <= 12; i++) {
@@ -485,11 +454,9 @@ export function createProgressDataFromUbinan(
     const padiCount = monthItems.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length;
     const palawijaCount = monthItems.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length;
     
-    // Calculate monthly target (distributed evenly across months)
     const monthlyPadiTarget = Math.ceil(padiTarget / 12);
     const monthlyPalawijaTarget = Math.ceil(palawijaTarget / 12);
     
-    // Calculate percentages
     const padiPercentage = monthlyPadiTarget > 0 ? (padiCount / monthlyPadiTarget) * 100 : 0;
     const palawijaPercentage = monthlyPalawijaTarget > 0 ? (palawijaCount / monthlyPalawijaTarget) * 100 : 0;
     
