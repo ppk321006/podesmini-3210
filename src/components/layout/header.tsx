@@ -1,5 +1,4 @@
 
-import { LoginForm } from "@/components/auth/login-form";
 import { useAuth } from "@/context/auth-context";
 import { UserRound, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { UserRole } from "@/types/user";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -21,6 +21,7 @@ interface HeaderProps {
 
 export function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
   const { user, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const getRoleName = (role: UserRole) => {
     switch (role) {
@@ -35,6 +36,11 @@ export function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
       default:
         return "User";
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -81,12 +87,14 @@ export function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </>
         ) : (
-          <LoginForm />
+          <Button variant="outline" onClick={() => navigate("/login")}>
+            Login
+          </Button>
         )}
       </div>
     </header>

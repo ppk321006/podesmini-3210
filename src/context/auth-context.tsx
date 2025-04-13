@@ -3,7 +3,7 @@ import { createContext, useState, useContext, useEffect, ReactNode } from "react
 import { User, UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database } from "@/types/supabase-db";
+import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   user: User | null;
@@ -94,6 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setError("Terjadi kesalahan saat login");
         toast.error("Terjadi kesalahan saat login");
       }
+      throw error; // Re-throw the error for component handling
     } finally {
       setIsLoading(false);
     }

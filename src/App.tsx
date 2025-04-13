@@ -3,10 +3,10 @@ import { StrictMode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "./context/auth-context";
-import { Layout } from "./components/layout/layout";  // Changed from default import to named import
+import { AuthProvider, useAuth } from "./context/auth-context";
+import { Layout } from "./components/layout/layout";
 import DashboardPage from "./pages/dashboard";
 import ProgressUbinanPage from "./pages/progress-ubinan";
 import PetugasPage from "./pages/petugas";
@@ -17,12 +17,17 @@ import VerifikasiPage from "./pages/verifikasi";
 import InputUbinanPage from "./pages/input-ubinan";
 import ProfilePage from "./pages/profil";
 import NotFoundPage from "./pages/not-found";
-import { useAuth } from "./context/auth-context";
+import LoginPage from "./pages/login";
 import { UserRole } from "./types/user";
 
 // Create a route guard component to restrict access based on role
 function RoleBasedRoute({ element, allowedRoles }: { element: React.ReactNode, allowedRoles: UserRole[] }) {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
   
   // Allow access if user has the required role
   if (user && allowedRoles.includes(user.role)) {
@@ -31,6 +36,17 @@ function RoleBasedRoute({ element, allowedRoles }: { element: React.ReactNode, a
   
   // Redirect to not found page if user doesn't have access
   return <NotFoundPage />;
+}
+
+// Create a component that redirects authenticated users away from login
+function AuthRedirect({ element }: { element: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return element;
 }
 
 // Create the QueryClient instance within the App component function
@@ -46,6 +62,10 @@ function App() {
             <Sonner />
             <BrowserRouter>
               <Routes>
+                <Route path="/login" element={
+                  <AuthRedirect element={<LoginPage />} />
+                } />
+                
                 <Route element={<Layout />}>
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/progres" element={<ProgressUbinanPage />} />

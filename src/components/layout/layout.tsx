@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { MobileNavFixed } from "./mobile-nav-fixed"; // Import the fixed component
@@ -13,6 +13,14 @@ export function Layout() {
   const [dialogOpen, setDialogOpen] = useState(false); // Add state for dialog
   const isMobile = useIsMobile();
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+      navigate("/login");
+    }
+  }, [isAuthenticated, navigate]);
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

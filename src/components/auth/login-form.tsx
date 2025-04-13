@@ -49,77 +49,75 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-4 flex flex-col items-center justify-center p-6">
-          <div className="w-full flex items-center justify-center">
-            <img 
-              src="/lovable-uploads/afc24a8c-b786-403d-a9a3-8587217ee595.png" 
-              alt="Sistem Informasi Monitoring Tanaman Pangan Palawija" 
-              className="w-full max-w-[280px] md:max-w-[320px] h-auto object-contain" 
-            />
-          </div>
-          <div className="space-y-2 text-center mt-4">
-            <h1 className="text-2xl font-bold">Selamat Datang</h1>
-            <p className="text-sm text-muted-foreground">
-              Silahkan login untuk melanjutkan
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Masukkan username" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Masukkan password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {error && (
-                <div className="text-sm font-medium text-destructive">{error}</div>
+    <Card className="w-full max-w-md shadow-lg mx-auto">
+      <CardHeader className="space-y-4 flex flex-col items-center justify-center p-6">
+        <div className="w-full flex items-center justify-center">
+          <img 
+            src="/lovable-uploads/afc24a8c-b786-403d-a9a3-8587217ee595.png" 
+            alt="Sistem Informasi Monitoring Tanaman Pangan Palawija" 
+            className="w-full max-w-[280px] md:max-w-[320px] h-auto object-contain" 
+          />
+        </div>
+        <div className="space-y-2 text-center mt-4">
+          <h1 className="text-2xl font-bold">Selamat Datang</h1>
+          <p className="text-sm text-muted-foreground">
+            Silahkan login untuk melanjutkan
+          </p>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Masukkan username" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Masukkan password"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <Button
-                type="submit"
-                className="w-full bg-primary hover:bg-primary/90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Loading..." : "Login"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="border-t p-4">
-          <div className="text-xs text-center w-full text-muted-foreground">
-            © {new Date().getFullYear()} BPS Kabupaten Majalengka
-          </div>
-        </CardFooter>
-      </Card>
-    </div>
+            {error && (
+              <div className="text-sm font-medium text-destructive">{error}</div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/90"
+              disabled={isLoading}
+            >
+              {isLoading ? "Loading..." : "Login"}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+      <CardFooter className="border-t p-4">
+        <div className="text-xs text-center w-full text-muted-foreground">
+          © {new Date().getFullYear()} BPS Kabupaten Majalengka
+        </div>
+      </CardFooter>
+    </Card>
   );
 }
