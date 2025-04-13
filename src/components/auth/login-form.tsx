@@ -50,17 +50,16 @@ export function LoginForm() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4 flex flex-col items-center justify-center">
-          {/* Using the new, larger image */}
-          <div className="w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-4 flex flex-col items-center justify-center p-6">
+          <div className="w-full flex items-center justify-center">
             <img 
-              src="/lovable-uploads/f2bc2019-2bdd-455c-bc1c-bc519a5f801b.png" 
+              src="/lovable-uploads/57a29bc7-4f9c-4378-bc48-9238e8b666f3.png" 
               alt="Sistem Informasi Monitoring Tanaman Pangan Palawija" 
-              className="w-full h-full object-contain" 
+              className="w-full max-w-[320px] h-auto object-contain" 
             />
           </div>
-          <div className="space-y-2 text-center">
+          <div className="space-y-2 text-center mt-4">
             <h1 className="text-2xl font-bold">Selamat Datang</h1>
             <p className="text-sm text-muted-foreground">
               Silahkan login untuk melanjutkan
