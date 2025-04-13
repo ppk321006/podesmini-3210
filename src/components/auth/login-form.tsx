@@ -50,13 +50,13 @@ export function LoginForm() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-lg">
+      <Card className="w-full max-w-md shadow-lg mx-auto">
         <CardHeader className="space-y-4 flex flex-col items-center justify-center p-6">
           <div className="w-full flex items-center justify-center">
             <img 
-              src="/lovable-uploads/57a29bc7-4f9c-4378-bc48-9238e8b666f3.png" 
+              src="/lovable-uploads/afc24a8c-b786-403d-a9a3-8587217ee595.png" 
               alt="Sistem Informasi Monitoring Tanaman Pangan Palawija" 
-              className="w-full max-w-[320px] h-auto object-contain" 
+              className="w-full max-w-[280px] md:max-w-[320px] h-auto object-contain" 
             />
           </div>
           <div className="space-y-2 text-center mt-4">
@@ -106,7 +106,7 @@ export function LoginForm() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-primary hover:bg-primary/90"
                 disabled={isLoading}
               >
                 {isLoading ? "Loading..." : "Login"}
