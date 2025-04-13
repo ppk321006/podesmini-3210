@@ -50,7 +50,7 @@ export function LoginForm() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-lg mx-auto">
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-4 flex flex-col items-center justify-center p-6">
           <div className="w-full flex items-center justify-center">
             <img 

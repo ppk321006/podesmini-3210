@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/ui/card";
 import { UserRole } from "@/types/user";
 import { ProgressChart, convertProgressDataToChartData } from "@/components/progress/progress-chart";
 import { ProgressTable } from "@/components/progress/progress-table";
@@ -13,13 +12,9 @@ import {
   getPMLProgressByMonth,
   getPPLProgressByMonth
 } from "@/services/progress-service";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+import { PeriodSelector } from "@/pages/dashboard/components/period-selector";
+import { ProgressSummaryCards } from "./components/progress-summary-card";
+import { VerificationStatusCard } from "./components/verification-status";
 
 export default function ProgressUbinanPage() {
   const { user } = useAuth();
@@ -34,6 +29,8 @@ export default function ProgressUbinanPage() {
     queryKey: ['ubinan_totals', selectedSubround, selectedYear],
     queryFn: () => getUbinanTotalsBySubround(selectedSubround, selectedYear),
     enabled: !!user,
+    staleTime: 60000,
+    refetchOnWindowFocus: true,
   });
 
   // Get progress detail by subround
@@ -41,6 +38,8 @@ export default function ProgressUbinanPage() {
     queryKey: ['ubinan_progress_detail', selectedSubround, selectedYear],
     queryFn: () => getProgressDetailBySubround(selectedSubround, selectedYear),
     enabled: !!user,
+    staleTime: 60000,
+    refetchOnWindowFocus: true,
   });
 
   // For PPL - get their own progress
@@ -48,6 +47,8 @@ export default function ProgressUbinanPage() {
     queryKey: ['ppl_progress', user?.id, selectedYear],
     queryFn: () => getPPLProgressByMonth(user?.id || '', selectedYear),
     enabled: !!user && user.role === UserRole.PPL,
+    staleTime: 60000,
+    refetchOnWindowFocus: true,
   });
 
   // For PML - get progress for their PPLs
@@ -55,14 +56,9 @@ export default function ProgressUbinanPage() {
     queryKey: ['pml_progress', user?.id, selectedYear],
     queryFn: () => getPMLProgressByMonth(user?.id || '', selectedYear),
     enabled: !!user && user.role === UserRole.PML,
+    staleTime: 60000,
+    refetchOnWindowFocus: true,
   });
-
-  // Calculate percentages for the summary cards
-  const padiPercentage = totals?.padi_target ? (totals.total_padi / totals.padi_target) * 100 : 0;
-  const palawijaPercentage = totals?.palawija_target ? (totals.total_palawija / totals.palawija_target) * 100 : 0;
-  const totalProgress = totals?.padi_target && totals?.palawija_target 
-    ? ((totals.total_padi + totals.total_palawija) / (totals.padi_target + totals.palawija_target)) * 100 
-    : 0;
 
   // Convert data for charts
   const chartData = convertProgressDataToChartData(
@@ -79,6 +75,16 @@ export default function ProgressUbinanPage() {
     setSelectedYear(parseInt(value));
   };
 
+  const isLoadingProgress = 
+    user?.role === UserRole.PPL ? isLoadingPPLProgress :
+    user?.role === UserRole.PML ? isLoadingPMLProgress :
+    isLoadingDetail;
+
+  const progressData = 
+    user?.role === UserRole.PPL ? pplProgress :
+    user?.role === UserRole.PML ? pmlProgress :
+    progressDetail;
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Progres Ubinan</h1>
@@ -86,180 +92,33 @@ export default function ProgressUbinanPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h2 className="text-xl font-medium">Ringkasan Progres</h2>
 
-        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-          <Select value={selectedYear.toString()} onValueChange={handleChangeYear}>
-            <SelectTrigger className="w-full md:w-[150px]">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map(year => (
-                <SelectItem key={year} value={year.toString()}>
-                  Tahun {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedSubround.toString()} onValueChange={handleChangeSubround}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Pilih Subround" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">Semua</SelectItem>
-              <SelectItem value="1">Subround 1</SelectItem>
-              <SelectItem value="2">Subround 2</SelectItem>
-              <SelectItem value="3">Subround 3</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <PeriodSelector
+          selectedYear={selectedYear}
+          selectedSubround={selectedSubround}
+          years={years}
+          onYearChange={handleChangeYear}
+          onSubroundChange={handleChangeSubround}
+        />
       </div>
       
-      {isLoadingTotals ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {[1, 2, 3].map(i => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="pb-2">
-                <div className="h-5 bg-gray-200 rounded w-1/2"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-full"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Total Progres</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between mb-2">
-                <span className="text-lg font-bold">{totalProgress.toFixed(1)}%</span>
-                <span className="text-sm text-muted-foreground">
-                  {(totals?.total_padi || 0) + (totals?.total_palawija || 0)}/{(totals?.padi_target || 0) + (totals?.palawija_target || 0)}
-                </span>
-              </div>
-              <Progress value={totalProgress} className="h-2" />
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Progres Padi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between mb-2">
-                <span className="text-lg font-bold">{padiPercentage.toFixed(1)}%</span>
-                <span className="text-sm text-muted-foreground">
-                  {totals?.total_padi || 0}/{totals?.padi_target || 0}
-                </span>
-              </div>
-              <Progress value={padiPercentage} className="h-2 bg-green-100">
-                <div className="h-full bg-green-600" style={{ width: `${padiPercentage}%` }} />
-              </Progress>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Progres Palawija</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between mb-2">
-                <span className="text-lg font-bold">{palawijaPercentage.toFixed(1)}%</span>
-                <span className="text-sm text-muted-foreground">
-                  {totals?.total_palawija || 0}/{totals?.palawija_target || 0}
-                </span>
-              </div>
-              <Progress value={palawijaPercentage} className="h-2 bg-amber-100">
-                <div className="h-full bg-amber-600" style={{ width: `${palawijaPercentage}%` }} />
-              </Progress>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <ProgressSummaryCards totals={totals} isLoading={isLoadingTotals} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <ProgressChart
           title="Progres Bulanan"
           description="Persentase pencapaian target bulanan"
           data={chartData}
-          loading={
-            user?.role === UserRole.PPL ? isLoadingPPLProgress :
-            user?.role === UserRole.PML ? isLoadingPMLProgress :
-            isLoadingDetail
-          }
+          loading={isLoadingProgress}
         />
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Status Verifikasi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingTotals ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-6 mt-4">
-                <div>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span>Menunggu Verifikasi</span>
-                    <span>{totals?.pending_verification || 0} entri</span>
-                  </div>
-                  <Progress
-                    value={
-                      totals && (totals.padi_target + totals.palawija_target) > 0
-                        ? (totals.pending_verification / (totals.padi_target + totals.palawija_target)) * 100
-                        : 0
-                    }
-                    className="h-2 bg-yellow-100"
-                  >
-                    <div className="h-full bg-yellow-500" />
-                  </Progress>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span>Terverifikasi</span>
-                    <span>{(totals?.total_padi || 0) + (totals?.total_palawija || 0)} entri</span>
-                  </div>
-                  <Progress
-                    value={totalProgress}
-                    className="h-2 bg-green-100"
-                  >
-                    <div className="h-full bg-green-500" />
-                  </Progress>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span>Target</span>
-                    <span>{(totals?.padi_target || 0) + (totals?.palawija_target || 0)} entri</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded"></div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <VerificationStatusCard totals={totals} isLoading={isLoadingTotals} />
       </div>
 
       <ProgressTable
         title="Detail Progres Ubinan"
         description="Pencapaian target entri data ubinan berdasarkan subround"
-        data={
-          user?.role === UserRole.PPL ? pplProgress :
-          user?.role === UserRole.PML ? pmlProgress :
-          progressDetail
-        }
-        loading={
-          user?.role === UserRole.PPL ? isLoadingPPLProgress :
-          user?.role === UserRole.PML ? isLoadingPMLProgress :
-          isLoadingDetail
-        }
+        data={progressData}
+        loading={isLoadingProgress}
         selectedYear={selectedYear}
         selectedSubround={selectedSubround}
       />

@@ -22,6 +22,9 @@ const Index = () => {
   } = useQuery({
     queryKey: ['progress_detail', selectedYear, selectedSubround],
     queryFn: () => getProgressDetailBySubround(selectedSubround, selectedYear),
+    staleTime: 60000, // Add stale time of 1 minute
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
   
   const { 
@@ -31,6 +34,9 @@ const Index = () => {
   } = useQuery({
     queryKey: ['ubinan_totals', selectedYear, selectedSubround],
     queryFn: () => getUbinanTotalsBySubround(selectedSubround, selectedYear),
+    staleTime: 60000, // Add stale time of 1 minute
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 
   useEffect(() => {
@@ -184,7 +190,7 @@ const Index = () => {
               </Select>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2">
             <ProgressChart 
               title="" 
               data={chartData}
@@ -198,7 +204,7 @@ const Index = () => {
             <CardTitle>Detail Progres Ubinan</CardTitle>
             <p className="text-sm text-muted-foreground">Pencapaian target entri data ubinan berdasarkan subround</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2">
             <ProgressTable
               title=""
               description=""
