@@ -53,7 +53,7 @@ export function LoginForm() {
       <CardHeader className="space-y-4 flex flex-col items-center justify-center p-6">
         <div className="w-full flex items-center justify-center">
           <img 
-            src="/lovable-uploads/afc24a8c-b786-403d-a9a3-8587217ee595.png" 
+            src="/lovable-uploads/543240bd-35fc-4c24-aa6b-02a371db173f.png" 
             alt="Sistem Informasi Monitoring Tanaman Pangan Palawija" 
             className="w-full max-w-[280px] md:max-w-[320px] h-auto object-contain" 
           />
@@ -121,3 +121,4 @@ export function LoginForm() {
     </Card>
   );
 }
+
