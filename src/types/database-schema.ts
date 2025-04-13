@@ -110,6 +110,11 @@ export type AllocationStatus = {
   is_allocated: boolean;
   ppl_id: string | null;
   pml_id: string | null;
+  // Add missing properties
+  padi_target?: number;
+  palawija_target?: number;
+  komoditas?: string[];
+  pml_name?: string;
 };
 
 export type NKS = {
