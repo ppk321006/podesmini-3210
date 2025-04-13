@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,15 +58,24 @@ export default function VerifikasiDataPage() {
 
       return data.map(item => {
         const desa = item.nks?.desa || item.segmen?.desa;
-        const pplName = item.ppl?.name || "Unknown";
-        const pmlName = item.pml?.name || "Unknown";
+        let pplName = "Unknown";
+        if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
+          if (typeof item.ppl === 'string') {
+            pplName = item.ppl;
+          } else {
+            const pplObj = item.ppl as any;
+            if (pplObj && pplObj.name) {
+              pplName = pplObj.name;
+            }
+          }
+        }
 
         return {
           ...item,
           desa_name: desa?.name || '-',
           kecamatan_name: desa?.kecamatan?.name || '-',
           ppl_name: pplName,
-          pml_name: pmlName
+          pml_name: "Unknown"
         };
       }) as UbinanData[];
     },
@@ -85,7 +93,6 @@ export default function VerifikasiDataPage() {
       
       if (error) throw error;
       
-      // Transform the data into a stats object
       const stats = {
         totalData: 0,
         pendingVerification: 0, 

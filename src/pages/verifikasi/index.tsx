@@ -64,9 +64,13 @@ export default function VerifikasiPage() {
         
         let pplName = "Unknown";
         if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
-          const pplObj = item.ppl as Record<string, unknown>;
-          if ('name' in pplObj && typeof pplObj['name'] === 'string') {
-            pplName = pplObj['name'];
+          if (typeof item.ppl === 'string') {
+            pplName = item.ppl;
+          } else {
+            const pplObj = item.ppl as any;
+            if (pplObj && pplObj.name) {
+              pplName = pplObj.name;
+            }
           }
         }
           
