@@ -9,10 +9,10 @@ import {
 } from "@/components/ui/table";
 import { 
   Dialog, DialogContent, DialogHeader, 
-  DialogTitle, DialogTrigger 
+  DialogTitle
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, FileInput } from "lucide-react";
+import { Plus, Edit } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -21,14 +21,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { UbinanData } from "@/types/database-schema";
-import { InputForm } from "./input-form";
+import { UbinanInputForm } from "./input-form";
+
+// Extended UbinanData with additional UI properties
+interface ExtendedUbinanData extends UbinanData {
+  desa_name: string;
+  kecamatan_name: string;
+  location_code: string;
+}
 
 export default function InputUbinanPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [ubinanData, setUbinanData] = useState<UbinanData[]>([]);
-  const [editingData, setEditingData] = useState<UbinanData | null>(null);
+  const [ubinanData, setUbinanData] = useState<ExtendedUbinanData[]>([]);
+  const [editingData, setEditingData] = useState<ExtendedUbinanData | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -91,12 +98,13 @@ export default function InputUbinanPage() {
         const desa_name = item.nks?.desa?.name || item.segmen?.desa?.name || "-";
         const kecamatan_name = item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || "-";
         const location_code = item.nks?.code || item.segmen?.code || "-";
+        
         return {
           ...item,
           desa_name,
           kecamatan_name,
           location_code,
-        };
+        } as ExtendedUbinanData;
       });
 
       setUbinanData(processedData);
@@ -112,7 +120,7 @@ export default function InputUbinanPage() {
     }
   }
 
-  function handleEdit(data: UbinanData) {
+  function handleEdit(data: ExtendedUbinanData) {
     // Only allow editing if status is not confirmed or rejected
     if (data.status === "dikonfirmasi" || data.status === "ditolak") {
       toast({
@@ -134,6 +142,7 @@ export default function InputUbinanPage() {
     toast({
       title: "Berhasil",
       description: "Data ubinan berhasil diperbarui",
+      variant: "default",
     });
   };
 
@@ -167,7 +176,7 @@ export default function InputUbinanPage() {
       case "sudah_diisi":
         return <Badge variant="secondary">Menunggu Verifikasi</Badge>;
       case "dikonfirmasi":
-        return <Badge variant="success">Terverifikasi</Badge>;
+        return <Badge className="bg-green-500 hover:bg-green-600">Terverifikasi</Badge>;
       case "ditolak":
         return <Badge variant="destructive">Ditolak</Badge>;
       default:
@@ -293,7 +302,7 @@ export default function InputUbinanPage() {
               {editingData ? "Edit Data Ubinan" : "Tambah Data Ubinan"}
             </DialogTitle>
           </DialogHeader>
-          <InputForm 
+          <UbinanInputForm 
             initialData={editingData} 
             onSuccess={handleUpdateSuccess} 
             onCancel={() => {

@@ -12,27 +12,38 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { UbinanData } from "@/types/database-schema";
 
 interface InputFormProps {
+  initialData?: UbinanData | null;
   onCancel: () => void;
   onSuccess: () => void;
 }
 
-export function UbinanInputForm({ onCancel, onSuccess }: InputFormProps) {
+// Export with both names to maintain compatibility
+export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedKomoditasType, setSelectedKomoditasType] = useState<string>("padi");
-  const [isSegmen, setIsSegmen] = useState<boolean>(true);
+  const [selectedKomoditasType, setSelectedKomoditasType] = useState<string>(
+    initialData?.komoditas === "padi" ? "padi" : "palawija"
+  );
+  const [isSegmen, setIsSegmen] = useState<boolean>(
+    initialData?.segmen_id ? true : initialData ? false : true
+  );
 
   // Form state
-  const [komoditas, setKomoditas] = useState<string>("padi");
-  const [segmenId, setSegmenId] = useState<string>("");
-  const [nksId, setNksId] = useState<string>("");
-  const [respondenName, setRespondenName] = useState<string>("");
-  const [tanggalUbinan, setTanggalUbinan] = useState<Date | undefined>(new Date());
-  const [beratHasil, setBeratHasil] = useState<string>("0");
-  const [komentar, setKomentar] = useState<string>("");
-  
+  const [komoditas, setKomoditas] = useState<string>(initialData?.komoditas || "padi");
+  const [segmenId, setSegmenId] = useState<string>(initialData?.segmen_id || "");
+  const [nksId, setNksId] = useState<string>(initialData?.nks_id || "");
+  const [respondenName, setRespondenName] = useState<string>(initialData?.responden_name || "");
+  const [tanggalUbinan, setTanggalUbinan] = useState<Date | undefined>(
+    initialData?.tanggal_ubinan ? new Date(initialData.tanggal_ubinan) : new Date()
+  );
+  const [beratHasil, setBeratHasil] = useState<string>(
+    initialData?.berat_hasil ? initialData.berat_hasil.toString() : "0"
+  );
+  const [komentar, setKomentar] = useState<string>(initialData?.komentar || "");
+
   // Fetch assigned segmen for the logged-in PPL
   const { data: segmenData = [], isLoading: isLoadingSegmen } = useQuery({
     queryKey: ['ppl_segmen', user?.id],
@@ -155,24 +166,46 @@ export function UbinanInputForm({ onCancel, onSuccess }: InputFormProps) {
         
       if (pplError) throw pplError;
 
-      const { error } = await supabase
-        .from('ubinan_data')
-        .insert({
-          ppl_id: user?.id,
-          pml_id: pplData?.pml_id,
-          segmen_id: isSegmen ? segmenId : null,
-          nks_id: !isSegmen ? nksId : null,
-          komoditas: komoditas,
-          responden_name: respondenName,
-          tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
-          berat_hasil: parseFloat(beratHasil),
-          komentar: komentar,
-          status: 'sudah_diisi'
-        });
+      if (initialData?.id) {
+        // Update existing record
+        const { error } = await supabase
+          .from('ubinan_data')
+          .update({
+            segmen_id: isSegmen ? segmenId : null,
+            nks_id: !isSegmen ? nksId : null,
+            komoditas: komoditas,
+            responden_name: respondenName,
+            tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
+            berat_hasil: parseFloat(beratHasil),
+            komentar: komentar,
+            status: 'sudah_diisi',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', initialData.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("Data berhasil diperbarui");
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('ubinan_data')
+          .insert({
+            ppl_id: user?.id,
+            pml_id: pplData?.pml_id,
+            segmen_id: isSegmen ? segmenId : null,
+            nks_id: !isSegmen ? nksId : null,
+            komoditas: komoditas,
+            responden_name: respondenName,
+            tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
+            berat_hasil: parseFloat(beratHasil),
+            komentar: komentar,
+            status: 'sudah_diisi'
+          });
 
-      toast.success("Data berhasil disimpan");
+        if (error) throw error;
+        toast.success("Data berhasil disimpan");
+      }
+
       onSuccess();
     } catch (error) {
       console.error("Error submitting data:", error);
@@ -362,3 +395,6 @@ export function UbinanInputForm({ onCancel, onSuccess }: InputFormProps) {
     </Card>
   );
 }
+
+// Export as InputForm as well for compatibility
+export const InputForm = UbinanInputForm;
