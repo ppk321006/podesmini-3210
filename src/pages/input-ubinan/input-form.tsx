@@ -108,6 +108,24 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     enabled: !!user?.id,
   });
 
+  // Fetch responden names for the selected NKS (for palawija)
+  const { data: respondenData = [], isLoading: isLoadingResponden } = useQuery({
+    queryKey: ['responden_list', nksId],
+    queryFn: async () => {
+      if (!nksId) return [];
+      
+      const { data, error } = await supabase
+        .from('sampel_krt')
+        .select('id, nama')
+        .eq('nks_id', nksId);
+        
+      if (error) throw error;
+      
+      return data || [];
+    },
+    enabled: !!nksId && !isSegmen,
+  });
+
   // Effect to switch between segmen and nks based on komoditas
   useEffect(() => {
     if (selectedKomoditasType === "padi") {
@@ -335,13 +353,47 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
             {/* Responden */}
             <div>
               <Label htmlFor="responden">Nama Responden</Label>
-              <Input
-                id="responden"
-                value={respondenName}
-                onChange={(e) => setRespondenName(e.target.value)}
-                disabled={isLoading}
-                placeholder="Masukkan nama responden"
-              />
+              {!isSegmen && nksId ? (
+                // For Palawija, show responden selector from existing names
+                isLoadingResponden ? (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Loading...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={respondenName}
+                    onValueChange={setRespondenName}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="responden">
+                      <SelectValue placeholder="Pilih Responden" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {respondenData && respondenData.length > 0 ? (
+                        respondenData.map((responden: any) => (
+                          <SelectItem key={responden.id} value={responden.nama}>
+                            {responden.nama}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no_data" disabled>
+                          Tidak ada responden yang tersedia
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )
+              ) : (
+                // For Padi or if no NKS selected yet, show input field
+                <Input
+                  id="responden"
+                  value={respondenName}
+                  onChange={(e) => setRespondenName(e.target.value)}
+                  disabled={isLoading}
+                  placeholder="Masukkan nama responden"
+                />
+              )}
             </div>
 
             {/* Tanggal Ubinan */}

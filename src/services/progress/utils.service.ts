@@ -1,4 +1,3 @@
-
 import { DetailProgressData } from "@/types/database-schema";
 
 export function createProgressDataFromUbinan(
@@ -42,4 +41,93 @@ export function createProgressDataFromUbinan(
   }
   
   return monthlyData;
+}
+
+/**
+ * Groups ubinan data by month and extracts counts for PPL activity summary
+ */
+export function createPPLActivitySummary(data: any[]) {
+  if (!data || data.length === 0) return [];
+
+  // Group by PPL ID and Month
+  const activityByMonthAndPPL = data.reduce((acc: any, item: any) => {
+    const date = new Date(item.tanggal_ubinan);
+    const month = date.getMonth() + 1; // 1-12
+    const pplId = item.ppl_id;
+    const pplName = item.ppl?.name || 'Unknown';
+    const pmlId = item.pml_id;
+    const pmlName = item.pml?.name || 'Unknown';
+    
+    const key = `${pplId}:${month}`;
+    
+    if (!acc[key]) {
+      acc[key] = {
+        ppl_id: pplId,
+        ppl_name: pplName,
+        pml_id: pmlId,
+        pml_name: pmlName,
+        month: month,
+        total_count: 0,
+        padi_count: 0,
+        palawija_count: 0,
+        confirmed_count: 0,
+        pending_count: 0,
+        rejected_count: 0,
+      };
+    }
+    
+    acc[key].total_count++;
+    
+    if (item.komoditas === 'padi') {
+      acc[key].padi_count++;
+    } else {
+      acc[key].palawija_count++;
+    }
+    
+    if (item.status === 'dikonfirmasi') {
+      acc[key].confirmed_count++;
+    } else if (item.status === 'sudah_diisi') {
+      acc[key].pending_count++;
+    } else if (item.status === 'ditolak') {
+      acc[key].rejected_count++;
+    }
+    
+    return acc;
+  }, {});
+  
+  return Object.values(activityByMonthAndPPL).sort((a: any, b: any) => {
+    if (a.ppl_name === b.ppl_name) {
+      return a.month - b.month;
+    }
+    return a.ppl_name.localeCompare(b.ppl_name);
+  });
+}
+
+/**
+ * Creates Supabase RPC parameters for getting PPL activity
+ */
+export function getActivityParams(year: number, month: number, subround: number, status: string, pplId?: string, pmlId?: string) {
+  const params: any = {
+    year_param: year
+  };
+  
+  if (month > 0) {
+    params.month_param = month;
+  } else if (subround > 0) {
+    params.subround_param = subround;
+  }
+  
+  if (status !== "all") {
+    params.status_param = status;
+  }
+  
+  if (pplId && pplId !== "all") {
+    params.ppl_id_param = pplId;
+  }
+  
+  if (pmlId && pmlId !== "all") {
+    params.pml_id_param = pmlId;
+  }
+  
+  return params;
 }

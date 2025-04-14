@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
@@ -36,6 +37,9 @@ export default function ProgressUbinanPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>(new Date());
+  // Add new state for PPL and PML filters
+  const [selectedPPL, setSelectedPPL] = useState<string>("all");
+  const [selectedPML, setSelectedPML] = useState<string>("all");
 
   const years = [2025, 2026, 2027, 2028, 2029, 2030];
 
@@ -55,6 +59,14 @@ export default function ProgressUbinanPage() {
     setSelectedStatus(value);
   };
 
+  const handleChangePPL = (value: string) => {
+    setSelectedPPL(value);
+  };
+
+  const handleChangePML = (value: string) => {
+    setSelectedPML(value);
+  };
+
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
       setDate(date);
@@ -62,6 +74,40 @@ export default function ProgressUbinanPage() {
       setSelectedYear(date.getFullYear());
     }
   };
+
+  // New query to get all PPL users for filter
+  const { data: pplUsers = [], isLoading: isLoadingPPL } = useQuery({
+    queryKey: ['ppl_users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name')
+        .eq('role', 'ppl')
+        .order('name');
+        
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERVISOR,
+    staleTime: 300000, // 5 minutes cache
+  });
+
+  // New query to get all PML users for filter
+  const { data: pmlUsers = [], isLoading: isLoadingPML } = useQuery({
+    queryKey: ['pml_users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name')
+        .eq('role', 'pml')
+        .order('name');
+        
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERVISOR,
+    staleTime: 300000, // 5 minutes cache
+  });
 
   if (user?.role === UserRole.PPL || user?.role === UserRole.PML) {
     const { data: totals, isLoading: isLoadingTotals } = useQuery({
@@ -178,8 +224,53 @@ export default function ProgressUbinanPage() {
     );
   }
 
+  // Query to get PPL activity summary by month
+  const { data: pplActivitySummary = [], isLoading: isLoadingPplActivity } = useQuery({
+    queryKey: ['ppl_activity_summary', selectedYear, selectedMonth, selectedStatus, selectedPPL, selectedPML],
+    queryFn: async () => {
+      try {
+        // Build query params
+        const params: any = {
+          year: selectedYear
+        };
+        
+        if (selectedMonth > 0) {
+          params.month = selectedMonth;
+        }
+        
+        if (selectedSubround > 0) {
+          params.subround = selectedSubround;
+        }
+        
+        if (selectedStatus !== "all") {
+          params.status = selectedStatus;
+        }
+        
+        if (selectedPPL !== "all") {
+          params.ppl_id = selectedPPL;
+        }
+        
+        if (selectedPML !== "all") {
+          params.pml_id = selectedPML;
+        }
+        
+        // Build query - get PPL activity summary grouped by PPL and month
+        const { data, error } = await supabase.rpc('get_ppl_activity_summary', params);
+        
+        if (error) throw error;
+        
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching PPL activity summary:", error);
+        return [];
+      }
+    },
+    staleTime: 60000,
+    refetchOnWindowFocus: true,
+  });
+
   const { data: petugasData = [], isLoading: isLoadingPetugas } = useQuery({
-    queryKey: ['petugas_progress', selectedYear, selectedMonth, selectedSubround, selectedStatus, searchTerm],
+    queryKey: ['petugas_progress', selectedYear, selectedMonth, selectedSubround, selectedStatus, searchTerm, selectedPPL, selectedPML],
     queryFn: async () => {
       let query = supabase
         .from('ubinan_data')
@@ -218,9 +309,11 @@ export default function ProgressUbinanPage() {
           )
         `);
 
+      // Apply year filter
       query = query.filter('tanggal_ubinan', 'gte', `${selectedYear}-01-01`);
       query = query.filter('tanggal_ubinan', 'lte', `${selectedYear}-12-31`);
 
+      // Apply month filter if selected
       if (selectedMonth > 0) {
         const startDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
         const endDay = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -228,7 +321,9 @@ export default function ProgressUbinanPage() {
         
         query = query.filter('tanggal_ubinan', 'gte', startDate);
         query = query.filter('tanggal_ubinan', 'lte', endDate);
-      } else if (selectedSubround > 0) {
+      } 
+      // Apply subround filter if selected and month not selected
+      else if (selectedSubround > 0) {
         const startMonth = (selectedSubround - 1) * 4 + 1;
         const endMonth = selectedSubround * 4;
         
@@ -240,8 +335,19 @@ export default function ProgressUbinanPage() {
         query = query.filter('tanggal_ubinan', 'lte', endDate);
       }
 
+      // Apply status filter if selected
       if (selectedStatus !== "all") {
         query = query.eq('status', selectedStatus);
+      }
+      
+      // Apply PPL filter if selected
+      if (selectedPPL !== "all") {
+        query = query.eq('ppl_id', selectedPPL);
+      }
+      
+      // Apply PML filter if selected
+      if (selectedPML !== "all") {
+        query = query.eq('pml_id', selectedPML);
       }
 
       query = query.order('tanggal_ubinan', { ascending: false });
@@ -352,6 +458,26 @@ export default function ProgressUbinanPage() {
     downloadToExcel(flatData, `rekap-progres-petugas-${format(new Date(), 'yyyy-MM-dd')}`);
   };
 
+  // Function to export PPL activity data to Excel
+  const handleExportActivityToExcel = () => {
+    if (!pplActivitySummary.length) return;
+
+    const flatData = pplActivitySummary.map((item: any) => ({
+      'Nama PPL': item.ppl_name,
+      'Nama PML': item.pml_name,
+      'Bulan': format(new Date(2025, item.month-1, 1), 'MMMM', { locale: id }),
+      'Tahun': selectedYear,
+      'Jumlah Ubinan': item.total_count,
+      'Padi': item.padi_count,
+      'Palawija': item.palawija_count,
+      'Status Terverifikasi': item.confirmed_count,
+      'Status Menunggu Verifikasi': item.pending_count,
+      'Status Ditolak': item.rejected_count,
+    }));
+
+    downloadToExcel(flatData, `rekap-aktivitas-ppl-${format(new Date(), 'yyyy-MM-dd')}`);
+  };
+
   function getStatusBadge(status: string, count: number) {
     if (count === 0) return null;
     
@@ -374,11 +500,11 @@ export default function ProgressUbinanPage() {
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Progres Ubinan</h1>
       
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Progres Petugas</CardTitle>
+          <CardTitle>Aktivitas PPL</CardTitle>
           <CardDescription>
-            Rekap data hasil input petugas ubinan berdasarkan periode dan status
+            Daftar PPL melakukan ubinan berdasarkan bulan dan jumlahnya
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -465,6 +591,119 @@ export default function ProgressUbinanPage() {
               </Select>
             </div>
             
+            <div className="grid gap-2">
+              <Label htmlFor="ppl-select">PPL</Label>
+              <Select value={selectedPPL} onValueChange={handleChangePPL}>
+                <SelectTrigger id="ppl-select" className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Pilih PPL" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua PPL</SelectItem>
+                  {!isLoadingPPL && pplUsers.map((ppl) => (
+                    <SelectItem key={ppl.id} value={ppl.id}>{ppl.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="pml-select">PML</Label>
+              <Select value={selectedPML} onValueChange={handleChangePML}>
+                <SelectTrigger id="pml-select" className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Pilih PML" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua PML</SelectItem>
+                  {!isLoadingPML && pmlUsers.map((pml) => (
+                    <SelectItem key={pml.id} value={pml.id}>{pml.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="flex gap-2 items-center mt-6" 
+              onClick={handleExportActivityToExcel}
+              disabled={!pplActivitySummary.length}
+            >
+              <FileDown className="h-4 w-4" />
+              <span>Export Excel</span>
+            </Button>
+          </div>
+
+          {/* PPL Activity Table */}
+          {isLoadingPplActivity ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2">Loading...</p>
+            </div>
+          ) : pplActivitySummary.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-lg text-gray-500">Tidak ada data aktivitas PPL yang tersedia</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>PPL</TableHead>
+                    <TableHead>PML</TableHead>
+                    <TableHead>Bulan</TableHead>
+                    <TableHead>Jumlah Ubinan</TableHead>
+                    <TableHead>Padi</TableHead>
+                    <TableHead>Palawija</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pplActivitySummary.map((activity, index) => (
+                    <TableRow key={`${activity.ppl_id}-${activity.month}-${index}`}>
+                      <TableCell>{activity.ppl_name}</TableCell>
+                      <TableCell>{activity.pml_name}</TableCell>
+                      <TableCell>
+                        {format(new Date(2025, activity.month-1, 1), 'MMMM', { locale: id })}
+                      </TableCell>
+                      <TableCell className="font-medium">{activity.total_count}</TableCell>
+                      <TableCell>{activity.padi_count}</TableCell>
+                      <TableCell>{activity.palawija_count}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {activity.confirmed_count > 0 && (
+                            <Badge variant="outline" className="bg-green-100 text-green-800">
+                              Terverifikasi: {activity.confirmed_count}
+                            </Badge>
+                          )}
+                          {activity.pending_count > 0 && (
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                              Menunggu: {activity.pending_count}
+                            </Badge>
+                          )}
+                          {activity.rejected_count > 0 && (
+                            <Badge variant="outline" className="bg-red-100 text-red-800">
+                              Ditolak: {activity.rejected_count}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Progres Petugas</CardTitle>
+          <CardDescription>
+            Rekap data hasil input petugas ubinan berdasarkan periode dan status
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end mb-6">
             <div className="grid gap-2 flex-1">
               <Label htmlFor="search">Cari</Label>
               <div className="relative">
