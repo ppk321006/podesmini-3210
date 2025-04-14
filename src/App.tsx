@@ -43,7 +43,7 @@ function AuthRedirect({ element }: { element: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/progres" replace />;
   }
   
   return element;
@@ -56,11 +56,11 @@ function App() {
   return (
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
               <Routes>
                 <Route path="/login" element={
                   <AuthRedirect element={<LoginPage />} />
@@ -115,9 +115,9 @@ function App() {
                 </Route>
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
+            </TooltipProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </QueryClientProvider>
     </StrictMode>
   );

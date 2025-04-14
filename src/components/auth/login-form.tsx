@@ -1,6 +1,4 @@
-
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -23,7 +21,6 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,7 +36,6 @@ export function LoginForm() {
 
     try {
       await login(values.username, values.password);
-      navigate("/");
     } catch (error) {
       console.error("Login error:", error);
       setError("Username atau password salah");
@@ -121,4 +117,3 @@ export function LoginForm() {
     </Card>
   );
 }
-
