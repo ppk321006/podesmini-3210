@@ -1,4 +1,3 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,12 +25,12 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check local storage for user session
     const storedUser = localStorage.getItem("simonita_user");
     
     if (storedUser) {
@@ -53,7 +52,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("Attempting login with:", username, password);
       
-      // Query the users table for the given username and password
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -70,7 +68,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const dbUser = data;
         console.log("Login successful, user data:", dbUser);
         
-        // Convert database user to our User type
         const appUser: User = {
           id: dbUser.id,
           username: dbUser.username,
@@ -82,6 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(appUser);
         localStorage.setItem("simonita_user", JSON.stringify(appUser));
         toast.success("Login berhasil!");
+        navigate("/progres");
         return;
       } else {
         throw new Error("Username atau password salah");
@@ -94,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setError("Terjadi kesalahan saat login");
         toast.error("Terjadi kesalahan saat login");
       }
-      throw error; // Re-throw the error for component handling
+      throw error;
     } finally {
       setIsLoading(false);
     }
