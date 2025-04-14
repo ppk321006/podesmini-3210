@@ -21,7 +21,8 @@ import {
   getUbinanTotalsBySubround, 
   getProgressDetailBySubround,
   getPMLProgressByMonth,
-  getPPLProgressByMonth
+  getPPLProgressByMonth,
+  getSubroundFromMonth
 } from "@/services/progress-service";
 import { PeriodSelector } from "@/pages/dashboard/components/period-selector";
 import { ProgressSummaryCards } from "./components/progress-summary-card";
@@ -88,7 +89,7 @@ export default function ProgressUbinanPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERVISOR,
+    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER,
     staleTime: 300000, // 5 minutes cache
   });
 
@@ -105,7 +106,7 @@ export default function ProgressUbinanPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERVISOR,
+    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER,
     staleTime: 300000, // 5 minutes cache
   });
 
@@ -224,38 +225,20 @@ export default function ProgressUbinanPage() {
     );
   }
 
-  // Query to get PPL activity summary by month
+  // Query to get PPL activity summary by month using the RPC function
   const { data: pplActivitySummary = [], isLoading: isLoadingPplActivity } = useQuery({
-    queryKey: ['ppl_activity_summary', selectedYear, selectedMonth, selectedStatus, selectedPPL, selectedPML],
+    queryKey: ['ppl_activity_summary', selectedYear, selectedMonth, selectedSubround, selectedStatus, selectedPPL, selectedPML],
     queryFn: async () => {
       try {
-        // Build query params
-        const params: any = {
-          year: selectedYear
-        };
-        
-        if (selectedMonth > 0) {
-          params.month = selectedMonth;
-        }
-        
-        if (selectedSubround > 0) {
-          params.subround = selectedSubround;
-        }
-        
-        if (selectedStatus !== "all") {
-          params.status = selectedStatus;
-        }
-        
-        if (selectedPPL !== "all") {
-          params.ppl_id = selectedPPL;
-        }
-        
-        if (selectedPML !== "all") {
-          params.pml_id = selectedPML;
-        }
-        
-        // Build query - get PPL activity summary grouped by PPL and month
-        const { data, error } = await supabase.rpc('get_ppl_activity_summary', params);
+        // Call the RPC function with parameters
+        const { data, error } = await supabase.rpc('get_ppl_activity_summary', {
+          year: selectedYear,
+          month: selectedMonth,
+          subround: selectedSubround,
+          status: selectedStatus === 'all' ? null : selectedStatus,
+          ppl_id: selectedPPL === 'all' ? null : selectedPPL,
+          pml_id: selectedPML === 'all' ? null : selectedPML
+        });
         
         if (error) throw error;
         
@@ -315,24 +298,32 @@ export default function ProgressUbinanPage() {
 
       // Apply month filter if selected
       if (selectedMonth > 0) {
-        const startDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
-        const endDay = new Date(selectedYear, selectedMonth, 0).getDate();
-        const endDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${endDay}`;
+        const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+        const endDate = new Date(selectedYear, selectedMonth, 0); // Last day of the month
         
-        query = query.filter('tanggal_ubinan', 'gte', startDate);
-        query = query.filter('tanggal_ubinan', 'lte', endDate);
+        query = query.filter('tanggal_ubinan', 'gte', startDate.toISOString().split('T')[0]);
+        query = query.filter('tanggal_ubinan', 'lte', endDate.toISOString().split('T')[0]);
       } 
       // Apply subround filter if selected and month not selected
       else if (selectedSubround > 0) {
-        const startMonth = (selectedSubround - 1) * 4 + 1;
-        const endMonth = selectedSubround * 4;
+        let startMonth, endMonth;
         
-        const startDate = `${selectedYear}-${startMonth.toString().padStart(2, '0')}-01`;
-        const endDay = new Date(selectedYear, endMonth + 1, 0).getDate();
-        const endDate = `${selectedYear}-${endMonth.toString().padStart(2, '0')}-${endDay}`;
+        if (selectedSubround === 1) {
+          startMonth = 1; // January
+          endMonth = 4;  // April
+        } else if (selectedSubround === 2) {
+          startMonth = 5; // May
+          endMonth = 8;  // August
+        } else {
+          startMonth = 9; // September
+          endMonth = 12; // December
+        }
         
-        query = query.filter('tanggal_ubinan', 'gte', startDate);
-        query = query.filter('tanggal_ubinan', 'lte', endDate);
+        const startDate = new Date(selectedYear, startMonth - 1, 1);
+        const endDate = new Date(selectedYear, endMonth, 0); // Last day of the month
+        
+        query = query.filter('tanggal_ubinan', 'gte', startDate.toISOString().split('T')[0]);
+        query = query.filter('tanggal_ubinan', 'lte', endDate.toISOString().split('T')[0]);
       }
 
       // Apply status filter if selected
@@ -439,7 +430,8 @@ export default function ProgressUbinanPage() {
     if (!filteredPetugas.length) return;
 
     const flatData = filteredPetugas.flatMap((petugas: any) => {
-      return petugas.dataUbinan.map((data: any) => ({
+      return petugas.dataUbinan.map((data: any, index: number) => ({
+        'No': index + 1,
         'Nama PPL': petugas.pplName,
         'Nama PML': petugas.pmlName,
         'Kecamatan': data.kecamatan,
@@ -460,9 +452,10 @@ export default function ProgressUbinanPage() {
 
   // Function to export PPL activity data to Excel
   const handleExportActivityToExcel = () => {
-    if (!pplActivitySummary.length) return;
+    if (!Array.isArray(pplActivitySummary) || pplActivitySummary.length === 0) return;
 
-    const flatData = pplActivitySummary.map((item: any) => ({
+    const flatData = pplActivitySummary.map((item: any, index: number) => ({
+      'No': index + 1,
       'Nama PPL': item.ppl_name,
       'Nama PML': item.pml_name,
       'Bulan': format(new Date(2025, item.month-1, 1), 'MMMM', { locale: id }),
@@ -599,7 +592,7 @@ export default function ProgressUbinanPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua PPL</SelectItem>
-                  {!isLoadingPPL && pplUsers.map((ppl) => (
+                  {!isLoadingPPL && Array.isArray(pplUsers) && pplUsers.map((ppl) => (
                     <SelectItem key={ppl.id} value={ppl.id}>{ppl.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -614,7 +607,7 @@ export default function ProgressUbinanPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua PML</SelectItem>
-                  {!isLoadingPML && pmlUsers.map((pml) => (
+                  {!isLoadingPML && Array.isArray(pmlUsers) && pmlUsers.map((pml) => (
                     <SelectItem key={pml.id} value={pml.id}>{pml.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -625,7 +618,7 @@ export default function ProgressUbinanPage() {
               variant="outline" 
               className="flex gap-2 items-center mt-6" 
               onClick={handleExportActivityToExcel}
-              disabled={!pplActivitySummary.length}
+              disabled={!Array.isArray(pplActivitySummary) || pplActivitySummary.length === 0}
             >
               <FileDown className="h-4 w-4" />
               <span>Export Excel</span>
@@ -638,7 +631,7 @@ export default function ProgressUbinanPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2">Loading...</p>
             </div>
-          ) : pplActivitySummary.length === 0 ? (
+          ) : !Array.isArray(pplActivitySummary) || pplActivitySummary.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-lg text-gray-500">Tidak ada data aktivitas PPL yang tersedia</p>
             </div>
@@ -647,6 +640,7 @@ export default function ProgressUbinanPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">No</TableHead>
                     <TableHead>PPL</TableHead>
                     <TableHead>PML</TableHead>
                     <TableHead>Bulan</TableHead>
@@ -657,8 +651,9 @@ export default function ProgressUbinanPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pplActivitySummary.map((activity, index) => (
+                  {Array.isArray(pplActivitySummary) && pplActivitySummary.map((activity, index) => (
                     <TableRow key={`${activity.ppl_id}-${activity.month}-${index}`}>
+                      <TableCell>{index + 1}</TableCell>
                       <TableCell>{activity.ppl_name}</TableCell>
                       <TableCell>{activity.pml_name}</TableCell>
                       <TableCell>
@@ -818,6 +813,7 @@ export default function ProgressUbinanPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-[50px]">No</TableHead>
                               <TableHead>Komoditas</TableHead>
                               <TableHead>Responden</TableHead>
                               <TableHead>Lokasi</TableHead>
@@ -827,8 +823,9 @@ export default function ProgressUbinanPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {petugas.dataUbinan.map((item: any) => (
+                            {petugas.dataUbinan.map((item: any, idx: number) => (
                               <TableRow key={item.id}>
+                                <TableCell>{idx + 1}</TableCell>
                                 <TableCell className="capitalize">
                                   {item.komoditas === 'padi' ? 'Padi' : 
                                   item.komoditas.replace('_', ' ')}

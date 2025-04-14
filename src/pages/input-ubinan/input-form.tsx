@@ -139,6 +139,11 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     }
   }, [selectedKomoditasType]);
 
+  // Handle date change
+  const handleDateChange = (date: Date | undefined) => {
+    setTanggalUbinan(date);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -377,7 +382,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="no_data" disabled>
+                        <SelectItem value="no_data_available" disabled>
                           Tidak ada responden yang tersedia
                         </SelectItem>
                       )}
@@ -401,7 +406,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
               <Label htmlFor="tanggal">Tanggal Ubinan</Label>
               <DatePicker
                 date={tanggalUbinan}
-                onSelect={setTanggalUbinan}
+                onSelect={handleDateChange}
                 disabled={isLoading}
               />
             </div>

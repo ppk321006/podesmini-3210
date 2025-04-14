@@ -1,3 +1,4 @@
+
 import { DetailProgressData } from "@/types/database-schema";
 
 export function createProgressDataFromUbinan(
@@ -19,9 +20,17 @@ export function createProgressDataFromUbinan(
     let monthlyPadiTarget = 0;
     let monthlyPalawijaTarget = 0;
     
-    const subroundNum = i <= 4 ? 1 : (i <= 8 ? 2 : 3);
+    // Determine which subround the month belongs to
+    const subroundNum = getSubroundFromMonth(i);
     
+    // Allocate targets based on the subround
     if (subroundNum === 1) {
+      monthlyPadiTarget = Math.ceil(padiTarget / 4);
+      monthlyPalawijaTarget = Math.ceil(palawijaTarget / 4);
+    } else if (subroundNum === 2) {
+      monthlyPadiTarget = Math.ceil(padiTarget / 4);
+      monthlyPalawijaTarget = Math.ceil(palawijaTarget / 4);
+    } else if (subroundNum === 3) {
       monthlyPadiTarget = Math.ceil(padiTarget / 4);
       monthlyPalawijaTarget = Math.ceil(palawijaTarget / 4);
     }
@@ -41,6 +50,13 @@ export function createProgressDataFromUbinan(
   }
   
   return monthlyData;
+}
+
+// Helper function to determine which subround a month belongs to
+export function getSubroundFromMonth(month: number): number {
+  if (month >= 1 && month <= 4) return 1;
+  if (month >= 5 && month <= 8) return 2;
+  return 3;
 }
 
 /**

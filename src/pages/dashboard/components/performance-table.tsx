@@ -1,250 +1,225 @@
 
-import { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Search, ArrowUpDown } from "lucide-react";
-import { PetugasPerformance } from "@/types/database-schema";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { getSubroundFromMonth } from "@/services/progress/utils.service";
 
-interface PerformanceTableProps {
-  data: PetugasPerformance[];
-  isLoading: boolean;
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  sortColumn: string;
-  setSortColumn: (column: string) => void;
-  sortDirection: 'asc' | 'desc';
-  setSortDirection: (direction: 'asc' | 'desc') => void;
+interface PerformanceData {
+  id: string;
+  name: string;
+  role: string;
+  pml?: {
+    id: string;
+    name: string;
+  };
+  totalPadi: number;
+  totalPalawija: number;
+  pendingVerification: number;
+  verified: number;
+  rejected: number;
+  createdAt?: string;
+  month?: number;
 }
 
-export const PerformanceTable = ({ 
-  data, 
-  isLoading, 
-  searchTerm, 
-  setSearchTerm, 
-  sortColumn, 
-  setSortColumn, 
-  sortDirection, 
-  setSortDirection 
-}: PerformanceTableProps) => {
-  
-  const [filteredData, setFilteredData] = useState<PetugasPerformance[]>([]);
-  
-  // Handle sorting functionality
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('desc');
-    }
-  };
-  
-  // Helper function to render percentage badge with color
-  const renderPercentageBadge = (percentage: number) => {
-    let variant: "default" | "destructive" | "outline" | "secondary" = "outline";
+interface PerformanceTableProps {
+  title: string;
+  description: string;
+  data: PerformanceData[];
+  loading?: boolean;
+}
+
+export function PerformanceTable({
+  title,
+  description,
+  data,
+  loading,
+}: PerformanceTableProps) {
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterMonth, setFilterMonth] = useState("0");
+
+  // Filter data based on role and month
+  const filteredData = data.filter((item) => {
+    const roleMatch = filterRole === "all" || item.role === filterRole;
     
-    if (percentage >= 85) {
-      variant = "default";
-    } else if (percentage >= 50) {
-      variant = "secondary";
-    } else if (percentage > 0) {
-      variant = "destructive"; 
+    // Filter by month if month filter is active
+    let monthMatch = true;
+    if (filterMonth !== "0" && item.month) {
+      monthMatch = item.month === parseInt(filterMonth);
+    } else if (filterMonth !== "0" && item.createdAt) {
+      // If month data is not directly available but we have createdAt, extract month
+      const itemDate = new Date(item.createdAt);
+      monthMatch = (itemDate.getMonth() + 1) === parseInt(filterMonth);
     }
     
-    return (
-      <Badge variant={variant}>
-        {percentage.toFixed(1)}%
-      </Badge>
-    );
-  };
-  
-  // Filter and sort data
-  useEffect(() => {
-    // Filter data based on search term
-    const filtered = data.filter(item => 
-      item.ppl_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.ppl_username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    // Sort data based on current sort settings
-    const sorted = [...filtered].sort((a, b) => {
-      let valueA, valueB;
-      
-      switch (sortColumn) {
-        case 'ppl_name':
-          valueA = a.ppl_name;
-          valueB = b.ppl_name;
-          break;
-        case 'total_target':
-          valueA = a.total_target;
-          valueB = b.total_target;
-          break;
-        case 'total_completed':
-          valueA = a.total_completed;
-          valueB = b.total_completed;
-          break;
-        case 'completion_percentage':
-          valueA = a.completion_percentage;
-          valueB = b.completion_percentage;
-          break;
-        case 'padi_completed':
-          valueA = a.padi_completed;
-          valueB = b.padi_completed;
-          break;
-        case 'palawija_completed':
-          valueA = a.palawija_completed;
-          valueB = b.palawija_completed;
-          break;
-        case 'pending_verification':
-          valueA = a.pending_verification;
-          valueB = b.pending_verification;
-          break;
-        case 'rejected':
-          valueA = a.rejected;
-          valueB = b.rejected;
-          break;
-        default:
-          valueA = a.completion_percentage;
-          valueB = b.completion_percentage;
-      }
-      
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        return sortDirection === 'asc' 
-          ? valueA.localeCompare(valueB) 
-          : valueB.localeCompare(valueA);
-      }
-      
-      return sortDirection === 'asc' 
-        ? (valueA as number) - (valueB as number) 
-        : (valueB as number) - (valueA as number);
-    });
-    
-    setFilteredData(sorted);
-  }, [data, searchTerm, sortColumn, sortDirection]);
-  
+    return roleMatch && monthMatch;
+  });
+
   return (
-    <div>
-      <div className="relative flex-1 mb-4">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Cari petugas..."
-          className="pl-8 w-full md:w-[300px]"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-      
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+        <div className="flex flex-col md:flex-row gap-4 mt-4">
+          <div className="grid gap-2">
+            <Label htmlFor="role-filter">Filter Petugas</Label>
+            <Select
+              value={filterRole}
+              onValueChange={setFilterRole}
+            >
+              <SelectTrigger id="role-filter" className="w-full md:w-[180px]">
+                <SelectValue placeholder="Filter petugas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Petugas</SelectItem>
+                <SelectItem value="ppl">PPL</SelectItem>
+                <SelectItem value="pml">PML</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="month-filter">Filter Bulan</Label>
+            <Select
+              value={filterMonth}
+              onValueChange={setFilterMonth}
+            >
+              <SelectTrigger id="month-filter" className="w-full md:w-[180px]">
+                <SelectValue placeholder="Filter bulan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Semua Bulan</SelectItem>
+                <SelectItem value="1">Januari</SelectItem>
+                <SelectItem value="2">Februari</SelectItem>
+                <SelectItem value="3">Maret</SelectItem>
+                <SelectItem value="4">April</SelectItem>
+                <SelectItem value="5">Mei</SelectItem>
+                <SelectItem value="6">Juni</SelectItem>
+                <SelectItem value="7">Juli</SelectItem>
+                <SelectItem value="8">Agustus</SelectItem>
+                <SelectItem value="9">September</SelectItem>
+                <SelectItem value="10">Oktober</SelectItem>
+                <SelectItem value="11">November</SelectItem>
+                <SelectItem value="12">Desember</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  onClick={() => handleSort('ppl_name')}
-                  className="cursor-pointer"
-                >
-                  Nama Petugas {sortColumn === 'ppl_name' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('total_target')}
-                  className="cursor-pointer"
-                >
-                  Target {sortColumn === 'total_target' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('total_completed')}
-                  className="cursor-pointer"
-                >
-                  Terverifikasi {sortColumn === 'total_completed' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('completion_percentage')}
-                  className="cursor-pointer text-right"
-                >
-                  Persentase {sortColumn === 'completion_percentage' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('padi_completed')}
-                  className="cursor-pointer text-center"
-                >
-                  Padi {sortColumn === 'padi_completed' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('palawija_completed')}
-                  className="cursor-pointer text-center"
-                >
-                  Palawija {sortColumn === 'palawija_completed' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('pending_verification')}
-                  className="cursor-pointer text-center"
-                >
-                  Pending {sortColumn === 'pending_verification' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('rejected')}
-                  className="cursor-pointer text-center"
-                >
-                  Ditolak {sortColumn === 'rejected' && (
-                    <ArrowUpDown className="inline h-4 w-4 ml-1" />
-                  )}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredData.length === 0 ? (
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center h-60">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : filteredData.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Tidak ada data tersedia</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
-                    Tidak ada data petugas yang tersedia
-                  </TableCell>
+                  <TableHead className="w-[50px]">No</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>PML</TableHead>
+                  <TableHead>Subround</TableHead>
+                  {filterMonth !== "0" && (
+                    <TableHead>Bulan</TableHead>
+                  )}
+                  <TableHead>Padi</TableHead>
+                  <TableHead>Palawija</TableHead>
+                  <TableHead>Status Data</TableHead>
                 </TableRow>
-              ) : (
-                filteredData.map((item) => (
-                  <TableRow key={item.ppl_id}>
-                    <TableCell className="font-medium">{item.ppl_name}</TableCell>
-                    <TableCell>{item.total_target}</TableCell>
-                    <TableCell>{item.total_completed}</TableCell>
-                    <TableCell className="text-right">
-                      {renderPercentageBadge(item.completion_percentage)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {item.padi_completed}/{item.padi_target}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {item.palawija_completed}/{item.palawija_target}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{item.pending_verification}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="destructive">{item.rejected}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((petugas, index) => {
+                  const month = petugas.month || (petugas.createdAt ? new Date(petugas.createdAt).getMonth() + 1 : null);
+                  const subround = month ? getSubroundFromMonth(month) : null;
+                  
+                  return (
+                    <TableRow key={petugas.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">{petugas.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={petugas.role === "ppl" ? "secondary" : "outline"}>
+                          {petugas.role.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {petugas.pml ? petugas.pml.name : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {subround ? `Subround ${subround}` : "-"}
+                      </TableCell>
+                      {filterMonth !== "0" && (
+                        <TableCell>
+                          {month ? format(new Date(2025, month - 1, 1), "MMMM", { locale: id }) : "-"}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <span className="font-medium">{petugas.totalPadi}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">{petugas.totalPalawija}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {petugas.verified > 0 && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              Terverifikasi: {petugas.verified}
+                            </Badge>
+                          )}
+                          {petugas.pendingVerification > 0 && (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                              Menunggu: {petugas.pendingVerification}
+                            </Badge>
+                          )}
+                          {petugas.rejected > 0 && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                              Ditolak: {petugas.rejected}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-between border-t px-6 py-4">
+        <div className="text-xs text-muted-foreground">
+          Menampilkan {filteredData.length} dari {data.length} petugas
         </div>
-      )}
-    </div>
+      </CardFooter>
+    </Card>
   );
-};
+}
