@@ -3,7 +3,20 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import * as htmlToImage from 'html-to-image';
 
-// Function to export ubinan data to Excel
+// Function to export data to Excel
+export function downloadToExcel(data: any[], filename: string) {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+  
+  // Generate Excel file
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  
+  // Convert to Blob and save
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `${filename}.xlsx`);
+}
+
 export async function exportUbinanDataToExcel(startDate: string, endDate: string): Promise<Blob> {
   try {
     // Fetch ubinan data with proper joins

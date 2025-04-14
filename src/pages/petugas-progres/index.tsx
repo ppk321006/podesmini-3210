@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
@@ -16,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { CalendarIcon, FileDown, Search } from "lucide-react";
@@ -45,12 +45,10 @@ export default function PetugasProgresPage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>(new Date());
 
-  // Update subround when month changes
   useEffect(() => {
     setSubround(getSubroundFromMonth(month));
   }, [month]);
 
-  // Update month when date changes
   useEffect(() => {
     if (date) {
       setMonth(date.getMonth() + 1);
@@ -98,11 +96,9 @@ export default function PetugasProgresPage() {
           )
         `);
 
-      // Filter by year
       query = query.filter('tanggal_ubinan', 'gte', `${year}-01-01`);
       query = query.filter('tanggal_ubinan', 'lte', `${year}-12-31`);
 
-      // Filter by month if not "all"
       if (month > 0) {
         const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
         const endDay = new Date(year, month, 0).getDate(); // Get last day of month
@@ -111,7 +107,6 @@ export default function PetugasProgresPage() {
         query = query.filter('tanggal_ubinan', 'gte', startDate);
         query = query.filter('tanggal_ubinan', 'lte', endDate);
       } 
-      // Filter by subround if month is "all"
       else if (subround > 0) {
         const startMonth = (subround - 1) * 4 + 1;
         const endMonth = subround * 4;
@@ -124,12 +119,10 @@ export default function PetugasProgresPage() {
         query = query.filter('tanggal_ubinan', 'lte', endDate);
       }
 
-      // Filter by status if not "all"
       if (status !== "all") {
         query = query.eq('status', status);
       }
 
-      // Order by date
       query = query.order('tanggal_ubinan', { ascending: false });
       
       const { data, error } = await query;
@@ -139,7 +132,6 @@ export default function PetugasProgresPage() {
         throw error;
       }
       
-      // Process and group by petugas
       const petugasGroups = data.reduce((acc: any, item: any) => {
         const pplId = item.ppl?.id;
         const pplName = item.ppl?.name || "Unknown";
@@ -163,7 +155,6 @@ export default function PetugasProgresPage() {
           };
         }
         
-        // Count by status
         acc[pplId].total++;
         if (item.komoditas === 'padi') {
           acc[pplId].totalPadi++;
@@ -176,7 +167,6 @@ export default function PetugasProgresPage() {
         else if (item.status === 'dikonfirmasi') acc[pplId].dikonfirmasi++;
         else if (item.status === 'ditolak') acc[pplId].ditolak++;
         
-        // Add data
         const desa = item.segmen?.desa?.name || item.nks?.desa?.name || "-";
         const kecamatan = item.segmen?.desa?.kecamatan?.name || item.nks?.desa?.kecamatan?.name || "-";
         
@@ -194,7 +184,6 @@ export default function PetugasProgresPage() {
         return acc;
       }, {});
       
-      // Convert to array and sort by name
       return Object.values(petugasGroups).map((petugas: any) => ({
         ...petugas,
         desas: Array.from(petugas.desas),
@@ -205,7 +194,6 @@ export default function PetugasProgresPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Filter petugas based on search term
   const filteredPetugas = petugasProgres.filter((petugas: any) => {
     if (!searchTerm) return true;
     
@@ -219,11 +207,9 @@ export default function PetugasProgresPage() {
     );
   });
 
-  // Function to export data to Excel
   const handleExportToExcel = () => {
     if (!filteredPetugas.length) return;
 
-    // Flatten data for Excel export
     const flatData = filteredPetugas.flatMap((petugas: any) => {
       return petugas.dataUbinan.map((data: any) => ({
         'Nama PPL': petugas.pplName,
