@@ -288,7 +288,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="no_data" disabled>
                           Tidak ada segmen yang tersedia
                         </SelectItem>
                       )}
@@ -322,7 +322,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="no_data" disabled>
                           Tidak ada NKS yang tersedia
                         </SelectItem>
                       )}
