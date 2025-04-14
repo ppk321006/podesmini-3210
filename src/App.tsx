@@ -15,6 +15,7 @@ import AlokasiWilayahPage from "./pages/alokasi-wilayah";
 import AlokasiPetugasPage from "./pages/alokasi-petugas";
 import VerifikasiPage from "./pages/verifikasi";
 import InputUbinanPage from "./pages/input-ubinan";
+import PetugasProgresPage from "./pages/petugas-progres";
 import ProfilePage from "./pages/profil";
 import NotFoundPage from "./pages/not-found";
 import LoginPage from "./pages/login";
@@ -103,6 +104,12 @@ function App() {
                     <RoleBasedRoute 
                       element={<VerifikasiPage />} 
                       allowedRoles={[UserRole.PML]} 
+                    />
+                  } />
+                  <Route path="/petugas-progres" element={
+                    <RoleBasedRoute 
+                      element={<PetugasProgresPage />} 
+                      allowedRoles={[UserRole.ADMIN]} 
                     />
                   } />
                   <Route path="/profil" element={<ProfilePage />} />

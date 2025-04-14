@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -11,6 +10,12 @@ import {
   Home,
   User,
   Workflow,
+  LayoutDashboard,
+  ClipboardEdit,
+  ClipboardCheck,
+  FileSpreadsheet,
+  MapPin,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -27,6 +32,69 @@ interface SidebarItem {
   href: string;
   allowedRoles: UserRole[];
 }
+
+export const navigation = [
+  {
+    title: "Dashboard",
+    href: "/",
+    icon: LayoutDashboard,
+    role: [UserRole.ADMIN, UserRole.PML, UserRole.PPL],
+  },
+  {
+    title: "Progres Ubinan",
+    href: "/progres",
+    icon: BarChart3,
+    role: [UserRole.ADMIN, UserRole.PML, UserRole.PPL],
+  },
+  {
+    title: "Input Data",
+    href: "/input-data",
+    icon: ClipboardEdit,
+    role: [UserRole.PPL],
+  },
+  {
+    title: "Verifikasi",
+    href: "/verifikasi",
+    icon: ClipboardCheck,
+    role: [UserRole.PML],
+  },
+  {
+    title: "Petugas",
+    href: "/petugas",
+    icon: Users,
+    role: [UserRole.ADMIN],
+  },
+  {
+    title: "Rekap Progres Petugas",
+    href: "/petugas-progres",
+    icon: FileSpreadsheet,
+    role: [UserRole.ADMIN],
+  },
+  {
+    title: "Wilayah",
+    href: "/wilayah",
+    icon: MapPin,
+    role: [UserRole.ADMIN],
+  },
+  {
+    title: "Alokasi Wilayah",
+    href: "/alokasi-wilayah",
+    icon: Map,
+    role: [UserRole.ADMIN],
+  },
+  {
+    title: "Alokasi Petugas",
+    href: "/alokasi-petugas",
+    icon: UserCog,
+    role: [UserRole.ADMIN],
+  },
+  {
+    title: "Pengaturan",
+    href: "/pengaturan",
+    icon: Settings,
+    role: [UserRole.ADMIN],
+  },
+];
 
 export function Sidebar({ isOpen }: SidebarProps) {
   const { user } = useAuth();

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +92,6 @@ export default function InputUbinanPage() {
         return;
       }
 
-      // Process data to add location information
       const processedData = data.map((item) => {
         const desa_name = item.nks?.desa?.name || item.segmen?.desa?.name || "-";
         const kecamatan_name = item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || "-";
@@ -121,11 +119,10 @@ export default function InputUbinanPage() {
   }
 
   function handleEdit(data: ExtendedUbinanData) {
-    // Only allow editing if status is not confirmed or rejected
-    if (data.status === "dikonfirmasi" || data.status === "ditolak") {
+    if (data.status === "dikonfirmasi") {
       toast({
         title: "Tidak dapat diedit",
-        description: "Data yang sudah dikonfirmasi atau ditolak tidak dapat diedit",
+        description: "Data yang sudah dikonfirmasi tidak dapat diedit",
         variant: "destructive",
       });
       return;
@@ -146,14 +143,11 @@ export default function InputUbinanPage() {
     });
   };
 
-  // Filter data based on status and search term
   const filteredData = ubinanData.filter((item) => {
-    // Filter by status
     if (filterStatus !== "all" && item.status !== filterStatus) {
       return false;
     }
 
-    // Filter by search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -168,7 +162,6 @@ export default function InputUbinanPage() {
     return true;
   });
 
-  // Get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "belum_diisi":
