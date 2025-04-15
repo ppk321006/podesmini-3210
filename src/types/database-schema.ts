@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 
 // Types from the Supabase database
@@ -44,13 +43,16 @@ export type Petugas = {
   created_at?: string;
 };
 
-// Missing types that need to be added
+// Updated DetailProgressData type to match function return values
 export type DetailProgressData = {
   month: number;
-  padi_count: number;
-  palawija_count: number;
-  padi_target: number;
-  palawija_target: number;
+  totalPadi: number;
+  totalPalawija: number;
+  pendingVerification: number;
+  verified: number;
+  rejected: number;
+  padiTarget: number;
+  palawijaTarget: number;
   padi_percentage: number;
   palawija_percentage: number;
 };
