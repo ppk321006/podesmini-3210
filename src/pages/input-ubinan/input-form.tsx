@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +19,6 @@ interface InputFormProps {
   onSuccess: () => void;
 }
 
-// Export with both names to maintain compatibility
 export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +29,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     initialData?.segmen_id ? true : initialData ? false : true
   );
 
-  // Form state
   const [komoditas, setKomoditas] = useState<string>(initialData?.komoditas || "padi");
   const [segmenId, setSegmenId] = useState<string>(initialData?.segmen_id || "");
   const [nksId, setNksId] = useState<string>(initialData?.nks_id || "");
@@ -44,7 +41,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
   );
   const [komentar, setKomentar] = useState<string>(initialData?.komentar || "");
 
-  // Fetch assigned segmen for the logged-in PPL
   const { data: segmenData = [], isLoading: isLoadingSegmen } = useQuery({
     queryKey: ['ppl_segmen', user?.id],
     queryFn: async () => {
@@ -76,7 +72,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     enabled: !!user?.id,
   });
 
-  // Fetch assigned NKS for the logged-in PPL
   const { data: nksData = [], isLoading: isLoadingNks } = useQuery({
     queryKey: ['ppl_nks', user?.id],
     queryFn: async () => {
@@ -108,7 +103,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     enabled: !!user?.id,
   });
 
-  // Fetch responden names for the selected NKS (for palawija)
   const { data: respondenData = [], isLoading: isLoadingResponden } = useQuery({
     queryKey: ['responden_list', nksId],
     queryFn: async () => {
@@ -126,7 +120,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     enabled: !!nksId && !isSegmen,
   });
 
-  // Effect to switch between segmen and nks based on komoditas
   useEffect(() => {
     if (selectedKomoditasType === "padi") {
       setIsSegmen(true);
@@ -135,11 +128,9 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     } else {
       setIsSegmen(false);
       setSegmenId("");
-      // Don't set komoditas here, let the user select it
     }
   }, [selectedKomoditasType]);
 
-  // Handle date change
   const handleDateChange = (date: Date | undefined) => {
     setTanggalUbinan(date);
   };
@@ -180,7 +171,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
     setIsLoading(true);
 
     try {
-      // Get the PML ID for this PPL
       const { data: pplData, error: pplError } = await supabase
         .from('users')
         .select('pml_id')
@@ -190,7 +180,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
       if (pplError) throw pplError;
 
       if (initialData?.id) {
-        // Update existing record
         const { error } = await supabase
           .from('ubinan_data')
           .update({
@@ -209,7 +198,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
         if (error) throw error;
         toast.success("Data berhasil diperbarui");
       } else {
-        // Insert new record
         const { error } = await supabase
           .from('ubinan_data')
           .insert({
@@ -243,7 +231,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Jenis Komoditas */}
             <div>
               <Label htmlFor="komoditas-type">Jenis Komoditas</Label>
               <Select
@@ -261,7 +248,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
               </Select>
             </div>
 
-            {/* Komoditas - Only show for Palawija */}
             {!isSegmen && (
               <div>
                 <Label htmlFor="komoditas">Komoditas</Label>
@@ -284,7 +270,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
               </div>
             )}
 
-            {/* Segmen/NKS selection (conditionally rendered) */}
             {isSegmen ? (
               <div>
                 <Label htmlFor="segmen">Segmen</Label>
@@ -355,42 +340,32 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
               </div>
             )}
 
-            {/* Responden */}
             <div>
               <Label htmlFor="responden">Nama Responden</Label>
               {!isSegmen && nksId ? (
-                // For Palawija, show responden selector from existing names
-                isLoadingResponden ? (
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Loading...</span>
-                  </div>
-                ) : (
-                  <Select
-                    value={respondenName}
-                    onValueChange={setRespondenName}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger id="responden">
-                      <SelectValue placeholder="Pilih Responden" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {respondenData && respondenData.length > 0 ? (
-                        respondenData.map((responden: any) => (
-                          <SelectItem key={responden.id} value={responden.nama}>
-                            {responden.nama}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no_data_available" disabled>
-                          Tidak ada responden yang tersedia
+                <Select
+                  value={respondenName}
+                  onValueChange={setRespondenName}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="responden">
+                    <SelectValue placeholder="Pilih Responden" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {respondenData && respondenData.length > 0 ? (
+                      respondenData.map((responden: any) => (
+                        <SelectItem key={responden.id} value={responden.nama}>
+                          {responden.nama}
                         </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                )
+                      ))
+                    ) : (
+                      <SelectItem value="no_data_available" disabled>
+                        Tidak ada responden yang tersedia
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               ) : (
-                // For Padi or if no NKS selected yet, show input field
                 <Input
                   id="responden"
                   value={respondenName}
@@ -401,17 +376,16 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
               )}
             </div>
 
-            {/* Tanggal Ubinan */}
             <div>
               <Label htmlFor="tanggal">Tanggal Ubinan</Label>
               <DatePicker
                 date={tanggalUbinan}
                 onSelect={handleDateChange}
                 disabled={isLoading}
+                disableFutureDates={true}
               />
             </div>
 
-            {/* Berat Hasil */}
             <div>
               <Label htmlFor="berat">Berat Hasil (kg)</Label>
               <Input
@@ -426,7 +400,6 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
             </div>
           </div>
 
-          {/* Komentar */}
           <div>
             <Label htmlFor="komentar">Komentar</Label>
             <Textarea
@@ -453,5 +426,4 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
   );
 }
 
-// Export as InputForm as well for compatibility
 export const InputForm = UbinanInputForm;

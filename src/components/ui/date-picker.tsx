@@ -11,16 +11,34 @@ interface DatePickerProps {
   onSelect: (date: Date | undefined) => void;
   disabled?: boolean;
   className?: string;
-  setDate?: React.Dispatch<React.SetStateAction<Date>>; // Added to support existing usages
+  setDate?: React.Dispatch<React.SetStateAction<Date>>;
+  disableFutureDates?: boolean;
 }
 
-export function DatePicker({ date, onSelect, disabled, className, setDate }: DatePickerProps) {
+export function DatePicker({
+  date,
+  onSelect,
+  disabled,
+  className,
+  setDate,
+  disableFutureDates = false
+}: DatePickerProps) {
   // Handle both callback patterns
   const handleSelect = (selectedDate: Date | undefined) => {
     onSelect(selectedDate);
     if (setDate && selectedDate) {
       setDate(selectedDate);
     }
+  };
+
+  // Function to check if a date should be disabled
+  const isDateDisabled = (date: Date) => {
+    if (disableFutureDates) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return date > today;
+    }
+    return false;
   };
 
   return (
@@ -40,6 +58,7 @@ export function DatePicker({ date, onSelect, disabled, className, setDate }: Dat
           mode="single"
           selected={date}
           onSelect={handleSelect}
+          disabled={isDateDisabled}
           initialFocus
         />
       </PopoverContent>

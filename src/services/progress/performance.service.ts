@@ -4,10 +4,20 @@ import { PerformanceData } from "@/types/database-schema";
 
 export async function getAllPPLPerformance(year: number, subround: number): Promise<PerformanceData[]> {
   try {
-    const { data: petugasPerformance = [], error } = await supabase.rpc('get_ppl_activity_summary', {
-      year_param: year,
-      subround_param: subround
-    });
+    // Define the parameters based on selected subround
+    let params: any = {
+      year_param: year
+    };
+    
+    // Only include subround_param if it's not 0 (all subrounds)
+    if (subround !== 0) {
+      params.subround_param = subround;
+    }
+
+    const { data: petugasPerformance = [], error } = await supabase.rpc(
+      'get_ppl_activity_summary',
+      params
+    );
 
     if (error) {
       console.error("Error fetching PPL performance:", error);

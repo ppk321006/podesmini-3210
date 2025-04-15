@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -28,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { getSubroundFromMonth } from "@/services/progress/utils.service";
+import { Search } from "lucide-react";
 
 export interface PerformanceData {
   id: string;
@@ -73,8 +75,9 @@ export function PerformanceTable({
 }: PerformanceTableProps) {
   const [filterRole, setFilterRole] = useState("all");
   const [filterMonth, setFilterMonth] = useState("0");
+  const [filterStatus, setFilterStatus] = useState("all");
 
-  // Filter data based on role and month
+  // Filter data based on role, month, and status
   const filteredData = data.filter((item) => {
     const roleMatch = filterRole === "all" || item.role === filterRole;
     
@@ -88,7 +91,17 @@ export function PerformanceTable({
       monthMatch = (itemDate.getMonth() + 1) === parseInt(filterMonth);
     }
     
-    return roleMatch && monthMatch;
+    // Filter by verification status
+    let statusMatch = true;
+    if (filterStatus === "verified" && item.verified <= 0) {
+      statusMatch = false;
+    } else if (filterStatus === "pending" && item.pendingVerification <= 0) {
+      statusMatch = false;
+    } else if (filterStatus === "rejected" && item.rejected <= 0) {
+      statusMatch = false;
+    }
+    
+    return roleMatch && monthMatch && statusMatch;
   });
 
   return (
@@ -139,6 +152,38 @@ export function PerformanceTable({
                 <SelectItem value="12">Desember</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="status-filter">Filter Status</Label>
+            <Select
+              value={filterStatus}
+              onValueChange={setFilterStatus}
+            >
+              <SelectTrigger id="status-filter" className="w-full md:w-[180px]">
+                <SelectValue placeholder="Filter status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="verified">Terverifikasi</SelectItem>
+                <SelectItem value="pending">Menunggu Verifikasi</SelectItem>
+                <SelectItem value="rejected">Ditolak</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="grid gap-2 flex-1">
+            <Label htmlFor="search">Pencarian</Label>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari nama petugas..."
+                className="pl-8"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
