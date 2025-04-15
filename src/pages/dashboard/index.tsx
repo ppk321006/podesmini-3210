@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExportDataCard } from "./export-data";
 import { UserRole } from "@/types/user";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllPPLPerformance } from "@/services/progress-service";
+import { getAllPPLPerformance } from "@/services/progress/performance.service";
 import { PeriodSelector } from "./components/period-selector";
 import { PerformanceTable } from "./components/performance-table";
 
@@ -59,7 +59,7 @@ export default function DashboardPage() {
               <CardContent>
                 <PerformanceTable
                   data={petugasPerformance}
-                  isLoading={isLoading}
+                  loading={isLoading}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
                   sortColumn={sortColumn}

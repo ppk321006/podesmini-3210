@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 
 // Types from the Supabase database
@@ -138,4 +139,22 @@ export type PPLActivitySummary = {
   confirmed_count: number;
   pending_count: number;
   rejected_count: number;
+};
+
+// Add the missing PerformanceData type
+export type PerformanceData = {
+  id: string;
+  name: string;
+  role: string;
+  pml?: {
+    id: string;
+    name: string;
+  };
+  totalPadi: number;
+  totalPalawija: number;
+  pendingVerification: number;
+  verified: number;
+  rejected: number;
+  month?: number;
+  createdAt: string;
 };

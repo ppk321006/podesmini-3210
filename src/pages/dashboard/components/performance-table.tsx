@@ -29,7 +29,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { getSubroundFromMonth } from "@/services/progress/utils.service";
 
-interface PerformanceData {
+export interface PerformanceData {
   id: string;
   name: string;
   role: string;
@@ -46,18 +46,30 @@ interface PerformanceData {
   month?: number;
 }
 
-interface PerformanceTableProps {
-  title: string;
-  description: string;
+export interface PerformanceTableProps {
+  title?: string;
+  description?: string;
   data: PerformanceData[];
   loading?: boolean;
+  searchTerm: string;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+  sortColumn: string;
+  setSortColumn: React.Dispatch<React.SetStateAction<string>>;
+  sortDirection: "asc" | "desc";
+  setSortDirection: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
 }
 
 export function PerformanceTable({
-  title,
-  description,
+  title = "Performance",
+  description = "Performance data for all petugas",
   data,
   loading,
+  searchTerm,
+  setSearchTerm,
+  sortColumn,
+  setSortColumn,
+  sortDirection,
+  setSortDirection,
 }: PerformanceTableProps) {
   const [filterRole, setFilterRole] = useState("all");
   const [filterMonth, setFilterMonth] = useState("0");

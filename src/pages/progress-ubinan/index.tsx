@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
@@ -38,7 +37,6 @@ export default function ProgressUbinanPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>(new Date());
-  // Add new state for PPL and PML filters
   const [selectedPPL, setSelectedPPL] = useState<string>("all");
   const [selectedPML, setSelectedPML] = useState<string>("all");
 
@@ -76,7 +74,6 @@ export default function ProgressUbinanPage() {
     }
   };
 
-  // New query to get all PPL users for filter
   const { data: pplUsers = [], isLoading: isLoadingPPL } = useQuery({
     queryKey: ['ppl_users'],
     queryFn: async () => {
@@ -90,10 +87,9 @@ export default function ProgressUbinanPage() {
       return data || [];
     },
     enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER,
-    staleTime: 300000, // 5 minutes cache
+    staleTime: 300000,
   });
 
-  // New query to get all PML users for filter
   const { data: pmlUsers = [], isLoading: isLoadingPML } = useQuery({
     queryKey: ['pml_users'],
     queryFn: async () => {
@@ -107,7 +103,7 @@ export default function ProgressUbinanPage() {
       return data || [];
     },
     enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER,
-    staleTime: 300000, // 5 minutes cache
+    staleTime: 300000,
   });
 
   if (user?.role === UserRole.PPL || user?.role === UserRole.PML) {
@@ -225,19 +221,17 @@ export default function ProgressUbinanPage() {
     );
   }
 
-  // Query to get PPL activity summary by month using the RPC function
   const { data: pplActivitySummary = [], isLoading: isLoadingPplActivity } = useQuery({
     queryKey: ['ppl_activity_summary', selectedYear, selectedMonth, selectedSubround, selectedStatus, selectedPPL, selectedPML],
     queryFn: async () => {
       try {
-        // Call the RPC function with parameters
         const { data, error } = await supabase.rpc('get_ppl_activity_summary', {
-          year: selectedYear,
-          month: selectedMonth,
-          subround: selectedSubround,
-          status: selectedStatus === 'all' ? null : selectedStatus,
-          ppl_id: selectedPPL === 'all' ? null : selectedPPL,
-          pml_id: selectedPML === 'all' ? null : selectedPML
+          year_param: selectedYear,
+          month_param: selectedMonth,
+          subround_param: selectedSubround,
+          status_param: selectedStatus === 'all' ? null : selectedStatus,
+          ppl_id_param: selectedPPL === 'all' ? null : selectedPPL,
+          pml_id_param: selectedPML === 'all' ? null : selectedPML
         });
         
         if (error) throw error;
@@ -292,11 +286,9 @@ export default function ProgressUbinanPage() {
           )
         `);
 
-      // Apply year filter
       query = query.filter('tanggal_ubinan', 'gte', `${selectedYear}-01-01`);
       query = query.filter('tanggal_ubinan', 'lte', `${selectedYear}-12-31`);
 
-      // Apply month filter if selected
       if (selectedMonth > 0) {
         const startDate = new Date(selectedYear, selectedMonth - 1, 1);
         const endDate = new Date(selectedYear, selectedMonth, 0); // Last day of the month
@@ -304,7 +296,6 @@ export default function ProgressUbinanPage() {
         query = query.filter('tanggal_ubinan', 'gte', startDate.toISOString().split('T')[0]);
         query = query.filter('tanggal_ubinan', 'lte', endDate.toISOString().split('T')[0]);
       } 
-      // Apply subround filter if selected and month not selected
       else if (selectedSubround > 0) {
         let startMonth, endMonth;
         
@@ -326,17 +317,14 @@ export default function ProgressUbinanPage() {
         query = query.filter('tanggal_ubinan', 'lte', endDate.toISOString().split('T')[0]);
       }
 
-      // Apply status filter if selected
       if (selectedStatus !== "all") {
         query = query.eq('status', selectedStatus);
       }
       
-      // Apply PPL filter if selected
       if (selectedPPL !== "all") {
         query = query.eq('ppl_id', selectedPPL);
       }
       
-      // Apply PML filter if selected
       if (selectedPML !== "all") {
         query = query.eq('pml_id', selectedPML);
       }
@@ -450,7 +438,6 @@ export default function ProgressUbinanPage() {
     downloadToExcel(flatData, `rekap-progres-petugas-${format(new Date(), 'yyyy-MM-dd')}`);
   };
 
-  // Function to export PPL activity data to Excel
   const handleExportActivityToExcel = () => {
     if (!Array.isArray(pplActivitySummary) || pplActivitySummary.length === 0) return;
 
@@ -625,7 +612,6 @@ export default function ProgressUbinanPage() {
             </Button>
           </div>
 
-          {/* PPL Activity Table */}
           {isLoadingPplActivity ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
