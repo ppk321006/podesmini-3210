@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 
 // Types from the Supabase database
@@ -125,4 +124,18 @@ export type NKS = {
   target_palawija: number;
   created_at: string;
   subround?: number;
+};
+
+export type PPLActivitySummary = {
+  ppl_id: string;
+  ppl_name: string;
+  pml_id: string;
+  pml_name: string;
+  month: number;
+  total_count: number;
+  padi_count: number;
+  palawija_count: number;
+  confirmed_count: number;
+  pending_count: number;
+  rejected_count: number;
 };

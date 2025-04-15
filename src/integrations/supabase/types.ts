@@ -492,6 +492,29 @@ export type Database = {
           count: number
         }[]
       }
+      get_ppl_activity_summary: {
+        Args: {
+          year_param?: number
+          month_param?: number
+          subround_param?: number
+          status_param?: string
+          ppl_id_param?: string
+          pml_id_param?: string
+        }
+        Returns: {
+          ppl_id: string
+          ppl_name: string
+          pml_id: string
+          pml_name: string
+          month: number
+          total_count: number
+          padi_count: number
+          palawija_count: number
+          confirmed_count: number
+          pending_count: number
+          rejected_count: number
+        }[]
+      }
       get_subround: {
         Args: Record<PropertyKey, never>
         Returns: number
