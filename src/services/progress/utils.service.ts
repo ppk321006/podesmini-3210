@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { DetailProgressData } from "@/types/database-schema";
 
 /**
  * Returns the subround number based on the month
@@ -63,4 +64,74 @@ export function getSubroundName(subround: number): string {
     return "September-Desember";
   }
   return "Tidak Valid";
+}
+
+/**
+ * Creates progress data from ubinan data
+ */
+export function createProgressDataFromUbinan(
+  ubinanData: any[],
+  padiTarget: number = 0,
+  palawijaTarget: number = 0
+): DetailProgressData[] {
+  // Group data by month
+  const monthlyData: { [key: number]: any } = {};
+  
+  // Initialize data for all months
+  for (let month = 1; month <= 12; month++) {
+    monthlyData[month] = {
+      month,
+      totalPadi: 0,
+      totalPalawija: 0,
+      pendingVerification: 0,
+      verified: 0,
+      rejected: 0,
+      padiTarget,
+      palawijaTarget
+    };
+  }
+  
+  // Count data by month
+  ubinanData.forEach(item => {
+    const date = new Date(item.tanggal_ubinan);
+    const month = date.getMonth() + 1; // JavaScript months are 0-indexed
+    
+    if (item.komoditas === 'padi') {
+      monthlyData[month].totalPadi++;
+    } else {
+      monthlyData[month].totalPalawija++;
+    }
+    
+    if (item.status === 'sudah_diisi') {
+      monthlyData[month].pendingVerification++;
+    } else if (item.status === 'dikonfirmasi') {
+      monthlyData[month].verified++;
+    } else if (item.status === 'ditolak') {
+      monthlyData[month].rejected++;
+    }
+  });
+  
+  // Calculate percentages and convert to array
+  return Object.values(monthlyData).map((item: any) => {
+    // Calculate percentage based on subround to prevent double counting targets
+    const currentSubround = getSubroundFromMonth(item.month);
+    const monthsInSubround = getMonthsForSubround(currentSubround).length;
+    
+    // Only count target for the current subround
+    const padiTargetForMonth = currentSubround ? padiTarget / monthsInSubround : 0;
+    const palawijaTargetForMonth = currentSubround ? palawijaTarget / monthsInSubround : 0;
+    
+    return {
+      month: item.month,
+      totalPadi: item.totalPadi,
+      totalPalawija: item.totalPalawija,
+      pendingVerification: item.pendingVerification,
+      verified: item.verified,
+      rejected: item.rejected,
+      padiTarget: padiTargetForMonth,
+      palawijaTarget: palawijaTargetForMonth,
+      padi_percentage: padiTargetForMonth > 0 ? (item.totalPadi / padiTargetForMonth) * 100 : 0,
+      palawija_percentage: palawijaTargetForMonth > 0 ? (item.totalPalawija / palawijaTargetForMonth) * 100 : 0
+    };
+  });
 }
