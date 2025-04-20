@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData, UbinanTotals, VerificationStatusCount, PalawijaTypeCount } from "@/types/database-schema";
 
@@ -17,7 +16,22 @@ export async function getProgressDetailBySubround(subround: number, year: number
       return [];
     }
     
-    return data as DetailProgressData[];
+    return data.map((item: any) => ({
+      month: item.month,
+      totalPadi: item.padi_count,
+      totalPalawija: item.palawija_count,
+      padiTarget: item.padi_target,
+      palawijaTarget: item.palawija_target,
+      padi_count: item.padi_count,
+      palawija_count: item.palawija_count,
+      padi_target: item.padi_target,
+      palawija_target: item.palawija_target,
+      pendingVerification: 0,
+      verified: 0,
+      rejected: 0,
+      padi_percentage: item.padi_percentage,
+      palawija_percentage: item.palawija_percentage
+    }));
   } catch (error) {
     console.error("Error in getProgressDetailBySubround:", error);
     return [];

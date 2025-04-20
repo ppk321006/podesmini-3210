@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 
 // Types from the Supabase database
@@ -43,9 +44,10 @@ export type Petugas = {
   created_at?: string;
 };
 
-// Updated DetailProgressData type to match function return values
+// Updated DetailProgressData type to match both naming conventions to avoid breaking changes
 export type DetailProgressData = {
   month: number;
+  // Properties from createProgressDataFromUbinan function
   totalPadi: number;
   totalPalawija: number;
   pendingVerification: number;
@@ -53,6 +55,12 @@ export type DetailProgressData = {
   rejected: number;
   padiTarget: number;
   palawijaTarget: number;
+  // Properties from database functions
+  padi_count?: number;
+  palawija_count?: number;
+  padi_target?: number;
+  palawija_target?: number;
+  // Common properties
   padi_percentage: number;
   palawija_percentage: number;
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -68,6 +67,23 @@ export function ProgressTable({
     );
   };
 
+  // Helper function to get either the old or new property name
+  const getPadiCount = (item: DetailProgressData): number => {
+    return item.padi_count !== undefined ? item.padi_count : item.totalPadi;
+  };
+
+  const getPalawijaCount = (item: DetailProgressData): number => {
+    return item.palawija_count !== undefined ? item.palawija_count : item.totalPalawija;
+  };
+
+  const getPadiTarget = (item: DetailProgressData): number => {
+    return item.padi_target !== undefined ? item.padi_target : item.padiTarget;
+  };
+
+  const getPalawijaTarget = (item: DetailProgressData): number => {
+    return item.palawija_target !== undefined ? item.palawija_target : item.palawijaTarget;
+  };
+
   // Sort function
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -120,13 +136,13 @@ export function ProgressTable({
       if (monthData.month >= 5 && monthData.month <= 8) subroundNum = 2;
       if (monthData.month >= 9) subroundNum = 3;
 
-      subrounds[subroundNum].padi_count += monthData.padi_count;
-      subrounds[subroundNum].palawija_count += monthData.palawija_count;
+      subrounds[subroundNum].padi_count += getPadiCount(monthData);
+      subrounds[subroundNum].palawija_count += getPalawijaCount(monthData);
       
       // Only add targets for the corresponding subround months
       // This fixes the issue where targets were being shown incorrectly
-      subrounds[subroundNum].padi_target += monthData.padi_target;
-      subrounds[subroundNum].palawija_target += monthData.palawija_target;
+      subrounds[subroundNum].padi_target += getPadiTarget(monthData);
+      subrounds[subroundNum].palawija_target += getPalawijaTarget(monthData);
     });
 
     // Calculate percentages
@@ -158,7 +174,6 @@ export function ProgressTable({
       totals.palawija_target += subround.palawija_target;
     });
 
-    // Calculate percentages for totals
     totals.padi_percentage = totals.padi_target > 0 ? (totals.padi_count / totals.padi_target) * 100 : 0;
     totals.palawija_percentage = totals.palawija_target > 0 ? (totals.palawija_count / totals.palawija_target) * 100 : 0;
 
@@ -173,8 +188,8 @@ export function ProgressTable({
   const filteredData = selectedSubround === 0 
     ? data.filter(item => 
         getMonthName(item.month).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(item.padi_target).includes(searchTerm) ||
-        String(item.palawija_target).includes(searchTerm)
+        String(getPadiTarget(item)).includes(searchTerm) ||
+        String(getPalawijaTarget(item)).includes(searchTerm)
       )
     : data.filter(item => {
         // Filter data based on the selected subround
@@ -196,24 +211,24 @@ export function ProgressTable({
         valueB = b.month;
         break;
       case 'padi_target':
-        valueA = a.padi_target;
-        valueB = b.padi_target;
+        valueA = getPadiTarget(a);
+        valueB = getPadiTarget(b);
         break;
       case 'padi_count':
-        valueA = a.padi_count;
-        valueB = b.padi_count;
+        valueA = getPadiCount(a);
+        valueB = getPadiCount(b);
         break;
       case 'padi_percentage':
         valueA = a.padi_percentage;
         valueB = b.padi_percentage;
         break;
       case 'palawija_target':
-        valueA = a.palawija_target;
-        valueB = b.palawija_target;
+        valueA = getPalawijaTarget(a);
+        valueB = getPalawijaTarget(b);
         break;
       case 'palawija_count':
-        valueA = a.palawija_count;
-        valueB = b.palawija_count;
+        valueA = getPalawijaCount(a);
+        valueB = getPalawijaCount(b);
         break;
       case 'palawija_percentage':
         valueA = a.palawija_percentage;
@@ -462,13 +477,13 @@ export function ProgressTable({
                     sortedData.map((month) => (
                       <TableRow key={month.month}>
                         <TableCell>{getMonthName(month.month)}</TableCell>
-                        <TableCell>{month.padi_target}</TableCell>
-                        <TableCell>{month.padi_count}</TableCell>
+                        <TableCell>{getPadiTarget(month)}</TableCell>
+                        <TableCell>{getPadiCount(month)}</TableCell>
                         <TableCell>
                           {renderPercentageBadge(month.padi_percentage)}
                         </TableCell>
-                        <TableCell>{month.palawija_target}</TableCell>
-                        <TableCell>{month.palawija_count}</TableCell>
+                        <TableCell>{getPalawijaTarget(month)}</TableCell>
+                        <TableCell>{getPalawijaCount(month)}</TableCell>
                         <TableCell>
                           {renderPercentageBadge(month.palawija_percentage)}
                         </TableCell>
