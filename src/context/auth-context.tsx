@@ -1,8 +1,8 @@
+
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   user: User | null;
@@ -53,7 +53,6 @@ const DEFAULT_USERS = [
 ];
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +108,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const sessionTimeout = () => {
     logout();
     toast.info("Sesi anda telah berakhir. Silahkan login kembali.");
-    navigate("/login");
+    // Instead of using navigate directly, we'll just let the App.tsx handle navigation
+    // The useEffect in App.tsx that checks auth state will redirect to login
   };
 
   const login = async (username: string, password: string) => {
@@ -139,7 +139,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("potensidesa_user", JSON.stringify(appUser));
         startSessionTimeout();
         toast.success("Login berhasil!");
-        navigate("/dashboard");
         return;
       }
 
@@ -172,7 +171,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("potensidesa_user", JSON.stringify(appUser));
         startSessionTimeout();
         toast.success("Login berhasil!");
-        navigate("/dashboard");
         return;
       } else {
         throw new Error("Username atau password salah");

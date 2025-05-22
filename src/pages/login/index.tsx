@@ -4,14 +4,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // If user is already authenticated via our context
+        if (isAuthenticated) {
+          navigate('/');
+          return;
+        }
+        
+        // Check Supabase session as a backup
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (session) {
@@ -27,7 +36,7 @@ export default function LoginPage() {
     };
 
     checkSession();
-  }, [navigate]);
+  }, [navigate, isAuthenticated]);
 
   if (isCheckingSession) {
     return (
