@@ -42,7 +42,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
           
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

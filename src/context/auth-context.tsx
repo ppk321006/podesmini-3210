@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const sessionTimeout = () => {
     logout();
     toast.info("Sesi anda telah berakhir. Silahkan login kembali.");
-    // Instead of using navigate directly, we'll just let the App.tsx handle navigation
+    // Instead of using navigate directly, we'll let the App.tsx handle navigation
     // The useEffect in App.tsx that checks auth state will redirect to login
   };
 

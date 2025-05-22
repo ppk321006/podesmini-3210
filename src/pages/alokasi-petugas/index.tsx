@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { 
   Card, CardContent, CardHeader, 
   CardTitle, CardDescription 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { 
   Table, TableBody, TableCell, TableHead, 
   TableHeader, TableRow 
@@ -36,6 +36,7 @@ export default function AlokasiPetugasPage() {
 
   const { user } = useAuth();
 
+  // Only fetch data once when component mounts or when user changes
   useEffect(() => {
     if (user) {
       fetchData();
@@ -139,7 +140,7 @@ export default function AlokasiPetugasPage() {
                   </TableRow>
                 ) : (
                   desaList.map((desa: any) => (
-                    <TableRow key={desa.id}>
+                    <TableRow key={desa.id || desa.desa_id}>
                       <TableCell>{desa.kecamatan_name}</TableCell>
                       <TableCell>{desa.desa_name}</TableCell>
                       <TableCell>{desa.ppl_name || "-"}</TableCell>
@@ -164,7 +165,7 @@ export default function AlokasiPetugasPage() {
           <div className="grid gap-4 py-4">
             <div>
               <Label htmlFor="desa">Desa</Label>
-              <Select onValueChange={setSelectedDesa}>
+              <Select onValueChange={setSelectedDesa} value={selectedDesa}>
                 <SelectTrigger id="desa">
                   <SelectValue placeholder="Pilih Desa" />
                 </SelectTrigger>
@@ -179,7 +180,7 @@ export default function AlokasiPetugasPage() {
             </div>
             <div>
               <Label htmlFor="ppl">PPL</Label>
-              <Select onValueChange={setSelectedPpl}>
+              <Select onValueChange={setSelectedPpl} value={selectedPpl}>
                 <SelectTrigger id="ppl">
                   <SelectValue placeholder="Pilih PPL" />
                 </SelectTrigger>
@@ -194,7 +195,7 @@ export default function AlokasiPetugasPage() {
             </div>
             <div>
               <Label htmlFor="pml">PML (Opsional)</Label>
-              <Select onValueChange={setSelectedPml}>
+              <Select onValueChange={setSelectedPml} value={selectedPml}>
                 <SelectTrigger id="pml">
                   <SelectValue placeholder="Pilih PML" />
                 </SelectTrigger>

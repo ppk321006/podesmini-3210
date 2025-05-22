@@ -1,6 +1,5 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ExportDataPage() {
   return (
@@ -8,9 +7,12 @@ export default function ExportDataPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Export Data</CardTitle>
+          <CardDescription>
+            Export data ubinan dalam berbagai format
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <p>Export data functionality will be implemented here.</p>
+          <p>Fungsi export data sedang dalam pengembangan.</p>
         </CardContent>
       </Card>
     </div>

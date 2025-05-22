@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -36,19 +37,19 @@ interface SidebarItem {
 export const navigation = [
   {
     title: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboard,
     role: [UserRole.ADMIN, UserRole.PML, UserRole.PPL],
   },
   {
     title: "Progres Ubinan",
-    href: "/progres",
+    href: "/progress-ubinan",
     icon: BarChart3,
     role: [UserRole.ADMIN, UserRole.PML, UserRole.PPL],
   },
   {
     title: "Input Data",
-    href: "/input-data",
+    href: "/input-ubinan",
     icon: ClipboardEdit,
     role: [UserRole.PPL],
   },
@@ -117,27 +118,27 @@ export function Sidebar({ isOpen }: SidebarProps) {
   const sidebarItems: SidebarItem[] = [
     {
       title: "Dashboard",
-      icon: Home,
-      href: "/",
-      allowedRoles: [UserRole.ADMIN, UserRole.VIEWER],
+      icon: LayoutDashboard,
+      href: "/dashboard",
+      allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
     },
     {
-      title: "Progres Ubinan",
+      title: "Progress Ubinan",
       icon: BarChart3,
-      href: "/progres",
+      href: "/progress-ubinan",
       allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
+    },
+    {
+      title: "Input Data Ubinan",
+      icon: FileText,
+      href: "/input-ubinan",
+      allowedRoles: [UserRole.PPL],
     },
     {
       title: "Manajemen Petugas",
       icon: Users,
       href: "/petugas",
       allowedRoles: [UserRole.ADMIN],
-    },
-    {
-      title: "Input Data Ubinan",
-      icon: FileText,
-      href: "/input-data",
-      allowedRoles: [UserRole.PPL],
     },
     {
       title: "Alokasi Wilayah",
@@ -147,9 +148,15 @@ export function Sidebar({ isOpen }: SidebarProps) {
     },
     {
       title: "Alokasi Petugas",
-      icon: Workflow,
+      icon: UserCog,
       href: "/alokasi-petugas",
       allowedRoles: [UserRole.ADMIN],
+    },
+    {
+      title: "Rekap Progres Petugas",
+      icon: FileSpreadsheet,
+      href: "/petugas-progres",
+      allowedRoles: [UserRole.ADMIN, UserRole.PML],
     },
     {
       title: "Verifikasi Data",
@@ -163,17 +170,11 @@ export function Sidebar({ isOpen }: SidebarProps) {
       href: "/profil",
       allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
     },
-    {
-      title: "Pengaturan",
-      icon: Settings,
-      href: "/pengaturan",
-      allowedRoles: [UserRole.ADMIN],
-    },
   ];
 
   // Filter sidebar items based on user role
   const filteredItems = sidebarItems.filter(item => {
-    if (!user) return item.href === "/"; // Only show dashboard for non-authenticated users
+    if (!user) return false; // Don't show any items if user isn't authenticated
     return item.allowedRoles.includes(user.role);
   });
 
