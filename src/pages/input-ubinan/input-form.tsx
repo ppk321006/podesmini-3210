@@ -195,7 +195,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
 
         const { error } = await supabase
           .from('ubinan_data')
-          .update(updateData as CustomTables['ubinan_data']['Update'])
+          .update(updateData)
           .eq('id', initialData.id);
 
         if (error) throw error;
@@ -216,7 +216,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
 
         const { error } = await supabase
           .from('ubinan_data')
-          .insert(insertData as CustomTables['ubinan_data']['Insert']);
+          .insert(insertData);
 
         if (error) throw error;
         toast.success("Data berhasil disimpan");

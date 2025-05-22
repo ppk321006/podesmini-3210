@@ -103,9 +103,10 @@ export function VerificationDialog({
         updated_at: new Date().toISOString()
       };
 
+      // Type cast to ensure we're using the correct types for update
       const { data: updatedData, error } = await supabase
         .from('ubinan_data')
-        .update(updateData as CustomTables['ubinan_data']['Update'])
+        .update(updateData)
         .eq('id', data.id)
         .select('*')
         .single();

@@ -93,6 +93,7 @@ export default function InputUbinanPage() {
         return;
       }
 
+      // We need to ensure we properly type the data
       const processedData = (data || []).map((item: any) => {
         const desa_name = item.nks?.desa?.name || item.segmen?.desa?.name || "-";
         const kecamatan_name = item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || "-";
