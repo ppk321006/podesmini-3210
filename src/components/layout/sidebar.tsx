@@ -114,6 +114,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
     return item.allowedRoles.includes(user.role);
   });
 
+  // Check if a path is active, handling nested paths
+  const isActive = (href: string) => {
+    if (href === '/dashboard' && pathname === '/') return true;
+    return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+  };
+
   return (
     <aside
       className={cn(
@@ -136,8 +142,9 @@ export function Sidebar({ isOpen }: SidebarProps) {
                   !isOpen && "justify-center md:px-2 md:py-2"
                 )
               }
+              end={item.href === '/dashboard'} // Only make exact match for dashboard
             >
-              <item.icon className={cn("h-5 w-5", pathname === item.href ? "text-simonita-green" : "text-gray-400")} />
+              <item.icon className={cn("h-5 w-5", isActive(item.href) ? "text-simonita-green" : "text-gray-400")} />
               {(isOpen || isMobile) && <span className="ml-3">{item.title}</span>}
             </NavLink>
           ))}

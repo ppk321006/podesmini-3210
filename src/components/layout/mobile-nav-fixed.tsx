@@ -22,6 +22,12 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
   const location = useLocation();
   const { user } = useAuth();
 
+  // Check if a path is active, handling nested paths
+  const isActive = (href: string) => {
+    if (href === '/dashboard' && location.pathname === '/') return true;
+    return location.pathname === href || (href !== '/dashboard' && location.pathname.startsWith(href));
+  };
+
   // Navigation items based on user role
   const navItems = React.useMemo(() => {
     // Default items
@@ -72,7 +78,7 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
               to={item.href}
               className={cn(
                 "flex flex-col items-center justify-center py-1 px-2 text-xs",
-                location.pathname === item.href || (item.href !== "/dashboard" && location.pathname.startsWith(item.href))
+                isActive(item.href)
                   ? "text-primary"
                   : "text-muted-foreground hover:text-primary"
               )}

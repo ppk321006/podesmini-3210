@@ -32,11 +32,11 @@ export default function AlokasiPetugasPage() {
   const [selectedPpl, setSelectedPpl] = useState("");
   const [selectedPml, setSelectedPml] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { user } = useAuth();
 
-  // Only fetch data once when component mounts or when user changes
+  // Only fetch data once when component mounts
   useEffect(() => {
     if (user) {
       fetchData();
@@ -46,15 +46,16 @@ export default function AlokasiPetugasPage() {
   async function fetchData() {
     setIsLoading(true);
     try {
+      // Use Promise.all to fetch data concurrently
       const [desaResponse, pplResponse, pmlResponse] = await Promise.all([
         getAllocatedDesaList(),
         supabase.from('users').select('*').eq('role', 'ppl'),
         supabase.from('users').select('*').eq('role', 'pml')
       ]);
 
-      setDesaList(desaResponse);
-      setPplList(pplResponse.data || []);
-      setPmlList(pmlResponse.data || []);
+      setDesaList(desaResponse || []);
+      setPplList(pplResponse?.data || []);
+      setPmlList(pmlResponse?.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -138,11 +139,17 @@ export default function AlokasiPetugasPage() {
                       Loading...
                     </TableCell>
                   </TableRow>
+                ) : desaList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8">
+                      Tidak ada data
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   desaList.map((desa: any) => (
                     <TableRow key={desa.id || desa.desa_id}>
-                      <TableCell>{desa.kecamatan_name}</TableCell>
-                      <TableCell>{desa.desa_name}</TableCell>
+                      <TableCell>{desa.kecamatan_name || "-"}</TableCell>
+                      <TableCell>{desa.desa_name || "-"}</TableCell>
                       <TableCell>{desa.ppl_name || "-"}</TableCell>
                       <TableCell>{desa.pml_name || "-"}</TableCell>
                     </TableRow>
@@ -151,7 +158,7 @@ export default function AlokasiPetugasPage() {
               </TableBody>
             </Table>
           </div>
-          <Button onClick={handleOpenDialog} className="mt-4">
+          <Button onClick={handleOpenDialog} className="mt-4" disabled={isLoading}>
             Alokasikan Petugas
           </Button>
         </CardContent>
@@ -166,7 +173,7 @@ export default function AlokasiPetugasPage() {
             <div>
               <Label htmlFor="desa">Desa</Label>
               <Select onValueChange={setSelectedDesa} value={selectedDesa}>
-                <SelectTrigger id="desa">
+                <SelectTrigger id="desa" className="w-full">
                   <SelectValue placeholder="Pilih Desa" />
                 </SelectTrigger>
                 <SelectContent>
@@ -181,7 +188,7 @@ export default function AlokasiPetugasPage() {
             <div>
               <Label htmlFor="ppl">PPL</Label>
               <Select onValueChange={setSelectedPpl} value={selectedPpl}>
-                <SelectTrigger id="ppl">
+                <SelectTrigger id="ppl" className="w-full">
                   <SelectValue placeholder="Pilih PPL" />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,7 +203,7 @@ export default function AlokasiPetugasPage() {
             <div>
               <Label htmlFor="pml">PML (Opsional)</Label>
               <Select onValueChange={setSelectedPml} value={selectedPml}>
-                <SelectTrigger id="pml">
+                <SelectTrigger id="pml" className="w-full">
                   <SelectValue placeholder="Pilih PML" />
                 </SelectTrigger>
                 <SelectContent>
@@ -214,7 +221,7 @@ export default function AlokasiPetugasPage() {
               Batal
             </Button>
             <Button onClick={handleAllocate} disabled={isLoading}>
-              Alokasikan
+              {isLoading ? "Memproses..." : "Alokasikan"}
             </Button>
           </div>
         </DialogContent>
