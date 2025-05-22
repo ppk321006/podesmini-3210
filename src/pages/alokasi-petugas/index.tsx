@@ -3,829 +3,304 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableTargetGroup } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { getPPLList, getPMLList, getAllocationStatus, assignPPLToNKS, removePPLAssignment } from "@/services/wilayah-api";
-import { AllocationStatus, Petugas } from "@/types/database-schema";
-import { Loader2, Plus, Search, Trash2, X, Filter } from "lucide-react";
+import { getKecamatans, getDesasByKecamatan } from "@/services/api";
+import { allocateDesa, getAllocatedDesaList } from "@/services/allocation-service";
 import { useAuth } from "@/context/auth-context";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 
 export default function AlokasiPetugasPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("alokasikan");
-  const [selectedPPL, setSelectedPPL] = useState<string>("");
-  const [selectedPML, setSelectedPML] = useState<string>("");
-  const [selectedListViewPPL, setSelectedListViewPPL] = useState<string>("");
-  const [selectedAllocations, setSelectedAllocations] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [filterOpen, setFilterOpen] = useState(false);
   
-  // Advanced filters
-  const [filterTypeNKS, setFilterTypeNKS] = useState<boolean>(true);
-  const [filterTypeSegmen, setFilterTypeSegmen] = useState<boolean>(true);
-  const [filterAllocated, setFilterAllocated] = useState<boolean>(true);
-  const [filterUnallocated, setFilterUnallocated] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedKecamatanId, setSelectedKecamatanId] = useState("");
+  const [selectedDesaId, setSelectedDesaId] = useState("");
+  const [selectedPPLId, setSelectedPPLId] = useState("");
   
-  // Get all PPL
+  const { data: kecamatanList = [] } = useQuery({
+    queryKey: ["kecamatan"],
+    queryFn: getKecamatans,
+  });
+  
+  const { data: desaList = [], isLoading: isLoadingDesa } = useQuery({
+    queryKey: ["desa", selectedKecamatanId],
+    queryFn: () => getDesasByKecamatan(selectedKecamatanId),
+    enabled: !!selectedKecamatanId,
+  });
+
   const { data: pplList = [], isLoading: isLoadingPPL } = useQuery({
-    queryKey: ["ppl_list"],
-    queryFn: () => getPPLList(),
-  });
+    queryKey: ["petugas", "ppl", user?.role, user?.id],
+    queryFn: async () => {
+      // For now, let's fetch PPL based on the current user's role
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, username, pml_id')
+        .eq('role', 'ppl')
+        .order('name');
+        
+      if (error) throw error;
 
-  // Get all PML
-  const { data: pmlList = [], isLoading: isLoadingPML } = useQuery({
-    queryKey: ["pml_list"],
-    queryFn: () => getPMLList(),
-  });
-
-  // Get allocation status
-  const { 
-    data: allocationStatus = [], 
-    isLoading: isLoadingAllocations, 
-    refetch: refetchAllocations 
-  } = useQuery({
-    queryKey: ["allocation_status"],
-    queryFn: () => getAllocationStatus(),
-  });
-
-  // Filter allocations for search and filtering in the "Status Alokasi" tab
-  const statusFilteredAllocations = allocationStatus.filter((item) => {
-    // Apply type filter
-    if (!filterTypeNKS && item.type === "nks") return false;
-    if (!filterTypeSegmen && item.type === "segmen") return false;
-    
-    // Apply allocation status filter
-    if (!filterAllocated && item.is_allocated) return false;
-    if (!filterUnallocated && !item.is_allocated) return false;
-    
-    // Apply search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        item.code.toLowerCase().includes(query) ||
-        item.desa_name.toLowerCase().includes(query) ||
-        item.kecamatan_name.toLowerCase().includes(query)
-      );
-    }
-    
-    return true;
-  });
-
-  // Filter allocations for the "Lihat Alokasi" tab
-  const pplAllocations = allocationStatus.filter((item) => {
-    if (!selectedListViewPPL) return false;
-    return item.is_allocated && item.ppl_id === selectedListViewPPL;
-  });
-
-  // Assign PPL to NKS mutation
-  const assignPPLMutation = useMutation({
-    mutationFn: async (allocations: string[]) => {
-      if (!selectedPPL || !selectedPML) {
-        throw new Error("Pilih PPL dan PML terlebih dahulu");
+      // If current user is PML, filter PPLs assigned to them
+      if (user?.role === 'pml') {
+        return (data || []).filter(ppl => ppl.pml_id === user.id);
       }
-
-      const results = await Promise.all(
-        allocations.map((allocationId) =>
-          assignPPLToNKS(allocationId, selectedPPL, selectedPML)
-        )
-      );
-
-      return results;
+      
+      return data || [];
     },
+    enabled: !!user,
+  });
+  
+  const { data: allocatedDesa = [], isLoading: isLoadingAllocated } = useQuery({
+    queryKey: ["allocated_desa"],
+    queryFn: getAllocatedDesaList,
+  });
+  
+  const allocateDesaMutation = useMutation({
+    mutationFn: (values: { 
+      desaId: string;
+      pplId: string;
+    }) => allocateDesa(
+      values.desaId,
+      values.pplId, 
+      user?.role === 'pml' ? user.id : null
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allocation_status"] });
-      setSelectedAllocations([]);
-      toast.success("Berhasil mengalokasikan petugas");
-    },
-    onError: (error) => {
-      console.error("Error assigning PPL:", error);
-      toast.error("Gagal mengalokasikan petugas");
+      queryClient.invalidateQueries({ queryKey: ["allocated_desa"] });
+      setSelectedDesaId("");
     },
   });
+  
+  const handleAllocate = () => {
+    if (!selectedDesaId || !selectedPPLId) {
+      toast.error("Pilih desa dan PPL terlebih dahulu");
+      return;
+    }
+    
+    const desaAlreadyAllocated = allocatedDesa.some(
+      desa => desa.desa_id === selectedDesaId && desa.is_allocated
+    );
+    
+    if (desaAlreadyAllocated) {
+      toast.error("Desa ini sudah dialokasikan");
+      return;
+    }
+    
+    allocateDesaMutation.mutate({
+      desaId: selectedDesaId,
+      pplId: selectedPPLId
+    });
+  };
 
-  // Remove PPL assignment mutation
-  const removePPLMutation = useMutation({
-    mutationFn: async (params: { allocationId: string; pplId: string }) => {
-      return removePPLAssignment(params.allocationId, params.pplId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allocation_status"] });
-      toast.success("Berhasil menghapus alokasi petugas");
-    },
-    onError: (error) => {
-      console.error("Error removing PPL assignment:", error);
-      toast.error("Gagal menghapus alokasi petugas");
-    },
+  // Filter allocated desa based on search term
+  const filteredAllocatedDesa = allocatedDesa.filter(desa => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      desa.desa_name?.toLowerCase().includes(searchLower) ||
+      desa.kecamatan_name?.toLowerCase().includes(searchLower) ||
+      desa.ppl_name?.toLowerCase().includes(searchLower)
+    );
   });
-
-  // Handle selection change
-  const handleSelectionChange = (allocationId: string) => {
-    if (selectedAllocations.includes(allocationId)) {
-      setSelectedAllocations(selectedAllocations.filter((id) => id !== allocationId));
-    } else {
-      setSelectedAllocations([...selectedAllocations, allocationId]);
+  
+  const getStatusBadge = (status?: string | null) => {
+    if (!status) return <Badge variant="outline">Belum</Badge>;
+    
+    switch (status) {
+      case "belum":
+        return <Badge variant="outline">Belum</Badge>;
+      case "proses":
+        return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
+      case "selesai":
+        return <Badge className="bg-green-500 hover:bg-green-600">Selesai</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
-  };
-
-  // Handle assign button click
-  const handleAssign = () => {
-    if (selectedAllocations.length === 0) {
-      toast.error("Pilih minimal satu NKS/Segmen");
-      return;
-    }
-
-    if (!selectedPPL) {
-      toast.error("Pilih PPL terlebih dahulu");
-      return;
-    }
-
-    if (!selectedPML) {
-      toast.error("Pilih PML terlebih dahulu");
-      return;
-    }
-
-    assignPPLMutation.mutate(selectedAllocations);
-  };
-
-  // Handle remove assignment
-  const handleRemoveAssignment = (allocationId: string, pplId: string) => {
-    removePPLMutation.mutate({ allocationId, pplId });
-  };
-
-  useEffect(() => {
-    // Reset selected allocations when filter changes
-    setSelectedAllocations([]);
-  }, [filterTypeNKS, filterTypeSegmen, filterAllocated, filterUnallocated]);
-
-  // Set current user's ID as selectedPML if they are a PML
-  useEffect(() => {
-    if (user && user.role === "pml") {
-      setSelectedPML(user.id);
-    }
-  }, [user]);
-
-  // Get the PPL name by ID
-  const getPPLName = (pplId: string): string => {
-    const ppl = pplList.find((p) => p.id === pplId);
-    return ppl ? ppl.name : "-";
-  };
-
-  // Get the PML name by ID
-  const getPMLName = (pmlId: string): string => {
-    const pml = pmlList.find((p) => p.id === pmlId);
-    return pml ? pml.name : "-";
   };
 
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Alokasi Petugas</h1>
-
-      <Tabs defaultValue="alokasikan" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-simonita-cream mb-8">
-          <TabsTrigger value="alokasikan">Alokasikan Petugas</TabsTrigger>
-          <TabsTrigger value="lihat">Lihat Alokasi Petugas</TabsTrigger>
-          <TabsTrigger value="status">Status Alokasi</TabsTrigger>
-        </TabsList>
-
-        {/* Alokasikan Petugas Tab */}
-        <TabsContent value="alokasikan">
-          <Card className="mb-6">
+      
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <Card>
             <CardHeader>
-              <CardTitle>Alokasi Wilayah ke Petugas</CardTitle>
+              <CardTitle>Tambah Alokasi</CardTitle>
               <CardDescription>
-                Pilih wilayah dan petugas untuk melakukan alokasi
+                Tetapkan desa untuk petugas pencacah
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Selection Fields */}
-                <div className="space-y-4">
-                  {/* PPL Selection */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Petugas PPL
-                    </label>
-                    <Select
-                      value={selectedPPL}
-                      onValueChange={setSelectedPPL}
-                      disabled={isLoadingPPL}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih PPL" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {isLoadingPPL ? (
-                          <div className="flex items-center justify-center p-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">Memuat...</span>
-                          </div>
-                        ) : pplList.length === 0 ? (
-                          <div className="p-2 text-center text-muted-foreground">
-                            Tidak ada PPL
-                          </div>
-                        ) : (
-                          pplList.map((ppl) => (
-                            <SelectItem key={ppl.id} value={ppl.id}>
-                              {ppl.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* PML Selection */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Petugas PML (Pengawas)
-                    </label>
-                    <Select 
-                      value={selectedPML} 
-                      onValueChange={setSelectedPML} 
-                      disabled={isLoadingPML || (user?.role === "pml")}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih PML" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {isLoadingPML ? (
-                          <div className="flex items-center justify-center p-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">Memuat...</span>
-                          </div>
-                        ) : pmlList.length === 0 ? (
-                          <div className="p-2 text-center text-muted-foreground">
-                            Tidak ada PML
-                          </div>
-                        ) : (
-                          pmlList.map((pml) => (
-                            <SelectItem key={pml.id} value={pml.id}>
-                              {pml.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="kecamatan">Kecamatan</Label>
+                  <Select 
+                    value={selectedKecamatanId} 
+                    onValueChange={(value) => {
+                      setSelectedKecamatanId(value);
+                      setSelectedDesaId("");
+                    }}
+                  >
+                    <SelectTrigger id="kecamatan">
+                      <SelectValue placeholder="Pilih Kecamatan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {kecamatanList.map((kecamatan: any) => (
+                        <SelectItem key={kecamatan.id} value={kecamatan.id}>
+                          {kecamatan.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
-                {/* Search and Filter */}
-                <div className="space-y-4">
-                  <div className="relative flex items-center">
-                    <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari NKS/Segmen..."
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      value={searchQuery}
-                      className="pl-8 w-full"
-                    />
-                    <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="icon" className="ml-2">
-                          <Filter className="h-4 w-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-3" align="end">
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm">Tipe Wilayah</h4>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge 
-                              className="cursor-pointer" 
-                              variant="outline" 
-                              style={{
-                                backgroundColor: filterTypeNKS && filterTypeSegmen ? "#4a6741" : undefined,
-                                color: filterTypeNKS && filterTypeSegmen ? "white" : undefined
-                              }}
-                              onClick={() => {
-                                setFilterTypeNKS(true);
-                                setFilterTypeSegmen(true);
-                              }}
+                <div className="space-y-2">
+                  <Label htmlFor="desa">Desa</Label>
+                  <Select 
+                    value={selectedDesaId} 
+                    onValueChange={setSelectedDesaId}
+                    disabled={isLoadingDesa || !selectedKecamatanId}
+                  >
+                    <SelectTrigger id="desa">
+                      <SelectValue 
+                        placeholder={
+                          isLoadingDesa 
+                            ? "Memuat..." 
+                            : !selectedKecamatanId 
+                            ? "Pilih kecamatan dulu" 
+                            : "Pilih Desa"
+                        } 
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {desaList.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          Tidak ada desa di kecamatan ini
+                        </SelectItem>
+                      ) : (
+                        desaList.map((desa: any) => {
+                          const isAllocated = allocatedDesa.some(
+                            ad => ad.desa_id === desa.id && ad.is_allocated
+                          );
+                          return (
+                            <SelectItem 
+                              key={desa.id} 
+                              value={desa.id}
+                              disabled={isAllocated}
                             >
-                              Semua Tipe
-                            </Badge>
-                            <Badge 
-                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                              variant="outline" 
-                              style={{
-                                backgroundColor: filterTypeNKS && !filterTypeSegmen ? "#4a6741" : undefined,
-                                color: filterTypeNKS && !filterTypeSegmen ? "white" : undefined
-                              }}
-                              onClick={() => {
-                                setFilterTypeNKS(true);
-                                setFilterTypeSegmen(false);
-                              }}
-                            >
-                              NKS
-                            </Badge>
-                            <Badge 
-                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                              variant="outline" 
-                              style={{
-                                backgroundColor: !filterTypeNKS && filterTypeSegmen ? "#4a6741" : undefined,
-                                color: !filterTypeNKS && filterTypeSegmen ? "white" : undefined
-                              }}
-                              onClick={() => {
-                                setFilterTypeNKS(false);
-                                setFilterTypeSegmen(true);
-                              }}
-                            >
-                              Segmen
-                            </Badge>
-                          </div>
-                          
-                          <h4 className="font-medium text-sm mt-3">Status Alokasi</h4>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge 
-                              className="cursor-pointer" 
-                              variant="outline" 
-                              style={{
-                                backgroundColor: filterAllocated && filterUnallocated ? "#4a6741" : undefined,
-                                color: filterAllocated && filterUnallocated ? "white" : undefined
-                              }}
-                              onClick={() => {
-                                setFilterAllocated(true);
-                                setFilterUnallocated(true);
-                              }}
-                            >
-                              Semua Status
-                            </Badge>
-                            <Badge 
-                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                              variant="outline" 
-                              style={{
-                                backgroundColor: filterAllocated && !filterUnallocated ? "#4a6741" : undefined,
-                                color: filterAllocated && !filterUnallocated ? "white" : undefined
-                              }}
-                              onClick={() => {
-                                setFilterAllocated(true);
-                                setFilterUnallocated(false);
-                              }}
-                            >
-                              Teralokasi
-                            </Badge>
-                            <Badge 
-                              className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                              variant="outline" 
-                              style={{
-                                backgroundColor: !filterAllocated && filterUnallocated ? "#4a6741" : undefined,
-                                color: !filterAllocated && filterUnallocated ? "white" : undefined
-                              }}
-                              onClick={() => {
-                                setFilterAllocated(false);
-                                setFilterUnallocated(true);
-                              }}
-                            >
-                              Belum Dialokasi
-                            </Badge>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                              {desa.name} {isAllocated && "(Sudah dialokasikan)"}
+                            </SelectItem>
+                          );
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="ppl">PPL (Petugas Pencacah)</Label>
+                  <Select 
+                    value={selectedPPLId} 
+                    onValueChange={setSelectedPPLId}
+                    disabled={isLoadingPPL}
+                  >
+                    <SelectTrigger id="ppl">
+                      <SelectValue placeholder={isLoadingPPL ? "Memuat..." : "Pilih PPL"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pplList.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          {user?.role === 'pml' 
+                            ? "Tidak ada PPL yang ditugaskan kepada Anda" 
+                            : "Tidak ada data PPL"}
+                        </SelectItem>
+                      ) : (
+                        pplList.map((ppl: any) => (
+                          <SelectItem key={ppl.id} value={ppl.id}>
+                            {ppl.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button 
+                  className="w-full" 
+                  onClick={handleAllocate}
+                  disabled={allocateDesaMutation.isPending || !selectedDesaId || !selectedPPLId}
+                >
+                  {allocateDesaMutation.isPending ? "Menyimpan..." : "Simpan Alokasi"}
+                </Button>
               </div>
             </CardContent>
           </Card>
-
-          {/* NKS/Segmen List Card */}
-          <Card className="mt-6">
-            <CardContent className="p-0 sm:p-6">
-              {isLoadingAllocations ? (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <span className="ml-2">Memuat data alokasi...</span>
+        </div>
+        
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader className="space-y-0">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+                <CardTitle>Daftar Alokasi</CardTitle>
+                <div className="flex-1 md:max-w-xs">
+                  <Input
+                    placeholder="Cari desa atau PPL..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-              ) : statusFilteredAllocations.length === 0 ? (
-                <div className="text-center p-8 text-muted-foreground">
-                  Tidak ada data NKS/Segmen yang sesuai filter
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingAllocated ? (
+                <div className="text-center py-4">Memuat data alokasi...</div>
+              ) : filteredAllocatedDesa.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  {searchTerm ? "Tidak ada hasil pencarian" : "Belum ada alokasi"}
                 </div>
               ) : (
-                <>
-                  <div className="mb-4 flex justify-between items-center px-4 sm:px-0">
-                    <span className="text-sm text-muted-foreground">
-                      {selectedAllocations.length} item dipilih dari {statusFilteredAllocations.length} total
-                    </span>
-                    <Button 
-                      onClick={handleAssign} 
-                      disabled={selectedAllocations.length === 0 || !selectedPPL || !selectedPML || assignPPLMutation.isPending}
-                      className="bg-simonita-green hover:bg-simonita-green/80"
-                    >
-                      {assignPPLMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Menyimpan...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Alokasikan
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="border rounded-md overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">
-                            <div className="text-center">#</div>
-                          </TableHead>
-                          <TableHead>Tipe</TableHead>
-                          <TableHead>Kode</TableHead>
-                          <TableHead>Desa/Kecamatan</TableHead>
-                          <TableHead>Target</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {statusFilteredAllocations
-                          .filter(allocation => 
-                            searchQuery ? 
-                              allocation.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              allocation.desa_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              allocation.kecamatan_name.toLowerCase().includes(searchQuery.toLowerCase())
-                              : true
-                          )
-                          .map((allocation) => (
-                          <TableRow key={allocation.id}>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                checked={selectedAllocations.includes(allocation.id)}
-                                onChange={() => handleSelectionChange(allocation.id)}
-                                disabled={allocation.is_allocated}
-                                className="h-4 w-4 rounded border-gray-300"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-gray-100 text-gray-800">
-                                {allocation.type === "nks" ? "NKS" : "Segmen"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{allocation.code}</TableCell>
-                            <TableCell>{allocation.desa_name} / {allocation.kecamatan_name}</TableCell>
-                            <TableCell>
-                              <TableTargetGroup
-                                padiTarget={allocation.padi_target}
-                                palawijaTarget={allocation.palawija_target}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {allocation.is_allocated ? (
-                                <Badge className="bg-green-100 text-green-800">
-                                  Teralokasi
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-gray-100">
-                                  Belum Dialokasi
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {allocation.is_allocated && allocation.ppl_id && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    handleRemoveAssignment(allocation.id, allocation.ppl_id!)
-                                  }
-                                  disabled={removePPLMutation.isPending}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Lihat Alokasi Petugas Tab */}
-        <TabsContent value="lihat">
-          <Card>
-            <CardHeader>
-              <CardTitle>Alokasi Petugas PPL</CardTitle>
-              <CardDescription>
-                Lihat alokasi wilayah tugas untuk PPL
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* PPL Selection with enhanced UI */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={false}
-                      className="w-full md:w-80 flex justify-between"
-                    >
-                      {selectedListViewPPL ? getPPLName(selectedListViewPPL) : "Pilih Petugas PPL..."}
-                      <Search className="ml-2 h-4 w-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full md:w-80 p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Cari petugas PPL..." />
-                      <CommandList>
-                        <CommandEmpty>Petugas tidak ditemukan.</CommandEmpty>
-                        <CommandGroup>
-                          {pplList.map((ppl) => (
-                            <CommandItem
-                              key={ppl.id}
-                              value={ppl.id}
-                              onSelect={() => {
-                                setSelectedListViewPPL(ppl.id);
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Avatar className="h-7 w-7">
-                                <AvatarFallback>{ppl.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{ppl.name}</p>
-                                <p className="text-xs text-muted-foreground">{ppl.username}</p>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-
-                {/* Allocation List */}
-                {selectedListViewPPL && (
-                  <div className="border rounded-md overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Tipe</TableHead>
-                          <TableHead>Kode</TableHead>
-                          <TableHead>Desa</TableHead>
-                          <TableHead>Kecamatan</TableHead>
-                          <TableHead>Target</TableHead>
-                          <TableHead>PML</TableHead>
-                          <TableHead>Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pplAllocations.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-4">
-                              Tidak ada data alokasi untuk PPL ini
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          pplAllocations.map((allocation) => (
-                            <TableRow key={allocation.id}>
-                              <TableCell>
-                                <Badge className="bg-gray-100 text-gray-800">
-                                  {allocation.type === "nks" ? "NKS" : "Segmen"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-medium">{allocation.code}</TableCell>
-                              <TableCell>{allocation.desa_name}</TableCell>
-                              <TableCell>{allocation.kecamatan_name}</TableCell>
-                              <TableCell>
-                                <TableTargetGroup
-                                  padiTarget={allocation.padi_target}
-                                  palawijaTarget={allocation.palawija_target}
-                                />
-                              </TableCell>
-                              <TableCell>{allocation.pml_name || getPMLName(allocation.pml_id!)}</TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleRemoveAssignment(allocation.id, allocation.ppl_id!)}
-                                  disabled={removePPLMutation.isPending}
-                                  className="flex items-center gap-1"
-                                >
-                                  <X className="h-4 w-4" />
-                                  Hapus Alokasi
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Status Alokasi Tab */}
-        <TabsContent value="status">
-          <Card>
-            <CardHeader>
-              <CardTitle>Status Alokasi Wilayah</CardTitle>
-              <CardDescription>
-                Pantau status alokasi NKS dan Segmen ke Petugas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Search and Filter */}
-                <div className="space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Cari berdasarkan kode, desa, atau kecamatan..."
-                      className="pl-8"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="flex gap-2 flex-wrap">
-                    <div className="flex gap-2 items-center mr-4">
-                      <Badge 
-                        className="cursor-pointer" 
-                        variant="outline" 
-                        style={{
-                          backgroundColor: filterTypeNKS && filterTypeSegmen ? "#4a6741" : undefined,
-                          color: filterTypeNKS && filterTypeSegmen ? "white" : undefined
-                        }}
-                        onClick={() => {
-                          setFilterTypeNKS(true);
-                          setFilterTypeSegmen(true);
-                        }}
-                      >
-                        Semua Tipe
-                      </Badge>
-                      <Badge 
-                        className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                        variant="outline" 
-                        style={{
-                          backgroundColor: filterTypeNKS && !filterTypeSegmen ? "#4a6741" : undefined,
-                          color: filterTypeNKS && !filterTypeSegmen ? "white" : undefined
-                        }}
-                        onClick={() => {
-                          setFilterTypeNKS(true);
-                          setFilterTypeSegmen(false);
-                        }}
-                      >
-                        NKS
-                      </Badge>
-                      <Badge 
-                        className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                        variant="outline" 
-                        style={{
-                          backgroundColor: !filterTypeNKS && filterTypeSegmen ? "#4a6741" : undefined,
-                          color: !filterTypeNKS && filterTypeSegmen ? "white" : undefined
-                        }}
-                        onClick={() => {
-                          setFilterTypeNKS(false);
-                          setFilterTypeSegmen(true);
-                        }}
-                      >
-                        Segmen
-                      </Badge>
-                    </div>
-
-                    <div className="flex gap-2 items-center">
-                      <Badge 
-                        className="cursor-pointer" 
-                        variant="outline" 
-                        style={{
-                          backgroundColor: filterAllocated && filterUnallocated ? "#4a6741" : undefined,
-                          color: filterAllocated && filterUnallocated ? "white" : undefined
-                        }}
-                        onClick={() => {
-                          setFilterAllocated(true);
-                          setFilterUnallocated(true);
-                        }}
-                      >
-                        Semua Status
-                      </Badge>
-                      <Badge 
-                        className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                        variant="outline" 
-                        style={{
-                          backgroundColor: filterAllocated && !filterUnallocated ? "#4a6741" : undefined,
-                          color: filterAllocated && !filterUnallocated ? "white" : undefined
-                        }}
-                        onClick={() => {
-                          setFilterAllocated(true);
-                          setFilterUnallocated(false);
-                        }}
-                      >
-                        Teralokasi
-                      </Badge>
-                      <Badge 
-                        className="cursor-pointer bg-gray-100 text-gray-800 hover:bg-gray-200" 
-                        variant="outline" 
-                        style={{
-                          backgroundColor: !filterAllocated && filterUnallocated ? "#4a6741" : undefined,
-                          color: !filterAllocated && filterUnallocated ? "white" : undefined
-                        }}
-                        onClick={() => {
-                          setFilterAllocated(false);
-                          setFilterUnallocated(true);
-                        }}
-                      >
-                        Belum Dialokasi
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Allocation Status Table */}
-                <div className="border rounded-md overflow-x-auto">
+                <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tipe</TableHead>
-                        <TableHead>Kode</TableHead>
-                        <TableHead>Desa</TableHead>
                         <TableHead>Kecamatan</TableHead>
-                        <TableHead>Target</TableHead>
-                        <TableHead>Status Alokasi</TableHead>
+                        <TableHead>Desa</TableHead>
                         <TableHead>PPL</TableHead>
                         <TableHead>PML</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoadingAllocations ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-4">
-                            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                            <span className="block mt-2">Memuat data alokasi...</span>
-                          </TableCell>
+                      {filteredAllocatedDesa.map((desa) => (
+                        <TableRow key={desa.desa_id}>
+                          <TableCell>{desa.kecamatan_name}</TableCell>
+                          <TableCell>{desa.desa_name}</TableCell>
+                          <TableCell>{desa.ppl_name || "-"}</TableCell>
+                          <TableCell>{desa.pml_name || "-"}</TableCell>
+                          <TableCell>{getStatusBadge(desa.status)}</TableCell>
                         </TableRow>
-                      ) : statusFilteredAllocations.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-4">
-                            Tidak ada data alokasi yang sesuai filter
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        statusFilteredAllocations.map((allocation) => (
-                          <TableRow key={allocation.id}>
-                            <TableCell>
-                              <Badge className="bg-gray-100 text-gray-800">
-                                {allocation.type === "nks" ? "NKS" : "Segmen"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{allocation.code}</TableCell>
-                            <TableCell>{allocation.desa_name}</TableCell>
-                            <TableCell>{allocation.kecamatan_name}</TableCell>
-                            <TableCell>
-                              <TableTargetGroup
-                                padiTarget={allocation.padi_target}
-                                palawijaTarget={allocation.palawija_target}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {allocation.is_allocated ? (
-                                <div className="flex items-center">
-                                  <div className="w-3 h-3 mr-2 rounded-full bg-green-500"></div>
-                                  <span className="text-green-700">Teralokasi</span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center">
-                                  <div className="w-3 h-3 mr-2 rounded-full bg-red-500"></div>
-                                  <span className="text-red-700">Belum Dialokasi</span>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {allocation.ppl_id ? getPPLName(allocation.ppl_id) : "-"}
-                            </TableCell>
-                            <TableCell>
-                              {allocation.pml_id ? allocation.pml_name || getPMLName(allocation.pml_id) : "-"}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

@@ -9,6 +9,94 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      alokasi_petugas: {
+        Row: {
+          created_at: string | null
+          desa_id: string
+          id: string
+          pml_id: string | null
+          ppl_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          desa_id: string
+          id?: string
+          pml_id?: string | null
+          ppl_id: string
+        }
+        Update: {
+          created_at?: string | null
+          desa_id?: string
+          id?: string
+          pml_id?: string | null
+          ppl_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alokasi_petugas_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
+            referencedRelation: "desa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
+            referencedRelation: "desa_allocation_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       desa: {
         Row: {
           created_at: string | null
@@ -29,6 +117,13 @@ export type Database = {
           name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "desa_kecamatan_id_fkey"
+            columns: ["kecamatan_id"]
+            isOneToOne: false
+            referencedRelation: "desa_allocation_view"
+            referencedColumns: ["kecamatan_id"]
+          },
           {
             foreignKeyName: "desa_kecamatan_id_fkey"
             columns: ["kecamatan_id"]
@@ -214,6 +309,13 @@ export type Database = {
             foreignKeyName: "pendataan_desa_id_fkey"
             columns: ["desa_id"]
             isOneToOne: false
+            referencedRelation: "desa_allocation_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "pendataan_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
             referencedRelation: "progress_view"
             referencedColumns: ["desa_id"]
           },
@@ -233,6 +335,85 @@ export type Database = {
           },
           {
             foreignKeyName: "pendataan_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      status_pendataan_desa: {
+        Row: {
+          created_at: string | null
+          desa_id: string
+          id: string
+          ppl_id: string | null
+          status: Database["public"]["Enums"]["status_pendataan_type"]
+          tanggal_mulai: string | null
+          tanggal_selesai: string | null
+          target: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          desa_id: string
+          id?: string
+          ppl_id?: string | null
+          status?: Database["public"]["Enums"]["status_pendataan_type"]
+          tanggal_mulai?: string | null
+          tanggal_selesai?: string | null
+          target?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          desa_id?: string
+          id?: string
+          ppl_id?: string | null
+          status?: Database["public"]["Enums"]["status_pendataan_type"]
+          tanggal_mulai?: string | null
+          tanggal_selesai?: string | null
+          target?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_pendataan_desa_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: true
+            referencedRelation: "desa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "status_pendataan_desa_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: true
+            referencedRelation: "desa_allocation_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "status_pendataan_desa_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: true
+            referencedRelation: "progress_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "status_pendataan_desa_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "status_pendataan_desa_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "status_pendataan_desa_ppl_id_fkey"
             columns: ["ppl_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -297,6 +478,67 @@ export type Database = {
       }
     }
     Views: {
+      desa_allocation_view: {
+        Row: {
+          desa_id: string | null
+          desa_name: string | null
+          is_allocated: boolean | null
+          kecamatan_id: string | null
+          kecamatan_name: string | null
+          pml_id: string | null
+          pml_name: string | null
+          ppl_id: string | null
+          ppl_name: string | null
+          status: Database["public"]["Enums"]["status_pendataan_type"] | null
+          tanggal_mulai: string | null
+          tanggal_selesai: string | null
+          target: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       progress_view: {
         Row: {
           desa_id: string | null
@@ -317,7 +559,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      status_pendataan_type: "belum" | "proses" | "selesai"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -432,6 +674,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      status_pendataan_type: ["belum", "proses", "selesai"],
+    },
   },
 } as const

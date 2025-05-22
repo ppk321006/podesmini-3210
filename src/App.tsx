@@ -1,125 +1,67 @@
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { ThemeProvider } from "@/components/theme-provider"
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from "@/components/ui/toaster"
+import { useAuth, AuthProvider } from './context/auth-context';
+import { Layout } from './components/layout/layout';
+import { LoginPage } from './pages/login';
+import { DashboardPage } from './pages/dashboard';
+import { PetugasPage } from './pages/petugas';
+import { WilayahPage } from './pages/wilayah';
+import InputUbinanPage from './pages/input-ubinan';
+import AlokasiPetugasPage from './pages/alokasi-petugas';
+import AlokasiWilayahPage from './pages/alokasi-wilayah';
+import { VerifikasiPage } from './pages/verifikasi';
+import { VerifikasiDataPage } from './pages/verifikasi-data';
+import { PendataanPage } from './pages/pendataan';
+import { ProgressUbinanPage } from './pages/progress-ubinan';
+import { PetugasProgresPage } from './pages/petugas-progres';
+import { DokumenUploadPage } from './pages/dokumen/upload';
+import { DokumenViewerPage } from './pages/dokumen/viewer';
+import { NotificationsPage } from './pages/notifications';
+import { ExportDataPage } from './pages/export';
+import { ProfilPage } from './pages/profil';
+import { NotFoundPage } from './pages/not-found';
 
-import { StrictMode } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "./context/auth-context";
-import { Layout } from "./components/layout/layout";
-import DashboardPage from "./pages/dashboard";
-import PetugasPage from "./pages/petugas";
-import WilayahPage from "./pages/wilayah";
-import DocumentUploadPage from "./pages/dokumen/upload";
-import DocumentViewerPage from "./pages/dokumen/viewer";
-import ProfilePage from "./pages/profil";
-import PendataanPage from "./pages/pendataan";
-import VerifikasiPage from "./pages/verifikasi";
-import NotificationsPage from "./pages/notifications";
-import NotFoundPage from "./pages/not-found";
-import LoginPage from "./pages/login";
-import { UserRole } from "./types/user";
+const queryClient = new QueryClient();
 
-// Create a route guard component to restrict access based on role
-function RoleBasedRoute({ element, allowedRoles }: { element: React.ReactNode, allowedRoles: UserRole[] }) {
-  const { user, isAuthenticated } = useAuth();
-  
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  // Allow access if user has the required role
-  if (user && allowedRoles.includes(user.role)) {
-    return element;
-  }
-  
-  // Redirect to not found page if user doesn't have access
-  return <NotFoundPage />;
-}
-
-// Create a component that redirects authenticated users away from login
-function AuthRedirect({ element }: { element: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return element;
-}
-
-// Create the QueryClient instance within the App component function
 function App() {
-  const queryClient = new QueryClient();
-  
+  const { authState } = useAuth();
+  const isLoggedIn = authState.isAuthenticated;
+
   return (
-    <StrictMode>
+    <Router>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <Routes>
-                <Route path="/login" element={
-                  <AuthRedirect element={<LoginPage />} />
-                } />
-                
-                <Route element={<Layout />}>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/petugas" element={
-                    <RoleBasedRoute 
-                      element={<PetugasPage />} 
-                      allowedRoles={[UserRole.ADMIN]} 
-                    />
-                  } />
-                  <Route path="/wilayah" element={
-                    <RoleBasedRoute 
-                      element={<WilayahPage />} 
-                      allowedRoles={[UserRole.ADMIN]} 
-                    />
-                  } />
-                  <Route path="/pendataan" element={
-                    <RoleBasedRoute 
-                      element={<PendataanPage />} 
-                      allowedRoles={[UserRole.PPL]} 
-                    />
-                  } />
-                  <Route path="/verifikasi" element={
-                    <RoleBasedRoute 
-                      element={<VerifikasiPage />} 
-                      allowedRoles={[UserRole.PML]} 
-                    />
-                  } />
-                  <Route path="/dokumen/upload" element={
-                    <RoleBasedRoute 
-                      element={<DocumentUploadPage />} 
-                      allowedRoles={[UserRole.PPL]} 
-                    />
-                  } />
-                  <Route path="/dokumen/viewer/:id" element={
-                    <RoleBasedRoute 
-                      element={<DocumentViewerPage />} 
-                      allowedRoles={[UserRole.ADMIN, UserRole.PML, UserRole.PPL]} 
-                    />
-                  } />
-                  <Route path="/notifikasi" element={
-                    <RoleBasedRoute 
-                      element={<NotificationsPage />} 
-                      allowedRoles={[UserRole.ADMIN, UserRole.PML, UserRole.PPL]} 
-                    />
-                  } />
-                  <Route path="/profil" element={<ProfilePage />} />
-                </Route>
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </TooltipProvider>
-          </AuthProvider>
-        </BrowserRouter>
+        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            
+            <Route element={<Layout />}>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/petugas" element={<PetugasPage />} />
+              <Route path="/wilayah" element={<WilayahPage />} />
+              <Route path="/input-ubinan" element={<InputUbinanPage />} />
+              <Route path="/alokasi-petugas" element={<AlokasiPetugasPage />} />
+              <Route path="/alokasi-wilayah" element={<AlokasiWilayahPage />} />
+              <Route path="/verifikasi" element={<VerifikasiPage />} />
+              <Route path="/verifikasi-data" element={<VerifikasiDataPage />} />
+              <Route path="/pendataan" element={<PendataanPage />} />
+              <Route path="/progress-ubinan" element={<ProgressUbinanPage />} />
+              <Route path="/petugas-progres" element={<PetugasProgresPage />} />
+              <Route path="/dokumen/upload" element={<DokumenUploadPage />} />
+              <Route path="/dokumen/:id" element={<DokumenViewerPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/export" element={<ExportDataPage />} />
+              <Route path="/profil" element={<ProfilPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Routes>
+          <Toaster />
+        </ThemeProvider>
       </QueryClientProvider>
-    </StrictMode>
+    </Router>
   );
 }
 

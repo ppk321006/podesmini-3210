@@ -1,4 +1,3 @@
-
 import { Database } from '@/integrations/supabase/types';
 
 // Type definitions for tables that don't exist in the default Database type
@@ -75,7 +74,49 @@ export interface CustomTables {
       created_at: string;
     };
   };
-}
+  alokasi_petugas: {
+    Row: {
+      id: string;
+      desa_id: string;
+      ppl_id: string;
+      pml_id: string | null;
+      created_at: string | null;
+    };
+    Insert: {
+      id?: string;
+      desa_id: string;
+      ppl_id: string;
+      pml_id?: string | null;
+      created_at?: string | null;
+    };
+    Update: Partial<CustomTables['alokasi_petugas']['Row']>;
+  };
+  status_pendataan_desa: {
+    Row: {
+      id: string;
+      desa_id: string;
+      ppl_id: string | null;
+      status: 'belum' | 'proses' | 'selesai';
+      tanggal_mulai: string | null;
+      tanggal_selesai: string | null;
+      target: number | null;
+      created_at: string | null;
+      updated_at: string | null;
+    };
+    Insert: {
+      id?: string;
+      desa_id: string;
+      ppl_id?: string | null;
+      status?: 'belum' | 'proses' | 'selesai';
+      tanggal_mulai?: string | null;
+      tanggal_selesai?: string | null;
+      target?: number | null;
+      created_at?: string | null;
+      updated_at?: string | null;
+    };
+    Update: Partial<CustomTables['status_pendataan_desa']['Row']>;
+  };
+};
 
 // Create a type safe schema accessor for use with supabase.from() calls
 export type ExtendedDatabase = Database & {

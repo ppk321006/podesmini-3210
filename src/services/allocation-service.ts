@@ -1,201 +1,115 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { AllocationStatus } from "@/types/database-schema";
+import { toast } from "sonner";
 
-export async function getAllocationStatus(): Promise<AllocationStatus[]> {
+export async function getAllocatedDesaList() {
   try {
     const { data, error } = await supabase
-      .from('allocation_status')
+      .from('desa_allocation_view')
       .select('*')
-      .order('type')
-      .order('code');
-      
-    if (error) {
-      console.error("Error fetching allocation status:", error);
-      throw error;
-    }
-    
-    // Cast the data to the correct type
-    return (data || []).map(item => ({
-      ...item,
-      type: item.type as "nks" | "segmen"
-    })) as AllocationStatus[];
+      .order('kecamatan_name', { ascending: true })
+      .order('desa_name', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.error("Error in getAllocationStatus:", error);
+    console.error("Error fetching allocated desa list:", error);
+    toast.error("Gagal mengambil data desa");
     return [];
   }
 }
 
-export async function getUnassignedAllocations(): Promise<AllocationStatus[]> {
+export async function allocateDesa(
+  desaId: string,
+  pplId: string,
+  pmlId: string | null
+) {
+  try {
+    const { error } = await supabase
+      .from('alokasi_petugas')
+      .insert({
+        desa_id: desaId,
+        ppl_id: pplId,
+        pml_id: pmlId
+      });
+
+    if (error) {
+      if (error.code === '23505') {
+        toast.error("Desa ini sudah dialokasikan");
+        return false;
+      }
+      throw error;
+    }
+
+    // Initialize status_pendataan_desa record
+    const { error: statusError } = await supabase
+      .from('status_pendataan_desa')
+      .insert({
+        desa_id: desaId,
+        ppl_id: pplId,
+        status: 'belum'
+      });
+
+    if (statusError) throw statusError;
+
+    toast.success("Desa berhasil dialokasikan");
+    return true;
+  } catch (error) {
+    console.error("Error allocating desa:", error);
+    toast.error("Gagal mengalokasikan desa");
+    return false;
+  }
+}
+
+export async function updateDesaStatus(
+  desaId: string,
+  status: 'belum' | 'proses' | 'selesai',
+  target?: number | null
+) {
+  try {
+    const updateData: any = { status };
+    
+    // Set dates based on status
+    if (status === 'proses' && !target) {
+      updateData.tanggal_mulai = new Date().toISOString();
+      updateData.tanggal_selesai = null;
+    } else if (status === 'selesai') {
+      updateData.tanggal_selesai = new Date().toISOString();
+    }
+
+    if (target !== undefined) {
+      updateData.target = target;
+    }
+
+    const { error } = await supabase
+      .from('status_pendataan_desa')
+      .update(updateData)
+      .eq('desa_id', desaId);
+
+    if (error) throw error;
+
+    toast.success("Status desa berhasil diperbarui");
+    return true;
+  } catch (error) {
+    console.error("Error updating desa status:", error);
+    toast.error("Gagal memperbarui status desa");
+    return false;
+  }
+}
+
+export async function getDesaStatus(desaId: string) {
   try {
     const { data, error } = await supabase
-      .from('allocation_status')
+      .from('status_pendataan_desa')
       .select('*')
-      .eq('is_allocated', false)
-      .order('type')
-      .order('code');
-      
-    if (error) {
-      console.error("Error fetching unassigned allocations:", error);
-      throw error;
-    }
-    
-    // Cast the data to the correct type
-    return (data || []).map(item => ({
-      ...item,
-      type: item.type as "nks" | "segmen"
-    })) as AllocationStatus[];
-  } catch (error) {
-    console.error("Error in getUnassignedAllocations:", error);
-    return [];
-  }
-}
-
-export async function assignPPLToNKS(nksId: string, pplId: string, pmlId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from('wilayah_tugas')
-      .insert([
-        { nks_id: nksId, ppl_id: pplId, pml_id: pmlId }
-      ]);
-      
-    if (error) {
-      console.error("Error assigning PPL to NKS:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in assignPPLToNKS:", error);
-    return false;
-  }
-}
-
-export async function assignPPLToSegmen(segmenId: string, pplId: string, pmlId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from('wilayah_tugas_segmen')
-      .insert([
-        { segmen_id: segmenId, ppl_id: pplId, pml_id: pmlId }
-      ]);
-      
-    if (error) {
-      console.error("Error assigning PPL to Segmen:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in assignPPLToSegmen:", error);
-    return false;
-  }
-}
-
-export async function removePPLFromNKS(nksId: string, pplId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from('wilayah_tugas')
-      .delete()
-      .match({ nks_id: nksId, ppl_id: pplId });
-      
-    if (error) {
-      console.error("Error removing PPL from NKS:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in removePPLFromNKS:", error);
-    return false;
-  }
-}
-
-export async function removePPLFromSegmen(segmenId: string, pplId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from('wilayah_tugas_segmen')
-      .delete()
-      .match({ segmen_id: segmenId, ppl_id: pplId });
-      
-    if (error) {
-      console.error("Error removing PPL from Segmen:", error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in removePPLFromSegmen:", error);
-    return false;
-  }
-}
-
-export async function removePPLAssignment(allocationId: string, pplId: string): Promise<boolean> {
-  try {
-    // First check if this is an NKS or a Segmen based on allocation ID
-    const { data: allocData, error: allocError } = await supabase
-      .from('allocation_status')
-      .select('*')
-      .eq('id', allocationId)
+      .eq('desa_id', desaId)
       .single();
-    
-    if (allocError) {
-      throw allocError;
-    }
-    
-    const allocationType = allocData.type as "nks" | "segmen";
-    
-    if (allocationType === 'nks') {
-      return await removePPLFromNKS(allocationId, pplId);
-    } else {
-      return await removePPLFromSegmen(allocationId, pplId);
-    }
-  } catch (error) {
-    console.error("Error in removePPLAssignment:", error);
-    return false;
-  }
-}
 
-export async function getPPLAllocations(pplId: string) {
-  try {
-    // Get NKS allocations
-    const { data: nksData, error: nksError } = await supabase
-      .from('wilayah_tugas')
-      .select(`
-        id,
-        nks:nks_id(id, code, desa_id, desa:desa_id(id, name, kecamatan_id, kecamatan:kecamatan_id(id, name))),
-        pml:pml_id(id, name)
-      `)
-      .eq('ppl_id', pplId);
-      
-    if (nksError) {
-      console.error("Error fetching NKS allocations:", nksError);
-      throw nksError;
-    }
+    if (error && error.code !== 'PGRST116') throw error;
     
-    // Get Segmen allocations
-    const { data: segmenData, error: segmenError } = await supabase
-      .from('wilayah_tugas_segmen')
-      .select(`
-        id,
-        segmen:segmen_id(id, code, desa_id, desa:desa_id(id, name, kecamatan_id, kecamatan:kecamatan_id(id, name))),
-        pml:pml_id(id, name)
-      `)
-      .eq('ppl_id', pplId);
-      
-    if (segmenError) {
-      console.error("Error fetching Segmen allocations:", segmenError);
-      throw segmenError;
-    }
-    
-    return {
-      nks: nksData || [],
-      segmen: segmenData || []
-    };
+    return data;
   } catch (error) {
-    console.error("Error in getPPLAllocations:", error);
-    return {
-      nks: [],
-      segmen: []
-    };
+    console.error("Error getting desa status:", error);
+    return null;
   }
 }
