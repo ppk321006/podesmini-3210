@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -18,6 +19,7 @@ import { getUbinanDataByPML, getProgressByPML } from '@/services/progress-servic
 import { UbinanData } from '@/types/database-schema';
 import { ArrowUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { CustomTables } from '@/types/supabase-custom';
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
@@ -59,7 +61,7 @@ export default function VerifikasiPage() {
         throw error;
       }
       
-      const processedData = data.map(item => {
+      const processedData = (data || []).map((item: any) => {
         const desa = item.nks?.desa || item.segmen?.desa;
         
         let pplName = "Unknown";

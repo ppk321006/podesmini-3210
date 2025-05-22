@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserRole } from "@/types/user";
 import { Loader2 } from "lucide-react";
+import { CustomTables } from "@/types/supabase-custom";
 
 interface VerificationDialogProps {
   isOpen: boolean;
@@ -93,16 +94,18 @@ export function VerificationDialog({
         newStatus = verificationValue || status;
       }
 
+      const updateData = {
+        responden_name: responden,
+        tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
+        berat_hasil: parseFloat(beratHasil),
+        komentar: komentar,
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      };
+
       const { data: updatedData, error } = await supabase
         .from('ubinan_data')
-        .update({
-          responden_name: responden,
-          tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
-          berat_hasil: parseFloat(beratHasil),
-          komentar: komentar,
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData as CustomTables['ubinan_data']['Update'])
         .eq('id', data.id)
         .select('*')
         .single();
@@ -129,7 +132,7 @@ export function VerificationDialog({
       queryClient.invalidateQueries({ queryKey: ['verification_status'] });
 
       toast.success("Data berhasil disimpan");
-      onComplete(updatedData);
+      onComplete(updatedData as unknown as UbinanData);
     } catch (error) {
       console.error("Error in handleSubmit:", error);
       toast.error("Terjadi kesalahan saat menyimpan data");

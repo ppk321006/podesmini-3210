@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { UbinanData } from "@/types/database-schema";
+import { CustomTables } from "@/types/supabase-custom";
 
 interface InputFormProps {
   initialData?: UbinanData | null;
@@ -67,7 +68,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
         
       if (error) throw error;
       
-      return data.map(item => item.segmen);
+      return (data || []).map((item: any) => item.segmen);
     },
     enabled: !!user?.id,
   });
@@ -174,44 +175,48 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
       const { data: pplData, error: pplError } = await supabase
         .from('users')
         .select('pml_id')
-        .eq('id', user?.id)
+        .eq('id', user?.id || '')
         .single();
         
       if (pplError) throw pplError;
 
       if (initialData?.id) {
+        const updateData = {
+          segmen_id: isSegmen ? segmenId : null,
+          nks_id: !isSegmen ? nksId : null,
+          komoditas: komoditas,
+          responden_name: respondenName,
+          tanggal_ubinan: tanggalUbinan ? tanggalUbinan.toISOString().split('T')[0] : undefined,
+          berat_hasil: parseFloat(beratHasil),
+          komentar: komentar,
+          status: 'sudah_diisi',
+          updated_at: new Date().toISOString()
+        };
+
         const { error } = await supabase
           .from('ubinan_data')
-          .update({
-            segmen_id: isSegmen ? segmenId : null,
-            nks_id: !isSegmen ? nksId : null,
-            komoditas: komoditas,
-            responden_name: respondenName,
-            tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
-            berat_hasil: parseFloat(beratHasil),
-            komentar: komentar,
-            status: 'sudah_diisi',
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData as CustomTables['ubinan_data']['Update'])
           .eq('id', initialData.id);
 
         if (error) throw error;
         toast.success("Data berhasil diperbarui");
       } else {
+        const insertData = {
+          ppl_id: user?.id,
+          pml_id: pplData?.pml_id,
+          segmen_id: isSegmen ? segmenId : null,
+          nks_id: !isSegmen ? nksId : null,
+          komoditas: komoditas,
+          responden_name: respondenName,
+          tanggal_ubinan: tanggalUbinan ? tanggalUbinan.toISOString().split('T')[0] : undefined,
+          berat_hasil: parseFloat(beratHasil),
+          komentar: komentar,
+          status: 'sudah_diisi'
+        };
+
         const { error } = await supabase
           .from('ubinan_data')
-          .insert({
-            ppl_id: user?.id,
-            pml_id: pplData?.pml_id,
-            segmen_id: isSegmen ? segmenId : null,
-            nks_id: !isSegmen ? nksId : null,
-            komoditas: komoditas,
-            responden_name: respondenName,
-            tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
-            berat_hasil: parseFloat(beratHasil),
-            komentar: komentar,
-            status: 'sudah_diisi'
-          });
+          .insert(insertData as CustomTables['ubinan_data']['Insert']);
 
         if (error) throw error;
         toast.success("Data berhasil disimpan");

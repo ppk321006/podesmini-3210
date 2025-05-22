@@ -9,10 +9,309 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      desa: {
+        Row: {
+          created_at: string | null
+          id: string
+          kecamatan_id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          kecamatan_id: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          kecamatan_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desa_kecamatan_id_fkey"
+            columns: ["kecamatan_id"]
+            isOneToOne: false
+            referencedRelation: "kecamatan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desa_kecamatan_id_fkey"
+            columns: ["kecamatan_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["kecamatan_id"]
+          },
+        ]
+      }
+      dokumen: {
+        Row: {
+          created_at: string | null
+          id: string
+          jenis_file: string
+          nama_file: string
+          pendataan_id: string
+          tipe_file: string
+          ukuran: number
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          jenis_file: string
+          nama_file: string
+          pendataan_id: string
+          tipe_file: string
+          ukuran: number
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          jenis_file?: string
+          nama_file?: string
+          pendataan_id?: string
+          tipe_file?: string
+          ukuran?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dokumen_pendataan_id_fkey"
+            columns: ["pendataan_id"]
+            isOneToOne: false
+            referencedRelation: "pendataan"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kecamatan: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      notifikasi: {
+        Row: {
+          created_at: string | null
+          data: Json | null
+          dibaca: boolean
+          id: string
+          judul: string
+          pesan: string
+          tipe: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data?: Json | null
+          dibaca?: boolean
+          id?: string
+          judul: string
+          pesan: string
+          tipe: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json | null
+          dibaca?: boolean
+          id?: string
+          judul?: string
+          pesan?: string
+          tipe?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifikasi_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "notifikasi_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "notifikasi_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pendataan: {
+        Row: {
+          alasan_penolakan: string | null
+          catatan: string | null
+          created_at: string | null
+          desa_id: string
+          id: string
+          infrastruktur: string | null
+          jumlah_penduduk: number | null
+          luas_wilayah: number | null
+          potensi_ekonomi: string | null
+          ppl_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          alasan_penolakan?: string | null
+          catatan?: string | null
+          created_at?: string | null
+          desa_id: string
+          id?: string
+          infrastruktur?: string | null
+          jumlah_penduduk?: number | null
+          luas_wilayah?: number | null
+          potensi_ekonomi?: string | null
+          ppl_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          alasan_penolakan?: string | null
+          catatan?: string | null
+          created_at?: string | null
+          desa_id?: string
+          id?: string
+          infrastruktur?: string | null
+          jumlah_penduduk?: number | null
+          luas_wilayah?: number | null
+          potensi_ekonomi?: string | null
+          ppl_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pendataan_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
+            referencedRelation: "desa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendataan_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "pendataan_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "pendataan_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "pendataan_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_login: string | null
+          name: string
+          password: string
+          pml_id: string | null
+          role: string
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_login?: string | null
+          name: string
+          password: string
+          pml_id?: string | null
+          role: string
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_login?: string | null
+          name?: string
+          password?: string
+          pml_id?: string | null
+          role?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "users_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "users_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      progress_view: {
+        Row: {
+          desa_id: string | null
+          desa_name: string | null
+          kecamatan_id: string | null
+          kecamatan_name: string | null
+          last_updated: string | null
+          pml_id: string | null
+          pml_name: string | null
+          ppl_id: string | null
+          ppl_name: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

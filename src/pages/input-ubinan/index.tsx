@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { UbinanData } from "@/types/database-schema";
 import { UbinanInputForm } from "./input-form";
+import { CustomTables } from "@/types/supabase-custom";
 
 // Extended UbinanData with additional UI properties
 interface ExtendedUbinanData extends UbinanData {
@@ -50,7 +52,7 @@ export default function InputUbinanPage() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from("ubinan_data")
+        .from('ubinan_data')
         .select(`
           *,
           nks:nks_id(
@@ -79,8 +81,7 @@ export default function InputUbinanPage() {
           ),
           pml:pml_id(name)
         `)
-        .eq("ppl_id", user.id)
-        .order("created_at", { ascending: false });
+        .eq("ppl_id", user?.id || '');
 
       if (error) {
         console.error("Error fetching ubinan data:", error);
@@ -92,7 +93,7 @@ export default function InputUbinanPage() {
         return;
       }
 
-      const processedData = data.map((item) => {
+      const processedData = (data || []).map((item: any) => {
         const desa_name = item.nks?.desa?.name || item.segmen?.desa?.name || "-";
         const kecamatan_name = item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || "-";
         const location_code = item.nks?.code || item.segmen?.code || "-";
