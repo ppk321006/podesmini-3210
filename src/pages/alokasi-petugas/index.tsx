@@ -22,6 +22,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { allocateDesa, getAllocatedDesaList } from "@/services/allocation-service";
+import { getKecamatanList, getDesaList } from "@/services/wilayah-api";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AlokasiPetugasPage() {
   const { toast } = useToast();
@@ -33,6 +36,10 @@ export default function AlokasiPetugasPage() {
   const [selectedPml, setSelectedPml] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [kecamatanList, setKecamatanList] = useState([]);
+  const [selectedKecamatan, setSelectedKecamatan] = useState("");
+  const [availableDesaList, setAvailableDesaList] = useState([]);
 
   const { user } = useAuth();
 
@@ -45,22 +52,36 @@ export default function AlokasiPetugasPage() {
 
   async function fetchData() {
     setIsLoading(true);
+    setError(null);
+    
     try {
+      console.log("Fetching data for Alokasi Petugas page...");
+      
       // Use Promise.all to fetch data concurrently
-      const [desaResponse, pplResponse, pmlResponse] = await Promise.all([
+      const [desaResponse, pplResponse, pmlResponse, kecamatanResponse] = await Promise.all([
         getAllocatedDesaList(),
         supabase.from('users').select('*').eq('role', 'ppl'),
-        supabase.from('users').select('*').eq('role', 'pml')
+        supabase.from('users').select('*').eq('role', 'pml'),
+        getKecamatanList()
       ]);
+
+      console.log("Data fetched successfully:", {
+        desaCount: desaResponse?.length || 0,
+        pplCount: pplResponse?.data?.length || 0,
+        pmlCount: pmlResponse?.data?.length || 0,
+        kecamatanCount: kecamatanResponse?.length || 0
+      });
 
       setDesaList(desaResponse || []);
       setPplList(pplResponse?.data || []);
       setPmlList(pmlResponse?.data || []);
+      setKecamatanList(kecamatanResponse || []);
     } catch (error) {
       console.error("Error fetching data:", error);
+      setError("Gagal mengambil data. Silakan coba lagi nanti.");
       toast({
         title: "Error",
-        description: "Failed to fetch data",
+        description: "Gagal mengambil data",
         variant: "destructive",
       });
     } finally {
@@ -68,11 +89,35 @@ export default function AlokasiPetugasPage() {
     }
   }
 
+  // Fetch desa based on selected kecamatan
+  useEffect(() => {
+    async function fetchDesaByKecamatan() {
+      if (!selectedKecamatan) {
+        setAvailableDesaList([]);
+        return;
+      }
+      
+      try {
+        const desaData = await getDesaList(selectedKecamatan);
+        setAvailableDesaList(desaData || []);
+      } catch (error) {
+        console.error("Error fetching desa list:", error);
+        toast({
+          title: "Error",
+          description: "Gagal mengambil data desa",
+          variant: "destructive",
+        });
+      }
+    }
+    
+    fetchDesaByKecamatan();
+  }, [selectedKecamatan, toast]);
+
   const handleAllocate = async () => {
     if (!selectedDesa || !selectedPpl) {
       toast({
         title: "Error",
-        description: "Please select desa and PPL",
+        description: "Harap pilih desa dan PPL",
         variant: "destructive",
       });
       return;
@@ -83,8 +128,8 @@ export default function AlokasiPetugasPage() {
       const success = await allocateDesa(selectedDesa, selectedPpl, selectedPml);
       if (success) {
         toast({
-          title: "Success",
-          description: "Desa allocated successfully",
+          title: "Sukses",
+          description: "Desa berhasil dialokasikan",
         });
         fetchData();
         handleCloseDialog();
@@ -93,7 +138,7 @@ export default function AlokasiPetugasPage() {
       console.error("Error allocating desa:", error);
       toast({
         title: "Error",
-        description: "Failed to allocate desa",
+        description: "Gagal mengalokasikan desa",
         variant: "destructive",
       });
     } finally {
@@ -103,25 +148,46 @@ export default function AlokasiPetugasPage() {
 
   const handleOpenDialog = () => {
     setIsDialogOpen(true);
+    setSelectedKecamatan("");
+    setSelectedDesa("");
+    setSelectedPpl("");
+    setSelectedPml("");
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
+    setSelectedKecamatan("");
     setSelectedDesa("");
     setSelectedPpl("");
     setSelectedPml("");
   };
   
+  const handleRefresh = () => {
+    fetchData();
+  };
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Alokasi Petugas ke Desa</CardTitle>
-          <CardDescription>
-            Alokasikan petugas PPL dan PML untuk setiap desa
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-2xl">Alokasi Petugas ke Desa</CardTitle>
+            <CardDescription>
+              Alokasikan petugas PPL dan PML untuk setiap desa
+            </CardDescription>
+          </div>
+          <Button onClick={handleRefresh} disabled={isLoading} variant="outline">
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+          </Button>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -136,13 +202,16 @@ export default function AlokasiPetugasPage() {
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-8">
-                      Loading...
+                      <div className="flex justify-center items-center">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                        <span>Memuat data...</span>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : desaList.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-8">
-                      Tidak ada data
+                      Tidak ada data alokasi. Silakan tambahkan alokasi petugas.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -171,15 +240,30 @@ export default function AlokasiPetugasPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
-              <Label htmlFor="desa">Desa</Label>
-              <Select onValueChange={setSelectedDesa} value={selectedDesa}>
-                <SelectTrigger id="desa" className="w-full">
-                  <SelectValue placeholder="Pilih Desa" />
+              <Label htmlFor="kecamatan">Kecamatan</Label>
+              <Select onValueChange={setSelectedKecamatan} value={selectedKecamatan}>
+                <SelectTrigger id="kecamatan" className="w-full">
+                  <SelectValue placeholder="Pilih Kecamatan" />
                 </SelectTrigger>
                 <SelectContent>
-                  {desaList.map((desa: any) => (
-                    <SelectItem key={desa.desa_id} value={desa.desa_id}>
-                      {desa.desa_name}
+                  {kecamatanList.map((kecamatan: any) => (
+                    <SelectItem key={kecamatan.id} value={kecamatan.id}>
+                      {kecamatan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="desa">Desa</Label>
+              <Select onValueChange={setSelectedDesa} value={selectedDesa} disabled={!selectedKecamatan}>
+                <SelectTrigger id="desa" className="w-full">
+                  <SelectValue placeholder={selectedKecamatan ? "Pilih Desa" : "Pilih Kecamatan terlebih dahulu"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableDesaList.map((desa: any) => (
+                    <SelectItem key={desa.id} value={desa.id}>
+                      {desa.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -220,8 +304,13 @@ export default function AlokasiPetugasPage() {
             <Button variant="secondary" onClick={handleCloseDialog}>
               Batal
             </Button>
-            <Button onClick={handleAllocate} disabled={isLoading}>
-              {isLoading ? "Memproses..." : "Alokasikan"}
+            <Button onClick={handleAllocate} disabled={isLoading || !selectedDesa || !selectedPpl}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Memproses...
+                </>
+              ) : "Alokasikan"}
             </Button>
           </div>
         </DialogContent>

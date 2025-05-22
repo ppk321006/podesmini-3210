@@ -4,13 +4,19 @@ import { toast } from "sonner";
 
 export async function getAllocatedDesaList() {
   try {
+    console.log("Fetching allocated desa list...");
     const { data, error } = await supabase
       .from('desa_allocation_view')
       .select('*')
       .order('kecamatan_name', { ascending: true })
       .order('desa_name', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching allocated desa list:", error);
+      throw error;
+    }
+    
+    console.log("Allocated desa list fetched:", data?.length || 0, "items");
     return data || [];
   } catch (error) {
     console.error("Error fetching allocated desa list:", error);
