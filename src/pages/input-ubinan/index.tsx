@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,10 +24,12 @@ import { UbinanInputForm } from "./input-form";
 import { CustomTables } from "@/types/supabase-custom";
 
 // Extended UbinanData with additional UI properties
-interface ExtendedUbinanData extends UbinanData {
+interface ExtendedUbinanData extends CustomTables['ubinan_data']['Row'] {
   desa_name: string;
   kecamatan_name: string;
   location_code: string;
+  pml_name?: string;
+  ppl_name?: string;
 }
 
 export default function InputUbinanPage() {
@@ -93,17 +94,19 @@ export default function InputUbinanPage() {
         return;
       }
 
-      // We need to ensure we properly type the data
+      // Process the data with proper typing
       const processedData = (data || []).map((item: any) => {
         const desa_name = item.nks?.desa?.name || item.segmen?.desa?.name || "-";
         const kecamatan_name = item.nks?.desa?.kecamatan?.name || item.segmen?.desa?.kecamatan?.name || "-";
         const location_code = item.nks?.code || item.segmen?.code || "-";
+        const pml_name = item.pml?.name || "-";
         
         return {
           ...item,
           desa_name,
           kecamatan_name,
           location_code,
+          pml_name
         } as ExtendedUbinanData;
       });
 

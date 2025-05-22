@@ -38,7 +38,7 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
     
     // Get desa information for NKS and Segmen
     const desaIds = new Set<string>();
-    data?.forEach(item => {
+    data?.forEach((item: any) => {
       if (item.nks && item.nks.desa_id) desaIds.add(item.nks.desa_id);
       if (item.segmen && item.segmen.desa_id) desaIds.add(item.segmen.desa_id);
     });
@@ -52,12 +52,12 @@ export async function exportUbinanDataToExcel(startDate: string, endDate: string
       throw desaError;
     }
     
-    // Create a map of desa info
-    const desaMap = new Map();
-    desaData?.forEach(desa => {
+    // Create a map of desa info with proper typing
+    const desaMap = new Map<string, {name: string, kecamatan_name: string}>();
+    desaData?.forEach((desa: any) => {
       desaMap.set(desa.id, {
-        name: desa.name,
-        kecamatan_name: desa.kecamatan ? desa.kecamatan.name : ''
+        name: desa.name || '',
+        kecamatan_name: desa.kecamatan ? desa.kecamatan.name || '' : ''
       });
     });
     

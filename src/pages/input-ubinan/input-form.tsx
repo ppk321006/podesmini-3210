@@ -68,6 +68,7 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
         
       if (error) throw error;
       
+      // Type the data correctly
       return (data || []).map((item: any) => item.segmen);
     },
     enabled: !!user?.id,
@@ -99,7 +100,8 @@ export function UbinanInputForm({ initialData, onCancel, onSuccess }: InputFormP
         
       if (error) throw error;
       
-      return data.map(item => item.nks);
+      // Type the data correctly
+      return (data || []).map((item: any) => item.nks);
     },
     enabled: !!user?.id,
   });

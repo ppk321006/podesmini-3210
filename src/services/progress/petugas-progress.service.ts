@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData } from "@/types/database-schema";
 import { createProgressDataFromUbinan } from "./utils.service";
@@ -25,11 +24,12 @@ export async function getPPLTargets(pplId: string): Promise<{ padi: number, pala
       return { padi: 0, palawija: 0 };
     }
     
-    const padiTarget = segmenAssignments.reduce((sum, item) => {
+    // Convert to correct types and access properties safely
+    const padiTarget = segmenAssignments.reduce((sum, item: any) => {
       return sum + (item.segmen?.target_padi || 0);
     }, 0);
     
-    const palawijaTarget = nksAssignments.reduce((sum, item) => {
+    const palawijaTarget = nksAssignments.reduce((sum, item: any) => {
       return sum + (item.nks?.target_palawija || 0);
     }, 0);
     

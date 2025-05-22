@@ -1,8 +1,7 @@
-
-import { Database } from "@/integrations/supabase/types";
+import { CustomTables } from "@/types/supabase-custom";
 
 // Types from the Supabase database
-export type UbinanData = Database['public']['Tables']['ubinan_data']['Row'] & {
+export type UbinanData = CustomTables['ubinan_data']['Row'] & {
   desa_name?: string;
   kecamatan_name?: string;
   location_code?: string;
