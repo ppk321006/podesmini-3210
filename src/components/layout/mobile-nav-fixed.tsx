@@ -30,30 +30,31 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
     // Add role-specific navigation items
     if (user?.role === UserRole.ADMIN) {
       items.push(
-        { title: "Dashboard", icon: <Home className="h-5 w-5" />, href: "/" },
+        { title: "Dashboard", icon: <Home className="h-5 w-5" />, href: "/dashboard" },
         { title: "Petugas", icon: <User className="h-5 w-5" />, href: "/petugas" },
-        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progress-ubinan" },
         { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
     } else if (user?.role === UserRole.PML) {
       // For PML: Progress, Verification, Profile
       items.push(
-        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progress-ubinan" },
         { title: "Verifikasi", icon: <CheckCircle className="h-5 w-5" />, href: "/verifikasi" },
+        { title: "Rekap", icon: <FileText className="h-5 w-5" />, href: "/petugas-progres" },
         { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
     } else if (user?.role === UserRole.PPL) {
       // For PPL: Progress, Input Data, Profile
       items.push(
-        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
-        { title: "Input Data", icon: <FileText className="h-5 w-5" />, href: "/input-data" },
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progress-ubinan" },
+        { title: "Input Data", icon: <FileText className="h-5 w-5" />, href: "/input-ubinan" },
         { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
     } else {
       // Viewer or other roles
       items.push(
-        { title: "Dashboard", icon: <Home className="h-5 w-5" />, href: "/" },
-        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progres" },
+        { title: "Dashboard", icon: <Home className="h-5 w-5" />, href: "/dashboard" },
+        { title: "Progress", icon: <BarChart2 className="h-5 w-5" />, href: "/progress-ubinan" },
         { title: "Profil", icon: <User className="h-5 w-5" />, href: "/profil" }
       );
     }
@@ -71,7 +72,7 @@ export function MobileNavFixed({ dialogOpen, setDialogOpen }: MobileNavProps) {
               to={item.href}
               className={cn(
                 "flex flex-col items-center justify-center py-1 px-2 text-xs",
-                location.pathname === item.href
+                location.pathname === item.href || (item.href !== "/dashboard" && location.pathname.startsWith(item.href))
                   ? "text-primary"
                   : "text-muted-foreground hover:text-primary"
               )}

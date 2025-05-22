@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
@@ -22,13 +23,14 @@ import { CalendarIcon, FileDown, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { downloadToExcel } from "@/services/export-service";
+import { useAuth } from "@/context/auth-context";
 
 function getCurrentYear() {
-  return new Date().getFullYear();
+  return 2025; // Set default year to 2025 to match the requirement
 }
 
 function getCurrentMonthNumber() {
-  return new Date().getMonth() + 1; // JavaScript months are 0-indexed
+  return 6; // Set default month to June (6) to match the requirement
 }
 
 function getSubroundFromMonth(month: number): number {
@@ -38,12 +40,13 @@ function getSubroundFromMonth(month: number): number {
 }
 
 export default function PetugasProgresPage() {
+  const { user } = useAuth();
   const [year, setYear] = useState<number>(getCurrentYear());
   const [month, setMonth] = useState<number>(getCurrentMonthNumber());
   const [subround, setSubround] = useState<number>(getSubroundFromMonth(getCurrentMonthNumber()));
   const [status, setStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(new Date(2025, 5, 15)); // Default to June 15, 2025
 
   useEffect(() => {
     setSubround(getSubroundFromMonth(month));
@@ -57,7 +60,7 @@ export default function PetugasProgresPage() {
   }, [date]);
 
   const { data: petugasProgres = [], isLoading } = useQuery({
-    queryKey: ['petugas_progres', year, month, subround, status],
+    queryKey: ['petugas_progres', year, month, subround, status, user?.id, user?.role],
     queryFn: async () => {
       let query = supabase
         .from('ubinan_data')
@@ -96,6 +99,7 @@ export default function PetugasProgresPage() {
           )
         `);
 
+      // Filter by date range based on year/month
       query = query.filter('tanggal_ubinan', 'gte', `${year}-01-01`);
       query = query.filter('tanggal_ubinan', 'lte', `${year}-12-31`);
 
@@ -119,6 +123,11 @@ export default function PetugasProgresPage() {
         query = query.filter('tanggal_ubinan', 'lte', endDate);
       }
 
+      // For PML role, only show PPLs under them
+      if (user?.role === 'pml') {
+        query = query.eq('pml_id', user.id);
+      }
+      
       if (status !== "all") {
         query = query.eq('status', status);
       }

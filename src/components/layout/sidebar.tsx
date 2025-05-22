@@ -27,76 +27,6 @@ interface SidebarProps {
   isOpen: boolean;
 }
 
-interface SidebarItem {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href: string;
-  allowedRoles: UserRole[];
-}
-
-export const navigation = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    role: [UserRole.ADMIN, UserRole.PML, UserRole.PPL],
-  },
-  {
-    title: "Progres Ubinan",
-    href: "/progress-ubinan",
-    icon: BarChart3,
-    role: [UserRole.ADMIN, UserRole.PML, UserRole.PPL],
-  },
-  {
-    title: "Input Data",
-    href: "/input-ubinan",
-    icon: ClipboardEdit,
-    role: [UserRole.PPL],
-  },
-  {
-    title: "Verifikasi",
-    href: "/verifikasi",
-    icon: ClipboardCheck,
-    role: [UserRole.PML],
-  },
-  {
-    title: "Petugas",
-    href: "/petugas",
-    icon: Users,
-    role: [UserRole.ADMIN],
-  },
-  {
-    title: "Rekap Progres Petugas",
-    href: "/petugas-progres",
-    icon: FileSpreadsheet,
-    role: [UserRole.ADMIN],
-  },
-  {
-    title: "Wilayah",
-    href: "/wilayah",
-    icon: MapPin,
-    role: [UserRole.ADMIN],
-  },
-  {
-    title: "Alokasi Wilayah",
-    href: "/alokasi-wilayah",
-    icon: Map,
-    role: [UserRole.ADMIN],
-  },
-  {
-    title: "Alokasi Petugas",
-    href: "/alokasi-petugas",
-    icon: UserCog,
-    role: [UserRole.ADMIN],
-  },
-  {
-    title: "Pengaturan",
-    href: "/pengaturan",
-    icon: Settings,
-    role: [UserRole.ADMIN],
-  },
-];
-
 export function Sidebar({ isOpen }: SidebarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -115,7 +45,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
     };
   }, []);
 
-  const sidebarItems: SidebarItem[] = [
+  const sidebarItems = [
     {
       title: "Dashboard",
       icon: LayoutDashboard,
@@ -163,6 +93,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
       icon: CheckCircle,
       href: "/verifikasi",
       allowedRoles: [UserRole.PML],
+    },
+    {
+      title: "Export Data",
+      icon: FileSpreadsheet, 
+      href: "/export",
+      allowedRoles: [UserRole.ADMIN],
     },
     {
       title: "Profil",
