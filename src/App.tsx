@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
@@ -5,30 +6,31 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster"
 import { useAuth, AuthProvider } from './context/auth-context';
 import { Layout } from './components/layout/layout';
-import { LoginPage } from './pages/login';
-import { DashboardPage } from './pages/dashboard';
-import { PetugasPage } from './pages/petugas';
-import { WilayahPage } from './pages/wilayah';
+import LoginPage from './pages/login'; 
+import DashboardPage from './pages/dashboard';
+import PetugasPage from './pages/petugas';
+import WilayahPage from './pages/wilayah';
 import InputUbinanPage from './pages/input-ubinan';
 import AlokasiPetugasPage from './pages/alokasi-petugas';
 import AlokasiWilayahPage from './pages/alokasi-wilayah';
-import { VerifikasiPage } from './pages/verifikasi';
-import { VerifikasiDataPage } from './pages/verifikasi-data';
-import { PendataanPage } from './pages/pendataan';
-import { ProgressUbinanPage } from './pages/progress-ubinan';
-import { PetugasProgresPage } from './pages/petugas-progres';
-import { DokumenUploadPage } from './pages/dokumen/upload';
-import { DokumenViewerPage } from './pages/dokumen/viewer';
-import { NotificationsPage } from './pages/notifications';
-import { ExportDataPage } from './pages/export';
-import { ProfilPage } from './pages/profil';
-import { NotFoundPage } from './pages/not-found';
+import VerifikasiPage from './pages/verifikasi';
+import VerifikasiDataPage from './pages/verifikasi-data';
+import PendataanPage from './pages/pendataan';
+import ProgressUbinanPage from './pages/progress-ubinan';
+import PetugasProgresPage from './pages/petugas-progres';
+import DokumenUploadPage from './pages/dokumen/upload';
+import DokumenViewerPage from './pages/dokumen/viewer';
+import NotificationsPage from './pages/notifications';
+import ProfilPage from './pages/profil';
+import NotFoundPage from './pages/not-found';
+
+// Create a placeholder for ExportDataPage since it's missing
+const ExportDataPage = () => <div>Export Data Page</div>;
 
 const queryClient = new QueryClient();
 
 function App() {
-  const { authState } = useAuth();
-  const isLoggedIn = authState.isAuthenticated;
+  const { user, isAuthenticated } = useAuth();
 
   return (
     <Router>

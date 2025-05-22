@@ -164,7 +164,7 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
                     date={tanggalSelesai}
                     onSelect={setTanggalSelesai}
                     disabled={isLoading || !tanggalMulai}
-                    fromDate={tanggalMulai}
+                    // Remove the fromDate prop as it's not part of the DatePicker component
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">

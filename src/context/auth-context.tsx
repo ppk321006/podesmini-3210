@@ -1,4 +1,3 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
@@ -202,6 +201,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast.info("Berhasil logout");
   };
 
+  // Update the isAuthenticated property
+  const isAuthenticated = !!user;
+
   return (
     <AuthContext.Provider
       value={{
@@ -210,7 +212,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error,
         login,
         logout,
-        isAuthenticated: !!user,
+        isAuthenticated,
         sessionTimeout,
       }}
     >
