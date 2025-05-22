@@ -1,246 +1,105 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Pencil, Trash2, Search, Filter, Tag, Check } from "lucide-react";
-import { toast } from "sonner";
-import { 
-  getKecamatanList, 
-  createKecamatan,
-  getDesaList,
-  createDesa,
-  getNKSList,
-  createNKS,
-  getNKSWithAssignments,
-  deleteNKS,
-  getSegmenList,
-  createSegmen,
-  getSegmenWithAssignments,
-  deleteSegmen,
-  createSampelKRT,
-  getSampelKRTList,
-  deleteSampelKRT,
-  getSubround,
-  getPMLList,
-  getPPLList,
-  getPetugasList
-} from "@/services/wilayah-api";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { formatDateToLocale, monthsIndonesia } from "@/lib/utils";
-import { DatePicker } from "@/components/ui/date-picker";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { 
+  Search, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Map,
+  Home,
+  Users,
+  X
+} from "lucide-react";
+import { toast } from "sonner";
+
+// Mock data for kecamatan and desa
+const mockKecamatan = [
+  { id: "kec-1", nama: "Majalengka", jumlah_desa: 15 },
+  { id: "kec-2", nama: "Kadipaten", jumlah_desa: 12 },
+  { id: "kec-3", nama: "Jatiwangi", jumlah_desa: 10 },
+  { id: "kec-4", nama: "Dawuan", jumlah_desa: 8 },
+  { id: "kec-5", nama: "Kertajati", jumlah_desa: 7 },
+];
+
+const mockDesa = [
+  { id: "desa-1", kecamatan_id: "kec-1", nama: "Cidahu" },
+  { id: "desa-2", kecamatan_id: "kec-1", nama: "Sukamaju" },
+  { id: "desa-3", kecamatan_id: "kec-1", nama: "Cibunar" },
+  { id: "desa-4", kecamatan_id: "kec-1", nama: "Buniseuri" },
+  { id: "desa-5", kecamatan_id: "kec-2", nama: "Kadipaten" },
+  { id: "desa-6", kecamatan_id: "kec-2", nama: "Babakan" },
+  { id: "desa-7", kecamatan_id: "kec-3", nama: "Jatiwangi" },
+  { id: "desa-8", kecamatan_id: "kec-3", nama: "Sutawangi" },
+  { id: "desa-9", kecamatan_id: "kec-4", nama: "Dawuan" },
+  { id: "desa-10", kecamatan_id: "kec-5", nama: "Kertajati" },
+];
 
 export default function WilayahPage() {
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("kecamatan");
-  const [filterText, setFilterText] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [kecamatanList, setKecamatanList] = useState(mockKecamatan);
+  const [desaList, setDesaList] = useState(mockDesa);
+  const [selectedKecamatan, setSelectedKecamatan] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{id: string, type: 'kecamatan' | 'desa'} | null>(null);
   
-  const [isEditNKSDialogOpen, setIsEditNKSDialogOpen] = useState(false);
-  const [isEditSegmenDialogOpen, setIsEditSegmenDialogOpen] = useState(false);
-  const [currentEditItem, setCurrentEditItem] = useState<any>(null);
-  
+  // Form states
   const [newKecamatanName, setNewKecamatanName] = useState("");
+  const [editKecamatanName, setEditKecamatanName] = useState("");
+  const [editKecamatanId, setEditKecamatanId] = useState<string | null>(null);
   
-  const [sampelKRTList, setSampelKRTList] = useState<Array<{nama: string; status: 'Utama' | 'Cadangan'}>>([]);
-  const [newKRTNama, setNewKRTNama] = useState("");
-  const [newKRTStatus, setNewKRTStatus] = useState<'Utama' | 'Cadangan'>('Utama');
-  
-  const { data: kecamatanList = [], isLoading: isLoadingKecamatan } = useQuery({
-    queryKey: ["kecamatan"],
-    queryFn: getKecamatanList,
-  });
-  
-  const createKecamatanMutation = useMutation({
-    mutationFn: (name: string) => createKecamatan(name),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["kecamatan"] });
-      setNewKecamatanName("");
-      toast.success("Kecamatan berhasil ditambahkan");
-    },
-    onError: (error) => {
-      console.error("Error creating kecamatan:", error);
-      toast.error("Gagal menambahkan kecamatan");
-    }
-  });
-  
-  const [selectedKecamatanId, setSelectedKecamatanId] = useState("");
   const [newDesaName, setNewDesaName] = useState("");
+  const [newDesaKecamatanId, setNewDesaKecamatanId] = useState("");
+  const [editDesaName, setEditDesaName] = useState("");
+  const [editDesaId, setEditDesaId] = useState<string | null>(null);
   
-  const { data: desaList = [], isLoading: isLoadingDesa } = useQuery({
-    queryKey: ["desa", selectedKecamatanId],
-    queryFn: () => getDesaList(selectedKecamatanId || undefined),
-    enabled: !!selectedKecamatanId || activeTab === "desa",
-  });
+  // UI states
+  const [showAddKecamatan, setShowAddKecamatan] = useState(false);
+  const [showEditKecamatan, setShowEditKecamatan] = useState(false);
+  const [showAddDesa, setShowAddDesa] = useState(false);
+  const [showEditDesa, setShowEditDesa] = useState(false);
   
-  const createDesaMutation = useMutation({
-    mutationFn: (values: { name: string; kecamatanId: string }) => 
-      createDesa(values.name, values.kecamatanId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["desa", selectedKecamatanId] });
-      setNewDesaName("");
-      toast.success("Desa berhasil ditambahkan");
-    },
-    onError: (error) => {
-      console.error("Error creating desa:", error);
-      toast.error("Gagal menambahkan desa");
+  const getFilteredKecamatan = () => {
+    if (!searchTerm) return kecamatanList;
+    
+    return kecamatanList.filter(kec => 
+      kec.nama.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+  
+  const getFilteredDesa = () => {
+    let filtered = desaList;
+    
+    if (selectedKecamatan) {
+      filtered = filtered.filter(desa => desa.kecamatan_id === selectedKecamatan);
     }
-  });
-  
-  const [selectedDesaId, setSelectedDesaId] = useState("");
-  const [newNKSCode, setNewNKSCode] = useState("");
-  const [targetPalawija, setTargetPalawija] = useState(0);
-  const [selectedKomoditasList, setSelectedKomoditasList] = useState<string[]>([]);
-  const [subroundValue, setSubroundValue] = useState(1);
-  
-  const { data: currentSubround = 1 } = useQuery({
-    queryKey: ["subround"],
-    queryFn: getSubround,
-  });
-  
-  useEffect(() => {
-    setSubroundValue(currentSubround);
-  }, [currentSubround]);
-  
-  const { data: nksWithAssignments = [], isLoading: isLoadingNKSAssignments } = useQuery({
-    queryKey: ["nks_assignments"],
-    queryFn: getNKSWithAssignments,
-    enabled: activeTab === "nks",
-  });
-  
-  const { data: nksList = [] } = useQuery({
-    queryKey: ["nks", selectedDesaId],
-    queryFn: () => getNKSList(selectedDesaId || undefined),
-    enabled: !!selectedDesaId || activeTab === "nks",
-  });
-  
-  const createNKSMutation = useMutation({
-    mutationFn: (values: { 
-      code: string; 
-      desaId: string; 
-      targetPalawija: number;
-      subround: number;
-      sampelKRTList: {nama: string; status: 'Utama' | 'Cadangan'}[];
-    }) => {
-      return createNKS(
-        values.code, 
-        values.desaId,
-        values.targetPalawija,
-        values.subround
-      ).then(nks => {
-        const promises = values.sampelKRTList.map(krt => 
-          createSampelKRT({
-            nama: krt.nama, 
-            status: krt.status, 
-            nks_id: nks.id
-          })
-        );
-        return Promise.all(promises).then(() => nks);
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["nks", selectedDesaId] });
-      queryClient.invalidateQueries({ queryKey: ["nks_assignments"] });
-      setNewNKSCode("");
-      setTargetPalawija(0);
-      setSelectedKomoditasList([]);
-      setSampelKRTList([]);
-      toast.success("NKS berhasil ditambahkan");
-    },
-    onError: (error) => {
-      console.error("Error creating NKS:", error);
-      toast.error("Gagal menambahkan NKS");
-    }
-  });
-  
-  const deleteNKSMutation = useMutation({
-    mutationFn: (id: string) => deleteNKS(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["nks", selectedDesaId] });
-      queryClient.invalidateQueries({ queryKey: ["nks_assignments"] });
-      toast.success("NKS berhasil dihapus");
-    },
-    onError: (error) => {
-      console.error("Error deleting NKS:", error);
-      toast.error("Gagal menghapus NKS");
-    }
-  });
-  
-  const [newSegmenCode, setNewSegmenCode] = useState("");
-  const [targetPadi, setTargetPadi] = useState(0);
-  const [selectedBulan, setSelectedBulan] = useState<number | "">("");
-  
-  const { data: segmenWithAssignments = [], isLoading: isLoadingSegmenAssignments } = useQuery({
-    queryKey: ["segmen_assignments"],
-    queryFn: getSegmenWithAssignments,
-    enabled: activeTab === "segmen",
-  });
-  
-  const { data: segmenList = [] } = useQuery({
-    queryKey: ["segmen", selectedDesaId],
-    queryFn: () => getSegmenList(selectedDesaId || undefined),
-    enabled: !!selectedDesaId || activeTab === "segmen",
-  });
-  
-  const createSegmenMutation = useMutation({
-    mutationFn: (values: { 
-      code: string; 
-      desaId: string; 
-      targetPadi: number;
-      bulan: number;
-    }) => {
-      return createSegmen(
-        values.code, 
-        values.desaId,
-        values.targetPadi,
-        values.bulan
+    
+    if (searchTerm) {
+      filtered = filtered.filter(desa => 
+        desa.nama.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["segmen", selectedDesaId] });
-      queryClient.invalidateQueries({ queryKey: ["segmen_assignments"] });
-      setNewSegmenCode("");
-      setTargetPadi(0);
-      setSelectedBulan("");
-      toast.success("Segmen berhasil ditambahkan");
-    },
-    onError: (error) => {
-      console.error("Error creating Segmen:", error);
-      toast.error("Gagal menambahkan Segmen");
     }
-  });
+    
+    return filtered;
+  };
   
-  const deleteSegmenMutation = useMutation({
-    mutationFn: (id: string) => deleteSegmen(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["segmen", selectedDesaId] });
-      queryClient.invalidateQueries({ queryKey: ["segmen_assignments"] });
-      toast.success("Segmen berhasil dihapus");
-    },
-    onError: (error) => {
-      console.error("Error deleting Segmen:", error);
-      toast.error("Gagal menghapus Segmen");
-    }
-  });
+  const getKecamatanName = (id: string) => {
+    return kecamatanList.find(kec => kec.id === id)?.nama || "-";
+  };
   
   const handleAddKecamatan = () => {
     if (!newKecamatanName.trim()) {
@@ -248,7 +107,35 @@ export default function WilayahPage() {
       return;
     }
     
-    createKecamatanMutation.mutate(newKecamatanName);
+    const newKecamatan = {
+      id: `kec-${kecamatanList.length + 1}`,
+      nama: newKecamatanName.trim(),
+      jumlah_desa: 0
+    };
+    
+    setKecamatanList([...kecamatanList, newKecamatan]);
+    setNewKecamatanName("");
+    setShowAddKecamatan(false);
+    toast.success(`Kecamatan ${newKecamatanName} berhasil ditambahkan`);
+  };
+  
+  const handleEditKecamatan = () => {
+    if (!editKecamatanId) return;
+    if (!editKecamatanName.trim()) {
+      toast.error("Nama kecamatan tidak boleh kosong");
+      return;
+    }
+    
+    setKecamatanList(prev => 
+      prev.map(kec => 
+        kec.id === editKecamatanId ? { ...kec, nama: editKecamatanName.trim() } : kec
+      )
+    );
+    
+    setEditKecamatanId(null);
+    setEditKecamatanName("");
+    setShowEditKecamatan(false);
+    toast.success("Kecamatan berhasil diperbarui");
   };
   
   const handleAddDesa = () => {
@@ -257,820 +144,508 @@ export default function WilayahPage() {
       return;
     }
     
-    if (!selectedKecamatanId) {
-      toast.error("Pilih kecamatan terlebih dahulu");
+    if (!newDesaKecamatanId) {
+      toast.error("Silakan pilih kecamatan");
       return;
     }
     
-    createDesaMutation.mutate({
-      name: newDesaName,
-      kecamatanId: selectedKecamatanId
-    });
+    const newDesa = {
+      id: `desa-${desaList.length + 1}`,
+      kecamatan_id: newDesaKecamatanId,
+      nama: newDesaName.trim()
+    };
+    
+    setDesaList([...desaList, newDesa]);
+    
+    // Update jumlah desa di kecamatan
+    setKecamatanList(prev => 
+      prev.map(kec => 
+        kec.id === newDesaKecamatanId ? { ...kec, jumlah_desa: kec.jumlah_desa + 1 } : kec
+      )
+    );
+    
+    setNewDesaName("");
+    setNewDesaKecamatanId("");
+    setShowAddDesa(false);
+    toast.success(`Desa ${newDesaName} berhasil ditambahkan`);
   };
   
-  const handleAddNKS = () => {
-    if (!newNKSCode.trim()) {
-      toast.error("Kode NKS tidak boleh kosong");
+  const handleEditDesa = () => {
+    if (!editDesaId) return;
+    if (!editDesaName.trim()) {
+      toast.error("Nama desa tidak boleh kosong");
       return;
     }
     
-    if (!selectedDesaId) {
-      toast.error("Pilih desa terlebih dahulu");
-      return;
-    }
+    setDesaList(prev => 
+      prev.map(desa => 
+        desa.id === editDesaId ? { ...desa, nama: editDesaName.trim() } : desa
+      )
+    );
     
-    if (selectedKomoditasList.length === 0) {
-      toast.error("Pilih minimal satu jenis tanaman palawija");
-      return;
-    }
-    
-    if (sampelKRTList.length < targetPalawija * 2) {
-      toast.error(`Anda harus menambahkan minimal ${targetPalawija * 2} sampel KRT`);
-      return;
-    }
-    
-    createNKSMutation.mutate({
-      code: newNKSCode,
-      desaId: selectedDesaId,
-      targetPalawija: targetPalawija,
-      subround: subroundValue,
-      sampelKRTList: sampelKRTList
-    });
+    setEditDesaId(null);
+    setEditDesaName("");
+    setShowEditDesa(false);
+    toast.success("Desa berhasil diperbarui");
   };
   
-  const handleAddSegmen = () => {
-    if (!newSegmenCode.trim()) {
-      toast.error("Kode Segmen tidak boleh kosong");
-      return;
-    }
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
     
-    if (!selectedDesaId) {
-      toast.error("Pilih desa terlebih dahulu");
-      return;
-    }
-    
-    if (selectedBulan === "") {
-      toast.error("Pilih bulan terlebih dahulu");
-      return;
-    }
-    
-    createSegmenMutation.mutate({
-      code: newSegmenCode,
-      desaId: selectedDesaId,
-      targetPadi: targetPadi,
-      bulan: selectedBulan as number
-    });
-  };
-  
-  const handleDeleteNKS = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus NKS ini?")) {
-      deleteNKSMutation.mutate(id);
-    }
-  };
-  
-  const handleDeleteSegmen = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus Segmen ini?")) {
-      deleteSegmenMutation.mutate(id);
-    }
-  };
-  
-  const handleAddKRT = () => {
-    if (!newKRTNama.trim()) {
-      toast.error("Nama KRT tidak boleh kosong");
-      return;
-    }
-    
-    setSampelKRTList([...sampelKRTList, { nama: newKRTNama, status: newKRTStatus }]);
-    setNewKRTNama("");
-    setNewKRTStatus('Utama');
-  };
-  
-  const handleRemoveKRT = (index: number) => {
-    const newList = [...sampelKRTList];
-    newList.splice(index, 1);
-    setSampelKRTList(newList);
-  };
-  
-  const toggleKomoditasSelection = (komoditas: string) => {
-    setSelectedKomoditasList(prevList => {
-      if (prevList.includes(komoditas)) {
-        return prevList.filter(k => k !== komoditas);
-      } else {
-        return [...prevList, komoditas];
+    if (itemToDelete.type === 'kecamatan') {
+      // Check if there are desa in this kecamatan
+      const hasRelatedDesa = desaList.some(desa => desa.kecamatan_id === itemToDelete.id);
+      
+      if (hasRelatedDesa) {
+        toast.error("Tidak dapat menghapus kecamatan yang memiliki desa");
+        setShowDeleteDialog(false);
+        setItemToDelete(null);
+        return;
       }
-    });
-  };
-
-  const { data: pplList = [] } = useQuery({
-    queryKey: ["petugas", "ppl"],
-    queryFn: () => getPetugasList("ppl"),
-  });
-
-  const { data: pmlList = [] } = useQuery({
-    queryKey: ["petugas", "pml"],
-    queryFn: () => getPetugasList("pml"),
-  });
-  
-  const filteredNKSData = nksWithAssignments ? nksWithAssignments.filter(item => {
-    const searchText = filterText.toLowerCase();
-    return (
-      item.code.toLowerCase().includes(searchText) || 
-      (item.desa?.name && item.desa.name.toLowerCase().includes(searchText)) || 
-      (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText))
-    );
-  }) : [];
-
-  const filteredSegmenData = segmenWithAssignments ? segmenWithAssignments.filter(item => {
-    const searchText = filterText.toLowerCase();
-    return (
-      item.code.toLowerCase().includes(searchText) || 
-      (item.desa?.name && item.desa.name.toLowerCase().includes(searchText)) || 
-      (item.desa?.kecamatan?.name && item.desa.kecamatan.name.toLowerCase().includes(searchText))
-    );
-  }) : [];
-
-  const getMonthName = (monthNum: number): string => {
-    const month = monthsIndonesia.find(m => m.value === monthNum);
-    return month ? month.label : '';
-  };
-
-  const getPetugasName = (id: string) => {
-    const pml = pmlList.find(p => p.id === id);
-    if (pml) return pml.name;
+      
+      setKecamatanList(prev => prev.filter(kec => kec.id !== itemToDelete.id));
+      toast.success("Kecamatan berhasil dihapus");
+    } else {
+      setDesaList(prev => prev.filter(desa => desa.id !== itemToDelete.id));
+      
+      // Update jumlah desa di kecamatan
+      const desa = desaList.find(d => d.id === itemToDelete.id);
+      if (desa) {
+        setKecamatanList(prev => 
+          prev.map(kec => 
+            kec.id === desa.kecamatan_id ? { ...kec, jumlah_desa: kec.jumlah_desa - 1 } : kec
+          )
+        );
+      }
+      
+      toast.success("Desa berhasil dihapus");
+    }
     
-    const ppl = pplList.find(p => p.id === id);
-    return ppl ? ppl.name : "-";
+    setShowDeleteDialog(false);
+    setItemToDelete(null);
   };
-
+  
+  const confirmDelete = (id: string, type: 'kecamatan' | 'desa') => {
+    setItemToDelete({ id, type });
+    setShowDeleteDialog(true);
+  };
+  
+  const handleEditKecamatanClick = (kecamatan: any) => {
+    setEditKecamatanId(kecamatan.id);
+    setEditKecamatanName(kecamatan.nama);
+    setShowEditKecamatan(true);
+  };
+  
+  const handleEditDesaClick = (desa: any) => {
+    setEditDesaId(desa.id);
+    setEditDesaName(desa.nama);
+    setShowEditDesa(true);
+  };
+  
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Manajemen Wilayah</h1>
       
-      <div className="mb-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="kecamatan">Kecamatan</TabsTrigger>
-            <TabsTrigger value="desa">Desa</TabsTrigger>
-            <TabsTrigger value="nks">NKS</TabsTrigger>
-            <TabsTrigger value="segmen">Segmen</TabsTrigger>
-          </TabsList>
-          
-          {(activeTab === 'nks' || activeTab === 'segmen') && (
-            <div className="flex items-center mb-4 gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="kecamatan" className="flex items-center gap-2">
+            <Map className="h-4 w-4" />
+            Kecamatan
+          </TabsTrigger>
+          <TabsTrigger value="desa" className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Desa
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="kecamatan">
+          <Card>
+            <CardHeader className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:justify-between md:items-center">
+              <div>
+                <CardTitle>Daftar Kecamatan</CardTitle>
+                <CardDescription>
+                  Kelola kecamatan di Kabupaten Majalengka
+                </CardDescription>
+              </div>
+              <Button 
+                className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+                onClick={() => setShowAddKecamatan(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Kecamatan
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder="Cari..."
-                  className="pl-8"
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
+                  placeholder="Cari kecamatan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
               </div>
-            </div>
-          )}
-          
-          <TabsContent value="kecamatan">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tambah Kecamatan Baru</CardTitle>
-                  <CardDescription>Tambahkan kecamatan baru ke sistem</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="kecamatan-name">Nama Kecamatan</Label>
-                      <Input
-                        id="kecamatan-name"
-                        placeholder="Masukkan nama kecamatan"
-                        value={newKecamatanName}
-                        onChange={(e) => setNewKecamatanName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button 
-                    onClick={handleAddKecamatan}
-                    disabled={createKecamatanMutation.isPending || !newKecamatanName.trim()}
-                  >
-                    {createKecamatanMutation.isPending ? "Menyimpan..." : "Simpan"}
-                  </Button>
-                </CardFooter>
-              </Card>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar Kecamatan</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingKecamatan ? (
-                    <p>Memuat data...</p>
-                  ) : kecamatanList.length === 0 ? (
-                    <p className="text-muted-foreground">Belum ada data kecamatan</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nama Kecamatan</TableHead>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {kecamatanList.map((kecamatan) => (
-                          <TableRow key={kecamatan.id}>
-                            <TableCell>{kecamatan.name}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{kecamatan.id}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button variant="destructive" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="desa">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tambah Desa Baru</CardTitle>
-                  <CardDescription>Tambahkan desa baru ke sistem</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="kecamatan-select">Pilih Kecamatan</Label>
-                      <Select 
-                        value={selectedKecamatanId} 
-                        onValueChange={setSelectedKecamatanId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih kecamatan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kecamatanList.map((kecamatan) => (
-                            <SelectItem key={kecamatan.id} value={kecamatan.id}>
-                              {kecamatan.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>No</TableHead>
+                      <TableHead>Nama Kecamatan</TableHead>
+                      <TableHead className="text-center">Jumlah Desa</TableHead>
+                      <TableHead className="text-center">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {getFilteredKecamatan().map((kecamatan, index) => (
+                      <TableRow key={kecamatan.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-medium">{kecamatan.nama}</TableCell>
+                        <TableCell className="text-center">{kecamatan.jumlah_desa}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditKecamatanClick(kecamatan)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                              onClick={() => confirmDelete(kecamatan.id, 'kecamatan')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                     
-                    <div className="grid gap-2">
-                      <Label htmlFor="desa-name">Nama Desa</Label>
-                      <Input
-                        id="desa-name"
-                        placeholder="Masukkan nama desa"
-                        value={newDesaName}
-                        onChange={(e) => setNewDesaName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button 
-                    onClick={handleAddDesa}
-                    disabled={
-                      createDesaMutation.isPending || 
-                      !newDesaName.trim() || 
-                      !selectedKecamatanId
-                    }
-                  >
-                    {createDesaMutation.isPending ? "Menyimpan..." : "Simpan"}
-                  </Button>
-                </CardFooter>
-              </Card>
+                    {getFilteredKecamatan().length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">
+                          Tidak ada data kecamatan
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="desa">
+          <Card>
+            <CardHeader className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:justify-between md:items-center">
+              <div>
+                <CardTitle>Daftar Desa</CardTitle>
+                <CardDescription>
+                  Kelola desa di Kabupaten Majalengka
+                </CardDescription>
+              </div>
+              <Button 
+                className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+                onClick={() => setShowAddDesa(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Desa
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Cari desa..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                <select 
+                  className="px-3 py-2 rounded-md border border-input bg-background h-10"
+                  value={selectedKecamatan || ""}
+                  onChange={(e) => setSelectedKecamatan(e.target.value || null)}
+                >
+                  <option value="">Semua Kecamatan</option>
+                  {kecamatanList.map(kec => (
+                    <option key={kec.id} value={kec.id}>
+                      {kec.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar Desa</CardTitle>
-                  <CardDescription>
-                    {selectedKecamatanId 
-                      ? `Menampilkan desa di kecamatan yang dipilih` 
-                      : "Pilih kecamatan untuk melihat desa"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {!selectedKecamatanId ? (
-                    <p className="text-muted-foreground">Pilih kecamatan terlebih dahulu</p>
-                  ) : isLoadingDesa ? (
-                    <p>Memuat data...</p>
-                  ) : desaList && desaList.length === 0 ? (
-                    <p className="text-muted-foreground">Belum ada data desa untuk kecamatan ini</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nama Desa</TableHead>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {desaList && desaList.map((desa) => (
-                          <TableRow key={desa.id}>
-                            <TableCell>{desa.name}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{desa.id}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button variant="destructive" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>No</TableHead>
+                      <TableHead>Nama Desa</TableHead>
+                      <TableHead>Kecamatan</TableHead>
+                      <TableHead className="text-center">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {getFilteredDesa().map((desa, index) => (
+                      <TableRow key={desa.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-medium">{desa.nama}</TableCell>
+                        <TableCell>{getKecamatanName(desa.kecamatan_id)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditDesaClick(desa)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                              onClick={() => confirmDelete(desa.id, 'desa')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    
+                    {getFilteredDesa().length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">
+                          Tidak ada data desa
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
+      {/* Dialog: Tambah Kecamatan */}
+      <Dialog open={showAddKecamatan} onOpenChange={setShowAddKecamatan}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Kecamatan Baru</DialogTitle>
+            <DialogDescription>
+              Tambahkan kecamatan baru ke sistem
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="kecamatanName" className="text-sm font-medium">
+                Nama Kecamatan
+              </label>
+              <Input
+                id="kecamatanName"
+                placeholder="Masukkan nama kecamatan"
+                value={newKecamatanName}
+                onChange={(e) => setNewKecamatanName(e.target.value)}
+              />
             </div>
-          </TabsContent>
-          
-          <TabsContent value="nks">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tambah NKS Baru</CardTitle>
-                  <CardDescription>Tambahkan Nomor Kode Sampel baru ke sistem</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="kecamatan-select">Pilih Kecamatan</Label>
-                      <Select 
-                        value={selectedKecamatanId} 
-                        onValueChange={(value) => {
-                          setSelectedKecamatanId(value);
-                          setSelectedDesaId("");
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih kecamatan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kecamatanList.map((kecamatan) => (
-                            <SelectItem key={kecamatan.id} value={kecamatan.id}>
-                              {kecamatan.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="desa-select">Pilih Desa</Label>
-                      <Select 
-                        value={selectedDesaId} 
-                        onValueChange={setSelectedDesaId}
-                        disabled={!selectedKecamatanId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih desa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {desaList && desaList.map((desa) => (
-                            <SelectItem key={desa.id} value={desa.id}>
-                              {desa.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="nks-code">Kode NKS</Label>
-                      <Input
-                        id="nks-code"
-                        placeholder="Masukkan kode NKS"
-                        value={newNKSCode}
-                        onChange={(e) => setNewNKSCode(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="subround-select">Pilih Subround</Label>
-                      <Select 
-                        value={subroundValue.toString()} 
-                        onValueChange={(value) => setSubroundValue(parseInt(value))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih subround" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">Subround 1</SelectItem>
-                          <SelectItem value="2">Subround 2</SelectItem>
-                          <SelectItem value="3">Subround 3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label className="mb-2">Nama Tanaman Palawija</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {['jagung', 'kedelai', 'kacang_tanah', 'ubi_kayu', 'ubi_jalar'].map((komoditas) => (
-                          <Badge 
-                            key={komoditas} 
-                            variant={selectedKomoditasList.includes(komoditas) ? "default" : "outline"}
-                            className="cursor-pointer"
-                            onClick={() => toggleKomoditasSelection(komoditas)}
-                          >
-                            {selectedKomoditasList.includes(komoditas) && (
-                              <Check className="mr-1 h-3 w-3" />
-                            )}
-                            {komoditas.replace('_', ' ')}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="target-palawija">Target Ubinan</Label>
-                      <Input
-                        id="target-palawija"
-                        type="number"
-                        placeholder="Jumlah target palawija"
-                        value={targetPalawija.toString()}
-                        onChange={(e) => setTargetPalawija(parseInt(e.target.value) || 0)}
-                      />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Nama Kepala Rumahtangga Sampel</Label>
-                        <span className="text-sm text-muted-foreground">
-                          {sampelKRTList.length} dari {targetPalawija * 2} KRT
-                        </span>
-                      </div>
-                      
-                      <div className="flex gap-2 items-end mb-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Nama KRT"
-                            value={newKRTNama}
-                            onChange={(e) => setNewKRTNama(e.target.value)}
-                          />
-                        </div>
-                        
-                        <div className="w-24">
-                          <Select 
-                            value={newKRTStatus}
-                            onValueChange={(value: 'Utama' | 'Cadangan') => setNewKRTStatus(value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Utama">Utama</SelectItem>
-                              <SelectItem value="Cadangan">Cadangan</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <Button type="button" onClick={handleAddKRT} size="sm">
-                          <Plus className="h-4 w-4 mr-1" /> Tambah
-                        </Button>
-                      </div>
-                      
-                      {sampelKRTList.length > 0 && (
-                        <div className="border rounded-md p-2 max-h-60 overflow-y-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Nama KRT</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="w-[80px]">Aksi</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {sampelKRTList.map((krt, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>{krt.nama}</TableCell>
-                                  <TableCell>{krt.status}</TableCell>
-                                  <TableCell>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleRemoveKRT(index)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button 
-                    onClick={handleAddNKS}
-                    disabled={
-                      createNKSMutation.isPending || 
-                      !newNKSCode.trim() || 
-                      !selectedDesaId ||
-                      selectedKomoditasList.length === 0
-                    }
-                  >
-                    {createNKSMutation.isPending ? "Menyimpan..." : "Simpan"}
-                  </Button>
-                </CardFooter>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar NKS</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingNKSAssignments ? (
-                    <p>Memuat data...</p>
-                  ) : filteredNKSData.length === 0 ? (
-                    <p className="text-muted-foreground">
-                      {filterText ? "Tidak ada data NKS yang sesuai filter" : "Belum ada data NKS"}
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Kode NKS</TableHead>
-                          <TableHead>Desa</TableHead>
-                          <TableHead>Kecamatan</TableHead>
-                          <TableHead>Subround</TableHead>
-                          <TableHead>Komoditas</TableHead>
-                          <TableHead>Target Ubinan</TableHead>
-                          <TableHead>PPL</TableHead>
-                          <TableHead>PML</TableHead>
-                          <TableHead>Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredNKSData.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.code}</TableCell>
-                            <TableCell>{item.desa?.name || '-'}</TableCell>
-                            <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
-                            <TableCell>{item.subround || '1'}</TableCell>
-                            <TableCell>
-                              {item.komoditas_list && Array.isArray(item.komoditas_list) && item.komoditas_list.length > 0 
-                                ? item.komoditas_list.map((k: any) => k.komoditas).join(', ')
-                                : '-'
-                              }
-                            </TableCell>
-                            <TableCell>{item.target_palawija}</TableCell>
-                            <TableCell>
-                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
-                                ? (item.wilayah_tugas[0] as any)?.ppl?.name || '-'
-                                : '-'
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {item.wilayah_tugas && Array.isArray(item.wilayah_tugas) && item.wilayah_tugas.length > 0 
-                                ? (item.wilayah_tugas[0] as any)?.pml?.name || '-'
-                                : '-'
-                              }
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => {
-                                    setCurrentEditItem(item);
-                                    setIsEditNKSDialogOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleDeleteNKS(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAddKecamatan(false)}
+            >
+              Batal
+            </Button>
+            <Button 
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={handleAddKecamatan}
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog: Edit Kecamatan */}
+      <Dialog open={showEditKecamatan} onOpenChange={setShowEditKecamatan}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Kecamatan</DialogTitle>
+            <DialogDescription>
+              Perbarui informasi kecamatan
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="editKecamatanName" className="text-sm font-medium">
+                Nama Kecamatan
+              </label>
+              <Input
+                id="editKecamatanName"
+                placeholder="Masukkan nama kecamatan"
+                value={editKecamatanName}
+                onChange={(e) => setEditKecamatanName(e.target.value)}
+              />
             </div>
-          </TabsContent>
-          
-          <TabsContent value="segmen">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tambah Segmen Baru</CardTitle>
-                  <CardDescription>Tambahkan segmen baru ke sistem</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="kecamatan-select-segmen">Pilih Kecamatan</Label>
-                      <Select 
-                        value={selectedKecamatanId} 
-                        onValueChange={(value) => {
-                          setSelectedKecamatanId(value);
-                          setSelectedDesaId("");
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih kecamatan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kecamatanList.map((kecamatan) => (
-                            <SelectItem key={kecamatan.id} value={kecamatan.id}>
-                              {kecamatan.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="desa-select-segmen">Pilih Desa</Label>
-                      <Select 
-                        value={selectedDesaId} 
-                        onValueChange={setSelectedDesaId}
-                        disabled={!selectedKecamatanId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih desa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {desaList && desaList.map((desa) => (
-                            <SelectItem key={desa.id} value={desa.id}>
-                              {desa.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="segmen-code">Kode Segmen</Label>
-                      <Input
-                        id="segmen-code"
-                        placeholder="Masukkan kode segmen"
-                        value={newSegmenCode}
-                        onChange={(e) => setNewSegmenCode(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="target-padi">Target Padi</Label>
-                      <Input
-                        id="target-padi"
-                        type="number"
-                        placeholder="Jumlah target padi"
-                        value={targetPadi.toString()}
-                        onChange={(e) => setTargetPadi(parseInt(e.target.value) || 0)}
-                      />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="bulan-select">Pilih Bulan</Label>
-                      <Select 
-                        value={selectedBulan === "" ? "" : selectedBulan.toString()} 
-                        onValueChange={(value) => setSelectedBulan(value === "" ? "" : parseInt(value))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih bulan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {monthsIndonesia.map((month) => (
-                            <SelectItem key={month.value} value={month.value.toString()}>
-                              {month.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button 
-                    onClick={handleAddSegmen}
-                    disabled={
-                      createSegmenMutation.isPending || 
-                      !newSegmenCode.trim() || 
-                      !selectedDesaId ||
-                      selectedBulan === ""
-                    }
-                  >
-                    {createSegmenMutation.isPending ? "Menyimpan..." : "Simpan"}
-                  </Button>
-                </CardFooter>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar Segmen</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingSegmenAssignments ? (
-                    <p>Memuat data...</p>
-                  ) : filteredSegmenData.length === 0 ? (
-                    <p className="text-muted-foreground">
-                      {filterText ? "Tidak ada data segmen yang sesuai filter" : "Belum ada data segmen"}
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Kode Segmen</TableHead>
-                          <TableHead>Desa</TableHead>
-                          <TableHead>Kecamatan</TableHead>
-                          <TableHead>Bulan</TableHead>
-                          <TableHead>Target Padi</TableHead>
-                          <TableHead>PPL</TableHead>
-                          <TableHead>PML</TableHead>
-                          <TableHead>Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredSegmenData.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.code}</TableCell>
-                            <TableCell>{item.desa?.name || '-'}</TableCell>
-                            <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
-                            <TableCell>{getMonthName(item.bulan)}</TableCell>
-                            <TableCell>{item.target_padi}</TableCell>
-                            <TableCell>
-                              {item.wilayah_tugas_segmen && 
-                               Array.isArray(item.wilayah_tugas_segmen) && 
-                               item.wilayah_tugas_segmen.length > 0 && 
-                               item.wilayah_tugas_segmen[0]?.ppl && 
-                               typeof item.wilayah_tugas_segmen[0].ppl === 'object' ? 
-                                (item.wilayah_tugas_segmen[0].ppl as any)?.name || '-' : '-'
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {item.wilayah_tugas_segmen && 
-                               Array.isArray(item.wilayah_tugas_segmen) && 
-                               item.wilayah_tugas_segmen.length > 0 &&
-                               item.wilayah_tugas_segmen[0]?.pml && 
-                               typeof item.wilayah_tugas_segmen[0].pml === 'object' ? 
-                                (item.wilayah_tugas_segmen[0].pml as any)?.name || '-' : '-'
-                              }
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => {
-                                    setCurrentEditItem(item);
-                                    setIsEditSegmenDialogOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleDeleteSegmen(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowEditKecamatan(false);
+                setEditKecamatanId(null);
+                setEditKecamatanName("");
+              }}
+            >
+              Batal
+            </Button>
+            <Button 
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={handleEditKecamatan}
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog: Tambah Desa */}
+      <Dialog open={showAddDesa} onOpenChange={setShowAddDesa}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Desa Baru</DialogTitle>
+            <DialogDescription>
+              Tambahkan desa baru ke sistem
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="desaName" className="text-sm font-medium">
+                Nama Desa
+              </label>
+              <Input
+                id="desaName"
+                placeholder="Masukkan nama desa"
+                value={newDesaName}
+                onChange={(e) => setNewDesaName(e.target.value)}
+              />
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+            <div className="space-y-2">
+              <label htmlFor="desaKecamatan" className="text-sm font-medium">
+                Kecamatan
+              </label>
+              <select
+                id="desaKecamatan"
+                className="w-full px-3 py-2 rounded-md border border-input bg-background h-10"
+                value={newDesaKecamatanId}
+                onChange={(e) => setNewDesaKecamatanId(e.target.value)}
+              >
+                <option value="">Pilih Kecamatan</option>
+                {kecamatanList.map(kec => (
+                  <option key={kec.id} value={kec.id}>
+                    {kec.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAddDesa(false)}
+            >
+              Batal
+            </Button>
+            <Button 
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={handleAddDesa}
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog: Edit Desa */}
+      <Dialog open={showEditDesa} onOpenChange={setShowEditDesa}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Desa</DialogTitle>
+            <DialogDescription>
+              Perbarui informasi desa
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="editDesaName" className="text-sm font-medium">
+                Nama Desa
+              </label>
+              <Input
+                id="editDesaName"
+                placeholder="Masukkan nama desa"
+                value={editDesaName}
+                onChange={(e) => setEditDesaName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowEditDesa(false);
+                setEditDesaId(null);
+                setEditDesaName("");
+              }}
+            >
+              Batal
+            </Button>
+            <Button 
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={handleEditDesa}
+            >
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog: Konfirmasi Hapus */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Hapus</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus {itemToDelete?.type === 'kecamatan' ? 'kecamatan' : 'desa'} ini? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setItemToDelete(null);
+              }}
+            >
+              Batal
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteItem}
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

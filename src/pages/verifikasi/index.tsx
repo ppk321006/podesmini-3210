@@ -1,361 +1,424 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/context/auth-context';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VerificationDialog } from '@/components/verification/verification-dialog';
-import { getUbinanDataByPML, getProgressByPML } from '@/services/progress-service';
-import { UbinanData } from '@/types/database-schema';
-import { ArrowUpDown } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+
+import { useState } from "react";
+import { useAuth } from "@/context/auth-context";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Search, CheckCircle, XCircle, FileText, Eye, Filter, X, AlertCircle } from "lucide-react";
+import { DataPendataanDesa } from "@/types/pendataan";
+import { toast } from "sonner";
+
+// Mock data for demonstration
+const mockPendataanList: DataPendataanDesa[] = [
+  {
+    id: "pendataan-1",
+    desa_id: "desa-1",
+    ppl_id: "ppl-id-123",
+    jumlah_penduduk: 2500,
+    luas_wilayah: 5.2,
+    potensi_ekonomi: "Pertanian padi dan palawija",
+    infrastruktur: "Jalan utama sudah beraspal, terdapat 1 puskesmas",
+    catatan: "Beberapa bagian desa masih sering mengalami banjir saat musim hujan",
+    status: "submitted",
+    created_at: "2023-05-20T10:30:00Z",
+    updated_at: "2023-05-20T14:30:00Z"
+  },
+  {
+    id: "pendataan-2",
+    desa_id: "desa-2",
+    ppl_id: "ppl-id-456",
+    jumlah_penduduk: 3200,
+    luas_wilayah: 6.5,
+    potensi_ekonomi: "Peternakan sapi dan industri rumahan",
+    infrastruktur: "Jalan utama sudah beraspal, terdapat 1 puskesmas dan 1 pasar desa",
+    catatan: "Ekonomi desa berkembang dengan baik berkat industri rumahan",
+    status: "approved",
+    created_at: "2023-05-15T08:15:00Z",
+    updated_at: "2023-05-19T09:20:00Z"
+  },
+  {
+    id: "pendataan-3",
+    desa_id: "desa-3",
+    ppl_id: "ppl-id-789",
+    jumlah_penduduk: 1800,
+    luas_wilayah: 4.3,
+    potensi_ekonomi: "Perkebunan kopi dan pertanian",
+    infrastruktur: "Jalan sebagian belum beraspal, terdapat 1 puskesmas pembantu",
+    catatan: "Akses jalan masih perlu perbaikan untuk menunjang ekonomi",
+    status: "rejected",
+    alasan_penolakan: "Data jumlah penduduk tidak sesuai dengan data kependudukan. Mohon cek ulang data sensus terbaru.",
+    created_at: "2023-05-18T13:40:00Z",
+    updated_at: "2023-05-21T11:45:00Z"
+  },
+  {
+    id: "pendataan-4",
+    desa_id: "desa-4",
+    ppl_id: "ppl-id-123",
+    jumlah_penduduk: 2100,
+    luas_wilayah: 3.8,
+    potensi_ekonomi: "Pertanian dan perikanan",
+    infrastruktur: "Jalan desa sebagian rusak, memiliki 1 puskesmas pembantu",
+    catatan: "Wilayah berpotensi untuk pengembangan perikanan darat",
+    status: "submitted",
+    created_at: "2023-05-21T09:15:00Z",
+    updated_at: "2023-05-21T11:20:00Z"
+  }
+];
+
+// Mock data for desa names
+const mockDesaNameMap: Record<string, string> = {
+  "desa-1": "Desa Cidahu",
+  "desa-2": "Desa Sukamaju",
+  "desa-3": "Desa Cibunar",
+  "desa-4": "Desa Buniseuri"
+};
+
+// Mock data for PPL names
+const mockPplNameMap: Record<string, string> = {
+  "ppl-id-123": "Ahmad Suprapto",
+  "ppl-id-456": "Budi Santoso",
+  "ppl-id-789": "Citra Dewi"
+};
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
-  const [selectedUbinan, setSelectedUbinan] = useState<UbinanData | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<string>('all');
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
-  const { data: ubinanData = [], isLoading, refetch } = useQuery({
-    queryKey: ['ubinan_verification', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('ubinan_data')
-        .select(`
-          *,
-          nks:nks_id(
-            id, code,
-            desa:desa_id(
-              id, name,
-              kecamatan:kecamatan_id(id, name)
-            )
-          ),
-          segmen:segmen_id(
-            id, code,
-            desa:desa_id(
-              id, name,
-              kecamatan:kecamatan_id(id, name)
-            )
-          ),
-          ppl:ppl_id(id, name, username)
-        `)
-        .eq('pml_id', user.id);
-        
-      if (error) {
-        console.error("Error fetching ubinan data:", error);
-        throw error;
-      }
-      
-      const processedData = data.map(item => {
-        const desa = item.nks?.desa || item.segmen?.desa;
-        
-        let pplName = "Unknown";
-        if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
-          if (typeof item.ppl === 'string') {
-            pplName = item.ppl;
-          } else {
-            const pplObj = item.ppl as any;
-            if (pplObj && pplObj.name) {
-              pplName = pplObj.name;
-            }
-          }
-        }
-          
-        return {
-          ...item,
-          desa_name: desa?.name || '-',
-          kecamatan_name: desa?.kecamatan?.name || '-',
-          ppl_name: pplName
-        };
-      });
-      
-      return processedData as unknown as UbinanData[];
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: progressData = { 
-    totalPadi: 0, 
-    totalPalawija: 0, 
-    pendingVerification: 0, 
-    verified: 0, 
-    rejected: 0 
-  }, isLoading: isLoadingProgress } = useQuery({
-    queryKey: ['pml_progress', user?.id],
-    queryFn: () => getProgressByPML(user?.id || ''),
-    enabled: !!user?.id,
-  });
-
-  const filteredData = filter === 'all' 
-    ? ubinanData 
-    : ubinanData.filter(item => item.status === filter);
-
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [pendataanList, setPendataanList] = useState<DataPendataanDesa[]>(mockPendataanList);
+  const [selectedItem, setSelectedItem] = useState<DataPendataanDesa | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  
+  const getFilteredList = () => {
+    let filtered = pendataanList;
+    
+    // Apply tab filter
+    if (activeTab === "pending") {
+      filtered = filtered.filter(item => item.status === "submitted");
+    } else if (activeTab === "approved") {
+      filtered = filtered.filter(item => item.status === "approved");
+    } else if (activeTab === "rejected") {
+      filtered = filtered.filter(item => item.status === "rejected");
     }
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        mockDesaNameMap[item.desa_id].toLowerCase().includes(searchTerm.toLowerCase()) ||
+        mockPplNameMap[item.ppl_id].toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return filtered;
   };
-
-  const sortedData = [...filteredData].sort((a, b) => {
-    if (!sortColumn) return 0;
-    
-    let valueA, valueB;
-    
-    switch (sortColumn) {
-      case 'kode':
-        valueA = (a.nks?.code || a.segmen?.code || '').toLowerCase();
-        valueB = (b.nks?.code || b.segmen?.code || '').toLowerCase();
-        break;
-      case 'responden':
-        valueA = a.responden_name.toLowerCase();
-        valueB = b.responden_name.toLowerCase();
-        break;
-      case 'komoditas':
-        valueA = a.komoditas.toLowerCase();
-        valueB = b.komoditas.toLowerCase();
-        break;
-      case 'tanggal':
-        valueA = new Date(a.tanggal_ubinan).getTime();
-        valueB = new Date(b.tanggal_ubinan).getTime();
-        break;
-      case 'berat':
-        valueA = a.berat_hasil;
-        valueB = b.berat_hasil;
-        break;
-      case 'ppl':
-        valueA = (a.ppl_name || '').toLowerCase();
-        valueB = (b.ppl_name || '').toLowerCase();
-        break;
-      case 'lokasi':
-        valueA = `${a.kecamatan_name || ''} ${a.desa_name || ''}`.toLowerCase();
-        valueB = `${b.kecamatan_name || ''} ${b.desa_name || ''}`.toLowerCase();
-        break;
-      case 'komentar':
-        valueA = (a.komentar || '').toLowerCase();
-        valueB = (b.komentar || '').toLowerCase();
-        break;
-      case 'status':
-        valueA = a.status;
-        valueB = b.status;
-        break;
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return <Badge className="bg-green-500">Disetujui</Badge>;
+      case "rejected":
+        return <Badge className="bg-red-500">Ditolak</Badge>;
+      case "submitted":
+        return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
       default:
-        return 0;
+        return <Badge className="bg-gray-500">Draft</Badge>;
+    }
+  };
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+  
+  const handleApprove = () => {
+    if (!selectedItem) return;
+    
+    setPendataanList(prev => 
+      prev.map(item => 
+        item.id === selectedItem.id ? { ...item, status: "approved", updated_at: new Date().toISOString() } : item
+      )
+    );
+    
+    toast.success(`Data ${mockDesaNameMap[selectedItem.desa_id]} telah disetujui`);
+    setShowApproveDialog(false);
+    setSelectedItem(null);
+  };
+  
+  const handleReject = () => {
+    if (!selectedItem) return;
+    
+    if (!rejectReason.trim()) {
+      toast.error("Alasan penolakan harus diisi");
+      return;
     }
     
-    if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
-    if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const handleVerify = (ubinan: UbinanData) => {
-    setSelectedUbinan(ubinan);
-    setIsDialogOpen(true);
+    setPendataanList(prev => 
+      prev.map(item => 
+        item.id === selectedItem.id ? 
+        { 
+          ...item, 
+          status: "rejected", 
+          alasan_penolakan: rejectReason,
+          updated_at: new Date().toISOString() 
+        } : item
+      )
+    );
+    
+    toast.success(`Data ${mockDesaNameMap[selectedItem.desa_id]} telah ditolak`);
+    setShowRejectDialog(false);
+    setSelectedItem(null);
+    setRejectReason("");
   };
-
-  const handleDialogClose = (updatedData?: UbinanData) => {
-    setIsDialogOpen(false);
-    setSelectedUbinan(null);
-    refetch();
+  
+  const clearFilters = () => {
+    setSearchTerm("");
   };
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Verifikasi Data Ubinan</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-blue-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Data</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{ubinanData.length}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-yellow-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-yellow-700">Menunggu Verifikasi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-yellow-700">{progressData.pendingVerification}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-green-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-green-700">Terverifikasi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-700">{progressData.verified}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-red-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-red-700">Ditolak</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-red-700">{progressData.rejected}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Data Ubinan</h2>
-          
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Filter Status:</label>
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="sudah_diisi">Menunggu Verifikasi</SelectItem>
-                <SelectItem value="dikonfirmasi">Terverifikasi</SelectItem>
-                <SelectItem value="ditolak">Ditolak</SelectItem>
-                <SelectItem value="belum_diisi">Belum Diisi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Verifikasi Data</h1>
+          <p className="text-gray-500">Verifikasi data pendataan potensi desa</p>
         </div>
       </div>
-
-      {isLoading ? (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2">Loading...</p>
+      
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Cari berdasarkan desa atau petugas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-      ) : sortedData.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-lg text-gray-500">Tidak ada data yang tersedia</p>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead onClick={() => handleSort('kode')} className="cursor-pointer">
-                      Kode {sortColumn === 'kode' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('responden')} className="cursor-pointer">
-                      Responden {sortColumn === 'responden' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('komoditas')} className="cursor-pointer">
-                      Komoditas {sortColumn === 'komoditas' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('lokasi')} className="cursor-pointer">
-                      Kecamatan/Desa {sortColumn === 'lokasi' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
-                      Tanggal {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('berat')} className="cursor-pointer">
-                      Berat Hasil {sortColumn === 'berat' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('ppl')} className="cursor-pointer">
-                      PPL {sortColumn === 'ppl' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('komentar')} className="cursor-pointer">
-                      Komentar {sortColumn === 'komentar' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
-                      Status {sortColumn === 'status' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedData.map((ubinan) => (
-                    <TableRow key={ubinan.id}>
-                      <TableCell className="font-medium">
-                        {ubinan.nks?.code || ubinan.segmen?.code || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {ubinan.responden_name}
-                        {ubinan.sample_status && (
-                          <Badge variant="outline" className="ml-2">
-                            {ubinan.sample_status}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="capitalize">{ubinan.komoditas.replace('_', ' ')}</TableCell>
-                      <TableCell>
-                        {ubinan.kecamatan_name} / {ubinan.desa_name}
-                      </TableCell>
-                      <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{ubinan.berat_hasil} kg</TableCell>
-                      <TableCell>{ubinan.ppl_name}</TableCell>
-                      <TableCell>
-                        <span className="line-clamp-2">{ubinan.komentar || '-'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            ubinan.status === 'dikonfirmasi'
-                              ? 'bg-green-100 text-green-800'
-                              : ubinan.status === 'ditolak'
-                              ? 'bg-red-100 text-red-800'
-                              : ubinan.status === 'sudah_diisi'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
+        
+        {searchTerm && (
+          <Button
+            variant="ghost"
+            onClick={clearFilters}
+            className="flex items-center gap-2"
+          >
+            <X className="h-4 w-4" />
+            Hapus Filter
+          </Button>
+        )}
+      </div>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="pending">
+            Menunggu Verifikasi
+            <Badge variant="outline" className="ml-2 bg-orange-100 text-orange-800 border-orange-200">
+              {pendataanList.filter(item => item.status === "submitted").length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="approved">Disetujui</TabsTrigger>
+          <TabsTrigger value="rejected">Ditolak</TabsTrigger>
+          <TabsTrigger value="all">Semua</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value={activeTab} className="space-y-4">
+          {getFilteredList().length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <FileText className="h-12 w-12 text-gray-300 mb-4" />
+                <h2 className="text-xl font-medium mb-2">Tidak ada data</h2>
+                <p className="text-gray-500 text-center">
+                  {activeTab === "pending" ? 
+                    "Tidak ada data yang menunggu verifikasi" : 
+                    activeTab === "approved" ? 
+                    "Tidak ada data yang telah disetujui" : 
+                    activeTab === "rejected" ? 
+                    "Tidak ada data yang ditolak" : 
+                    "Tidak ada data pendataan"
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {getFilteredList().map((item) => (
+                <Card 
+                  key={item.id}
+                  className={`${
+                    item.status === "rejected" ? "border-red-200" : 
+                    item.status === "approved" ? "border-green-200" : 
+                    item.status === "submitted" ? "border-orange-200" : ""
+                  }`}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <CardTitle>{mockDesaNameMap[item.desa_id]}</CardTitle>
+                      {getStatusBadge(item.status)}
+                    </div>
+                    <CardDescription className="flex items-center gap-1">
+                      <span>Petugas: {mockPplNameMap[item.ppl_id]}</span>
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="font-medium">Jumlah Penduduk</p>
+                        <p>{item.jumlah_penduduk.toLocaleString()} jiwa</p>
+                      </div>
+                      <div>
+                        <p className="font-medium">Luas Wilayah</p>
+                        <p>{item.luas_wilayah} km²</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <p className="font-medium">Potensi Ekonomi</p>
+                      <p className="line-clamp-2">{item.potensi_ekonomi}</p>
+                    </div>
+                    
+                    {item.status === "rejected" && item.alasan_penolakan && (
+                      <div className="bg-red-50 p-3 rounded-md border border-red-200">
+                        <p className="font-medium text-sm text-red-700 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Alasan Penolakan
+                        </p>
+                        <p className="text-sm text-red-600 mt-1">
+                          {item.alasan_penolakan}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-gray-500 flex justify-between">
+                      <span>Dibuat: {formatDate(item.created_at)}</span>
+                      <span>Diupdate: {formatDate(item.updated_at)}</span>
+                    </div>
+                  </CardContent>
+                  
+                  <CardFooter className="pt-0 flex justify-between">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() => window.location.href = `/dokumen/viewer/${item.id}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                      Detail
+                    </Button>
+                    
+                    {item.status === "submitted" && (
+                      <div className="flex gap-2">
+                        <Dialog open={showApproveDialog && selectedItem?.id === item.id} onOpenChange={(open) => {
+                          if (!open) setSelectedItem(null);
+                          setShowApproveDialog(open);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="bg-green-500 hover:bg-green-600 text-white border-none flex items-center gap-1"
+                              onClick={() => setSelectedItem(item)}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Setujui
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Konfirmasi Persetujuan</DialogTitle>
+                              <DialogDescription>
+                                Apakah Anda yakin ingin menyetujui data pendataan {mockDesaNameMap[item.desa_id]}?
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setShowApproveDialog(false);
+                                  setSelectedItem(null);
+                                }}
+                              >
+                                Batal
+                              </Button>
+                              <Button 
+                                className="bg-green-500 hover:bg-green-600"
+                                onClick={handleApprove}
+                              >
+                                Setujui
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        <Dialog open={showRejectDialog && selectedItem?.id === item.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setSelectedItem(null);
+                            setRejectReason("");
                           }
-                        >
-                          {ubinan.status === 'dikonfirmasi'
-                            ? 'Terverifikasi'
-                            : ubinan.status === 'ditolak'
-                            ? 'Ditolak'
-                            : ubinan.status === 'sudah_diisi'
-                            ? 'Menunggu Verifikasi'
-                            : 'Belum Diisi'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant={ubinan.status === 'sudah_diisi' ? 'default' : 'outline'}
-                          size="sm" 
-                          disabled={ubinan.status !== 'sudah_diisi'}
-                          onClick={() => handleVerify(ubinan)}
-                        >
-                          Verifikasi
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          setShowRejectDialog(open);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="bg-red-500 hover:bg-red-600 text-white border-none flex items-center gap-1"
+                              onClick={() => setSelectedItem(item)}
+                            >
+                              <XCircle className="h-4 w-4" />
+                              Tolak
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Tolak Pendataan</DialogTitle>
+                              <DialogDescription>
+                                Berikan alasan penolakan untuk data pendataan {mockDesaNameMap[item.desa_id]}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Textarea 
+                              placeholder="Alasan penolakan..."
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              className="min-h-[100px]"
+                            />
+                            <DialogFooter>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setShowRejectDialog(false);
+                                  setSelectedItem(null);
+                                  setRejectReason("");
+                                }}
+                              >
+                                Batal
+                              </Button>
+                              <Button 
+                                className="bg-red-500 hover:bg-red-600"
+                                onClick={handleReject}
+                                disabled={!rejectReason.trim()}
+                              >
+                                Tolak Data
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {selectedUbinan && (
-        <VerificationDialog 
-          data={selectedUbinan}
-          isOpen={isDialogOpen}
-          onClose={() => setIsDialogOpen(false)}
-          onComplete={handleDialogClose}
-        />
-      )}
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

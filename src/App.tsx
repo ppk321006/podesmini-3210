@@ -8,15 +8,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./context/auth-context";
 import { Layout } from "./components/layout/layout";
 import DashboardPage from "./pages/dashboard";
-import ProgressUbinanPage from "./pages/progress-ubinan";
 import PetugasPage from "./pages/petugas";
 import WilayahPage from "./pages/wilayah";
-import AlokasiWilayahPage from "./pages/alokasi-wilayah";
-import AlokasiPetugasPage from "./pages/alokasi-petugas";
-import VerifikasiPage from "./pages/verifikasi";
-import InputUbinanPage from "./pages/input-ubinan";
-import PetugasProgresPage from "./pages/petugas-progres";
+import DocumentUploadPage from "./pages/dokumen/upload";
+import DocumentViewerPage from "./pages/dokumen/viewer";
 import ProfilePage from "./pages/profil";
+import PendataanPage from "./pages/pendataan";
+import VerifikasiPage from "./pages/verifikasi";
+import NotificationsPage from "./pages/notifications";
 import NotFoundPage from "./pages/not-found";
 import LoginPage from "./pages/login";
 import { UserRole } from "./types/user";
@@ -44,7 +43,7 @@ function AuthRedirect({ element }: { element: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   
   if (isAuthenticated) {
-    return <Navigate to="/progres" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   
   return element;
@@ -68,18 +67,12 @@ function App() {
                 } />
                 
                 <Route element={<Layout />}>
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/progres" element={<ProgressUbinanPage />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/petugas" element={
                     <RoleBasedRoute 
                       element={<PetugasPage />} 
                       allowedRoles={[UserRole.ADMIN]} 
-                    />
-                  } />
-                  <Route path="/input-data" element={
-                    <RoleBasedRoute 
-                      element={<InputUbinanPage />} 
-                      allowedRoles={[UserRole.PPL]} 
                     />
                   } />
                   <Route path="/wilayah" element={
@@ -88,16 +81,10 @@ function App() {
                       allowedRoles={[UserRole.ADMIN]} 
                     />
                   } />
-                  <Route path="/alokasi-wilayah" element={
+                  <Route path="/pendataan" element={
                     <RoleBasedRoute 
-                      element={<AlokasiWilayahPage />} 
-                      allowedRoles={[UserRole.ADMIN]} 
-                    />
-                  } />
-                  <Route path="/alokasi-petugas" element={
-                    <RoleBasedRoute 
-                      element={<AlokasiPetugasPage />} 
-                      allowedRoles={[UserRole.ADMIN]} 
+                      element={<PendataanPage />} 
+                      allowedRoles={[UserRole.PPL]} 
                     />
                   } />
                   <Route path="/verifikasi" element={
@@ -106,19 +93,25 @@ function App() {
                       allowedRoles={[UserRole.PML]} 
                     />
                   } />
-                  <Route path="/petugas-progres" element={
+                  <Route path="/dokumen/upload" element={
                     <RoleBasedRoute 
-                      element={<PetugasProgresPage />} 
-                      allowedRoles={[UserRole.ADMIN]} 
+                      element={<DocumentUploadPage />} 
+                      allowedRoles={[UserRole.PPL]} 
+                    />
+                  } />
+                  <Route path="/dokumen/viewer/:id" element={
+                    <RoleBasedRoute 
+                      element={<DocumentViewerPage />} 
+                      allowedRoles={[UserRole.ADMIN, UserRole.PML, UserRole.PPL]} 
+                    />
+                  } />
+                  <Route path="/notifikasi" element={
+                    <RoleBasedRoute 
+                      element={<NotificationsPage />} 
+                      allowedRoles={[UserRole.ADMIN, UserRole.PML, UserRole.PPL]} 
                     />
                   } />
                   <Route path="/profil" element={<ProfilePage />} />
-                  <Route path="/pengaturan" element={
-                    <RoleBasedRoute 
-                      element={<div className="p-8 text-center">Halaman Pengaturan (akan dikembangkan)</div>} 
-                      allowedRoles={[UserRole.ADMIN]} 
-                    />
-                  } />
                 </Route>
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

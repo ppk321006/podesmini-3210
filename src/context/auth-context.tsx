@@ -1,3 +1,4 @@
+
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  sessionTimeout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,30 +22,96 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
   isAuthenticated: false,
+  sessionTimeout: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
+
+// Hard-coded users for the application
+const DEFAULT_USERS = [
+  {
+    id: "admin-id-123",
+    username: "admin",
+    password: "admin123",
+    name: "Administrator",
+    role: "admin"
+  },
+  {
+    id: "pml-id-123",
+    username: "pml",
+    password: "pml123",
+    name: "Petugas Memeriksa Lapangan",
+    role: "pml"
+  },
+  {
+    id: "ppl-id-123",
+    username: "ppl",
+    password: "ppl123",
+    name: "Petugas Pendataan Lapangan",
+    role: "ppl",
+    pml_id: "pml-id-123"
+  }
+];
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionTimeoutId, setSessionTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("simonita_user");
+    const storedUser = localStorage.getItem("potensidesa_user");
     
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
+        startSessionTimeout();
       } catch (e) {
         console.error("Error parsing stored user:", e);
-        localStorage.removeItem("simonita_user");
+        localStorage.removeItem("potensidesa_user");
       }
     }
     
     setIsLoading(false);
-  }, []);
+
+    // Event listeners for resetting the session timeout
+    const resetTimeout = () => {
+      if (user) {
+        startSessionTimeout();
+      }
+    };
+
+    window.addEventListener('mousemove', resetTimeout);
+    window.addEventListener('keypress', resetTimeout);
+    window.addEventListener('click', resetTimeout);
+
+    return () => {
+      window.removeEventListener('mousemove', resetTimeout);
+      window.removeEventListener('keypress', resetTimeout);
+      window.removeEventListener('click', resetTimeout);
+      
+      if (sessionTimeoutId) {
+        clearTimeout(sessionTimeoutId);
+      }
+    };
+  }, [user]);
+
+  const startSessionTimeout = () => {
+    if (sessionTimeoutId) {
+      clearTimeout(sessionTimeoutId);
+    }
+    
+    // 30 minutes session timeout
+    const newTimeoutId = setTimeout(sessionTimeout, 30 * 60 * 1000);
+    setSessionTimeoutId(newTimeoutId);
+  };
+
+  const sessionTimeout = () => {
+    logout();
+    toast.info("Sesi anda telah berakhir. Silahkan login kembali.");
+    navigate("/login");
+  };
 
   const login = async (username: string, password: string) => {
     setIsLoading(true);
@@ -52,6 +120,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("Attempting login with:", username, password);
       
+      // First check hard-coded default users
+      const defaultUser = DEFAULT_USERS.find(
+        (u) => u.username === username && u.password === password
+      );
+
+      if (defaultUser) {
+        console.log("Login successful with default user:", defaultUser);
+        
+        const appUser: User = {
+          id: defaultUser.id,
+          username: defaultUser.username,
+          name: defaultUser.name,
+          role: defaultUser.role as UserRole,
+          pmlId: defaultUser.pml_id || undefined
+        };
+        
+        setUser(appUser);
+        localStorage.setItem("potensidesa_user", JSON.stringify(appUser));
+        startSessionTimeout();
+        toast.success("Login berhasil!");
+        navigate("/dashboard");
+        return;
+      }
+
+      // If not a default user, check database
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -66,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (data) {
         const dbUser = data;
-        console.log("Login successful, user data:", dbUser);
+        console.log("Login successful from database, user data:", dbUser);
         
         const appUser: User = {
           id: dbUser.id,
@@ -77,9 +170,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         
         setUser(appUser);
-        localStorage.setItem("simonita_user", JSON.stringify(appUser));
+        localStorage.setItem("potensidesa_user", JSON.stringify(appUser));
+        startSessionTimeout();
         toast.success("Login berhasil!");
-        navigate("/progres");
+        navigate("/dashboard");
         return;
       } else {
         throw new Error("Username atau password salah");
@@ -100,7 +194,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("simonita_user");
+    localStorage.removeItem("potensidesa_user");
+    if (sessionTimeoutId) {
+      clearTimeout(sessionTimeoutId);
+      setSessionTimeoutId(null);
+    }
     toast.info("Berhasil logout");
   };
 
@@ -113,6 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         isAuthenticated: !!user,
+        sessionTimeout,
       }}
     >
       {children}
