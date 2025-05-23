@@ -9,6 +9,7 @@ export interface CustomTables {
       nks_id: string | null;
       segmen_id: string | null;
       ppl_id: string;
+      pml_id: string | null; // Add the pml_id field here
       responden_name: string;
       komoditas: string;
       tanggal_ubinan: string;
@@ -210,3 +211,4 @@ export type ExtendedDatabase = Database & {
 
 // Type helper for Supabase queries
 export type TableName = keyof CustomTables | keyof Database['public']['Tables'];
+
