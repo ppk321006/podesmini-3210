@@ -42,7 +42,7 @@ export default function DashboardPage() {
         return await getPMLDashboardData(user.id);
       }
       
-      // Default: ambil semua data
+      // Default: ambil semua data (untuk admin)
       const { data, error } = await supabase
         .from('dashboard_ppl_view')
         .select('*');
