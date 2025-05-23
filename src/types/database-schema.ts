@@ -7,6 +7,7 @@ export type UbinanData = CustomTables['ubinan_data']['Row'] & {
   location_code?: string;
   ppl_name?: string;
   pml_name?: string;
+  pml_id?: string; // Add pml_id property to match database structure
   // Add these properties to fix the type errors
   nks?: {
     id: string;

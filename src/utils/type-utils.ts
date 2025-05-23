@@ -13,6 +13,7 @@ export function castToUbinanData(data: unknown): UbinanData {
     nks_id: typedData.nks_id,
     segmen_id: typedData.segmen_id,
     ppl_id: typedData.ppl_id,
+    pml_id: typedData.pml_id || null,  // Add pml_id here with null fallback
     responden_name: typedData.responden_name,
     komoditas: typedData.komoditas,
     tanggal_ubinan: typedData.tanggal_ubinan,

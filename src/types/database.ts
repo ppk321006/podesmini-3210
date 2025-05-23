@@ -1,4 +1,3 @@
-
 export interface Kecamatan {
   id: string;
   name: string;
@@ -112,7 +111,7 @@ export interface UbinanData {
   tanggal_ubinan: string;
   berat_hasil: number;
   status: string;
-  pml_id: string | null;
+  pml_id: string | null; // Make sure pml_id is properly defined here
   dokumen_diterima: boolean;
   komentar: string | null;
   created_at: string;
