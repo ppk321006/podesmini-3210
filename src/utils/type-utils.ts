@@ -13,7 +13,6 @@ export function castToUbinanData(data: unknown): UbinanData {
     nks_id: typedData.nks_id,
     segmen_id: typedData.segmen_id,
     ppl_id: typedData.ppl_id,
-    pml_id: typedData.pml_id,  // Use the pml_id from typedData
     responden_name: typedData.responden_name,
     komoditas: typedData.komoditas,
     tanggal_ubinan: typedData.tanggal_ubinan,
@@ -24,5 +23,6 @@ export function castToUbinanData(data: unknown): UbinanData {
     dokumen_diterima: typedData.dokumen_diterima || false,
     created_at: typedData.created_at,
     updated_at: typedData.updated_at,
+    pml_id: typedData.pml_id
   };
 }
