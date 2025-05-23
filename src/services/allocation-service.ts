@@ -43,6 +43,8 @@ export async function allocateDesa(
   pmlId: string | null
 ) {
   try {
+    console.log("Allocating desa:", { desaId, pplId, pmlId });
+    
     const { error } = await supabase
       .from('alokasi_petugas')
       .insert({
@@ -88,13 +90,18 @@ export async function updateDesaStatus(
   target?: number | null
 ) {
   try {
+    console.log("Updating desa status:", { desaId, status, target });
+    
     const updateData: any = { status };
     
     // Set dates based on status
-    if (status === 'proses' && !target) {
+    if (status === 'proses') {
       updateData.tanggal_mulai = new Date().toISOString();
       updateData.tanggal_selesai = null;
     } else if (status === 'selesai') {
+      if (!updateData.tanggal_mulai) {
+        updateData.tanggal_mulai = new Date().toISOString();
+      }
       updateData.tanggal_selesai = new Date().toISOString();
     }
 
@@ -141,6 +148,13 @@ export async function getDesaStatus(desaId: string) {
 // Fungsi untuk mengambil data dashboard khusus untuk PPL
 export async function getPPLDashboardData(pplId: string) {
   try {
+    console.log("Fetching PPL dashboard data for:", pplId);
+    
+    if (!pplId || typeof pplId !== 'string' || pplId.length < 10) {
+      console.error("Invalid PPL ID:", pplId);
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('dashboard_ppl_view')
       .select('*')
@@ -148,6 +162,7 @@ export async function getPPLDashboardData(pplId: string) {
       
     if (error) throw error;
     
+    console.log("PPL dashboard data fetched:", data?.length || 0, "items");
     return data || [];
   } catch (error) {
     console.error("Error fetching PPL dashboard data:", error);
@@ -158,6 +173,13 @@ export async function getPPLDashboardData(pplId: string) {
 // Fungsi untuk mengambil data dashboard khusus untuk PML
 export async function getPMLDashboardData(pmlId: string) {
   try {
+    console.log("Fetching PML dashboard data for:", pmlId);
+    
+    if (!pmlId || typeof pmlId !== 'string' || pmlId.length < 10) {
+      console.error("Invalid PML ID:", pmlId);
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('dashboard_ppl_view')
       .select('*')
@@ -210,6 +232,13 @@ export async function updateVerifikasiData(
 // Fungsi untuk mendapatkan data pendataan desa
 export async function getDataPendataanDesa(pplId: string) {
   try {
+    console.log("Fetching data pendataan desa for PPL ID:", pplId);
+    
+    if (!pplId || typeof pplId !== 'string' || pplId.length < 10) {
+      console.error("Invalid PPL ID:", pplId);
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('data_pendataan_desa')
       .select(`
@@ -227,6 +256,7 @@ export async function getDataPendataanDesa(pplId: string) {
       
     if (error) throw error;
     
+    console.log("Pendataan desa data fetched:", data?.length || 0, "items");
     return data || [];
   } catch (error) {
     console.error("Error fetching pendataan desa data:", error);

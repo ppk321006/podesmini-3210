@@ -55,6 +55,8 @@ export default function InputDataPage() {
 
     setIsLoading(true);
     try {
+      console.log("Fetching data for PPL ID:", user.id);
+      
       // Query alokasi petugas untuk mendapatkan desa yang ditugaskan ke PPL
       const { data: alokasiData, error: alokasiError } = await supabase
         .from('alokasi_petugas')
@@ -78,17 +80,23 @@ export default function InputDataPage() {
           description: "Gagal mengambil data alokasi desa",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       if (!alokasiData || alokasiData.length === 0) {
+        console.log("No allocated desa found for this PPL");
         setDesaData([]);
         setIsLoading(false);
         return;
       }
 
+      console.log("Allocated desa data:", alokasiData);
+
       // Ambil daftar desa_id yang dialokasikan
       const desaIds = alokasiData.map(item => item.desa_id);
+      
+      console.log("Desa IDs to lookup:", desaIds);
 
       // Query status pendataan untuk desa yang dialokasikan
       const { data: statusData, error: statusError } = await supabase
@@ -99,6 +107,8 @@ export default function InputDataPage() {
       if (statusError) {
         console.error("Error fetching status data:", statusError);
       }
+
+      console.log("Status data:", statusData);
 
       // Gabungkan data
       const processedData = alokasiData.map((item: any) => {
@@ -115,6 +125,7 @@ export default function InputDataPage() {
         };
       });
 
+      console.log("Processed data:", processedData);
       setDesaData(processedData);
     } catch (err) {
       console.error("Error in fetchDesaData:", err);

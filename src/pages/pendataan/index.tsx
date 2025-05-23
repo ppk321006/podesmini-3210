@@ -18,7 +18,7 @@ export default function PendataanPage() {
   
   const [formValues, setFormValues] = useState({
     desaId: '',
-    pplId: user?.id || '',
+    pplId: '',
     jumlahKeluarga: '',
     jumlahLahanPertanian: '',
     statusInfrastruktur: '',
@@ -44,6 +44,8 @@ export default function PendataanPage() {
 
     setIsLoading(true);
     try {
+      console.log("Fetching data for user ID:", user.id);
+      
       // Fetch alokasi petugas
       const { data: alokasiData, error: alokasiError } = await supabase
         .from('alokasi_petugas')
@@ -65,6 +67,8 @@ export default function PendataanPage() {
         throw alokasiError;
       }
       
+      console.log("Alokasi data:", alokasiData);
+      
       const processedAlokasi = (alokasiData || []).map((item: any) => ({
         desa_id: item.desa_id,
         desa_name: item.desa?.name || 'Unknown',
@@ -84,6 +88,7 @@ export default function PendataanPage() {
         throw pendataanError;
       }
       
+      console.log("Pendataan data:", pendataanData);
       setPendataanData(pendataanData || []);
       
     } catch (error: any) {
@@ -106,13 +111,22 @@ export default function PendataanPage() {
   const handleDesaSelect = (desaId: string) => {
     setSelectedDesaId(desaId === selectedDesaId ? null : desaId);
     
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User ID tidak ditemukan, silakan login ulang",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Cari data pendataan yang sudah ada untuk desa ini
     const existingData = pendataanData.find((item: any) => item.desa_id === desaId);
     
     if (existingData) {
       setFormValues({
         desaId: existingData.desa_id,
-        pplId: user?.id || '',
+        pplId: user.id,
         jumlahKeluarga: existingData.jumlah_keluarga?.toString() || '',
         jumlahLahanPertanian: existingData.jumlah_lahan_pertanian?.toString() || '',
         statusInfrastruktur: existingData.status_infrastruktur || '',
@@ -123,7 +137,7 @@ export default function PendataanPage() {
       // Reset form jika belum ada data
       setFormValues({
         desaId: desaId,
-        pplId: user?.id || '',
+        pplId: user.id,
         jumlahKeluarga: '',
         jumlahLahanPertanian: '',
         statusInfrastruktur: '',
