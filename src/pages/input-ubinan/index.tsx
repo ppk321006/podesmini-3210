@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -33,27 +33,33 @@ interface DesaData {
 
 export default function InputDataPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [desaData, setDesaData] = useState<DesaData[]>([]);
   const [editingData, setEditingData] = useState<DesaData | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
       fetchDesaData();
+    } else {
+      setIsLoading(false);
+      setErrorMessage("User ID tidak ditemukan. Silakan login kembali.");
     }
   }, [user?.id]);
 
   async function fetchDesaData() {
     if (!user?.id) {
       setIsLoading(false);
+      setErrorMessage("User ID tidak ditemukan");
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
+    
     try {
       console.log("Fetching data for PPL ID:", user.id);
       
@@ -75,11 +81,8 @@ export default function InputDataPage() {
 
       if (alokasiError) {
         console.error("Error fetching alokasi data:", alokasiError);
-        toast({
-          title: "Error",
-          description: "Gagal mengambil data alokasi desa",
-          variant: "destructive",
-        });
+        setErrorMessage(`Gagal mengambil data alokasi desa: ${alokasiError.message}`);
+        toast.error("Gagal mengambil data alokasi desa");
         setIsLoading(false);
         return;
       }
@@ -106,6 +109,7 @@ export default function InputDataPage() {
 
       if (statusError) {
         console.error("Error fetching status data:", statusError);
+        setErrorMessage(`Gagal mengambil data status: ${statusError.message}`);
       }
 
       console.log("Status data:", statusData);
@@ -129,11 +133,8 @@ export default function InputDataPage() {
       setDesaData(processedData);
     } catch (err) {
       console.error("Error in fetchDesaData:", err);
-      toast({
-        title: "Error",
-        description: "Terjadi kesalahan saat mengambil data",
-        variant: "destructive",
-      });
+      setErrorMessage("Terjadi kesalahan saat mengambil data");
+      toast.error("Terjadi kesalahan saat mengambil data");
     } finally {
       setIsLoading(false);
     }
@@ -148,11 +149,7 @@ export default function InputDataPage() {
     setIsDialogOpen(false);
     setEditingData(null);
     fetchDesaData();
-    toast({
-      title: "Berhasil",
-      description: "Data pendataan berhasil diperbarui",
-      variant: "default",
-    });
+    toast.success("Data pendataan berhasil diperbarui");
   };
 
   const filteredData = desaData.filter((item) => {
@@ -201,11 +198,30 @@ export default function InputDataPage() {
     );
   }
 
+  if (errorMessage) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <p className="text-red-500 mb-4">{errorMessage}</p>
+            <Button onClick={() => fetchDesaData()}>Coba Lagi</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
           <CardTitle className="text-2xl">Data Pendataan Desa</CardTitle>
+          <Button variant="outline" onClick={() => fetchDesaData()} className="mt-2 md:mt-0">
+            Refresh Data
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">

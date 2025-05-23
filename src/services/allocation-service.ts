@@ -2,6 +2,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// Helper function to validate UUID
+function isValidUUID(id: string) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 export async function getAllocatedDesaList() {
   try {
     console.log("Fetching allocated desa list...");
@@ -150,17 +156,22 @@ export async function getPPLDashboardData(pplId: string) {
   try {
     console.log("Fetching PPL dashboard data for:", pplId);
     
-    if (!pplId || typeof pplId !== 'string' || pplId.length < 10) {
-      console.error("Invalid PPL ID:", pplId);
+    if (!pplId) {
+      console.error("Invalid PPL ID: empty ID provided");
       return [];
     }
     
+    // Use RLS filtering with eq() rather than direct UUID validation
+    // This allows the database to handle the type casting
     const { data, error } = await supabase
       .from('dashboard_ppl_view')
       .select('*')
       .eq('ppl_id', pplId);
       
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching PPL dashboard data:", error);
+      throw error;
+    }
     
     console.log("PPL dashboard data fetched:", data?.length || 0, "items");
     return data || [];
@@ -175,17 +186,21 @@ export async function getPMLDashboardData(pmlId: string) {
   try {
     console.log("Fetching PML dashboard data for:", pmlId);
     
-    if (!pmlId || typeof pmlId !== 'string' || pmlId.length < 10) {
-      console.error("Invalid PML ID:", pmlId);
+    if (!pmlId) {
+      console.error("Invalid PML ID: empty ID provided");
       return [];
     }
     
+    // Use RLS filtering with eq() rather than direct UUID validation
     const { data, error } = await supabase
       .from('dashboard_ppl_view')
       .select('*')
       .eq('pml_id', pmlId);
       
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching PML dashboard data:", error);
+      throw error;
+    }
     
     return data || [];
   } catch (error) {
@@ -234,11 +249,12 @@ export async function getDataPendataanDesa(pplId: string) {
   try {
     console.log("Fetching data pendataan desa for PPL ID:", pplId);
     
-    if (!pplId || typeof pplId !== 'string' || pplId.length < 10) {
-      console.error("Invalid PPL ID:", pplId);
+    if (!pplId) {
+      console.error("Invalid PPL ID: empty ID provided");
       return [];
     }
     
+    // Use RLS filtering with eq() rather than direct UUID validation
     const { data, error } = await supabase
       .from('data_pendataan_desa')
       .select(`
@@ -254,7 +270,10 @@ export async function getDataPendataanDesa(pplId: string) {
       `)
       .eq('ppl_id', pplId);
       
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching pendataan desa data:", error);
+      throw error;
+    }
     
     console.log("Pendataan desa data fetched:", data?.length || 0, "items");
     return data || [];

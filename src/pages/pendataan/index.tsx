@@ -4,7 +4,7 @@ import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -12,9 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 
 export default function PendataanPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [formValues, setFormValues] = useState({
     desaId: '',
@@ -33,16 +33,22 @@ export default function PendataanPage() {
   useEffect(() => {
     if (user?.id) {
       fetchData();
+    } else {
+      setIsLoading(false);
+      setErrorMessage("User ID tidak ditemukan. Silakan login kembali.");
     }
   }, [user?.id]);
   
   const fetchData = async () => {
     if (!user?.id) {
       setIsLoading(false);
+      setErrorMessage("User ID tidak ditemukan");
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
+    
     try {
       console.log("Fetching data for user ID:", user.id);
       
@@ -64,6 +70,7 @@ export default function PendataanPage() {
         
       if (alokasiError) {
         console.error("Error fetching alokasi petugas:", alokasiError);
+        setErrorMessage(`Gagal mengambil data alokasi: ${alokasiError.message}`);
         throw alokasiError;
       }
       
@@ -85,6 +92,7 @@ export default function PendataanPage() {
         
       if (pendataanError) {
         console.error("Error fetching data pendataan:", pendataanError);
+        setErrorMessage(`Gagal mengambil data pendataan: ${pendataanError.message}`);
         throw pendataanError;
       }
       
@@ -93,11 +101,8 @@ export default function PendataanPage() {
       
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Gagal memuat data",
-        variant: "destructive"
-      });
+      setErrorMessage(error.message || "Gagal memuat data");
+      toast.error(error.message || "Gagal memuat data");
     } finally {
       setIsLoading(false);
     }
@@ -112,11 +117,7 @@ export default function PendataanPage() {
     setSelectedDesaId(desaId === selectedDesaId ? null : desaId);
     
     if (!user?.id) {
-      toast({
-        title: "Error",
-        description: "User ID tidak ditemukan, silakan login ulang",
-        variant: "destructive"
-      });
+      toast.error("User ID tidak ditemukan, silakan login ulang");
       return;
     }
     
@@ -151,11 +152,7 @@ export default function PendataanPage() {
     e.preventDefault();
     
     if (!selectedDesaId || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Silakan pilih desa terlebih dahulu",
-        variant: "destructive"
-      });
+      toast.error("Silakan pilih desa terlebih dahulu");
       return;
     }
     
@@ -222,21 +219,14 @@ export default function PendataanPage() {
         // Tidak perlu throw error karena data utama sudah tersimpan
       }
       
-      toast({
-        title: "Sukses",
-        description: "Data pendataan berhasil disimpan",
-      });
+      toast.success("Data pendataan berhasil disimpan");
       
       // Refresh data
       fetchData();
       
     } catch (error: any) {
       console.error('Error saving data:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Gagal menyimpan data pendataan",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Gagal menyimpan data pendataan");
     } finally {
       setIsSubmitting(false);
     }
@@ -265,6 +255,22 @@ export default function PendataanPage() {
     );
   }
   
+  if (errorMessage) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <p className="text-red-500 mb-4">{errorMessage}</p>
+            <Button onClick={() => fetchData()}>Coba Lagi</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   if (alokasiBertugas.length === 0) {
     return (
       <div className="container mx-auto py-6">
@@ -277,6 +283,7 @@ export default function PendataanPage() {
             <div className="text-center">
               <p className="text-gray-500">Anda belum memiliki alokasi desa untuk mendata.</p>
               <p className="text-sm text-muted-foreground mt-2">Silakan hubungi admin untuk mendapatkan alokasi desa.</p>
+              <Button onClick={() => fetchData()} className="mt-4" variant="outline">Refresh Data</Button>
             </div>
           </CardContent>
         </Card>
