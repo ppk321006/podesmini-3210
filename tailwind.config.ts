@@ -69,7 +69,9 @@ export default {
 					yellow: '#FABE4C',
 					cream: '#FFF2D8',
 					"light-green": '#8FB573',
-					"light-brown": '#7A6145'
+					"light-brown": '#7A6145',
+					orange: '#FF9E44',
+					gray: '#3A4553'
 				}
 			},
 			borderRadius: {

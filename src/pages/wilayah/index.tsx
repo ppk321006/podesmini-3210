@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,37 +22,29 @@ import {
   Map,
   Home,
   Users,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Mock data for kecamatan and desa
-const mockKecamatan = [
-  { id: "kec-1", nama: "Majalengka", jumlah_desa: 15 },
-  { id: "kec-2", nama: "Kadipaten", jumlah_desa: 12 },
-  { id: "kec-3", nama: "Jatiwangi", jumlah_desa: 10 },
-  { id: "kec-4", nama: "Dawuan", jumlah_desa: 8 },
-  { id: "kec-5", nama: "Kertajati", jumlah_desa: 7 },
-];
+// Types for our data
+interface Kecamatan {
+  id: string;
+  name: string;
+  jumlah_desa?: number;
+}
 
-const mockDesa = [
-  { id: "desa-1", kecamatan_id: "kec-1", nama: "Cidahu" },
-  { id: "desa-2", kecamatan_id: "kec-1", nama: "Sukamaju" },
-  { id: "desa-3", kecamatan_id: "kec-1", nama: "Cibunar" },
-  { id: "desa-4", kecamatan_id: "kec-1", nama: "Buniseuri" },
-  { id: "desa-5", kecamatan_id: "kec-2", nama: "Kadipaten" },
-  { id: "desa-6", kecamatan_id: "kec-2", nama: "Babakan" },
-  { id: "desa-7", kecamatan_id: "kec-3", nama: "Jatiwangi" },
-  { id: "desa-8", kecamatan_id: "kec-3", nama: "Sutawangi" },
-  { id: "desa-9", kecamatan_id: "kec-4", nama: "Dawuan" },
-  { id: "desa-10", kecamatan_id: "kec-5", nama: "Kertajati" },
-];
+interface Desa {
+  id: string;
+  name: string;
+  kecamatan_id: string;
+}
 
 export default function WilayahPage() {
   const [activeTab, setActiveTab] = useState("kecamatan");
   const [searchTerm, setSearchTerm] = useState("");
-  const [kecamatanList, setKecamatanList] = useState(mockKecamatan);
-  const [desaList, setDesaList] = useState(mockDesa);
   const [selectedKecamatan, setSelectedKecamatan] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{id: string, type: 'kecamatan' | 'desa'} | null>(null);
@@ -72,25 +64,240 @@ export default function WilayahPage() {
   const [showEditKecamatan, setShowEditKecamatan] = useState(false);
   const [showAddDesa, setShowAddDesa] = useState(false);
   const [showEditDesa, setShowEditDesa] = useState(false);
+
+  const queryClient = useQueryClient();
+  
+  // Fetch kecamatan data from Supabase
+  const { 
+    data: kecamatanList = [], 
+    isLoading: isLoadingKecamatan 
+  } = useQuery({
+    queryKey: ['kecamatan'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kecamatan')
+        .select('*')
+        .order('name', { ascending: true });
+        
+      if (error) {
+        console.error("Error fetching kecamatan data:", error);
+        toast.error("Gagal mengambil data kecamatan");
+        throw error;
+      }
+
+      // Count desa for each kecamatan
+      const kecamatanWithCount = await Promise.all(
+        data.map(async (kec) => {
+          const { count, error: countError } = await supabase
+            .from('desa')
+            .select('*', { count: 'exact', head: true })
+            .eq('kecamatan_id', kec.id);
+            
+          if (countError) {
+            console.error("Error counting desa:", countError);
+            return {
+              ...kec,
+              jumlah_desa: 0
+            };
+          }
+          
+          return {
+            ...kec,
+            jumlah_desa: count || 0
+          };
+        })
+      );
+      
+      return kecamatanWithCount as Kecamatan[];
+    }
+  });
+  
+  // Fetch desa data from Supabase
+  const { 
+    data: desaList = [], 
+    isLoading: isLoadingDesa 
+  } = useQuery({
+    queryKey: ['desa', selectedKecamatan],
+    queryFn: async () => {
+      let query = supabase
+        .from('desa')
+        .select('*')
+        .order('name', { ascending: true });
+        
+      if (selectedKecamatan) {
+        query = query.eq('kecamatan_id', selectedKecamatan);
+      }
+      
+      const { data, error } = await query;
+        
+      if (error) {
+        console.error("Error fetching desa data:", error);
+        toast.error("Gagal mengambil data desa");
+        throw error;
+      }
+      
+      return data as Desa[];
+    }
+  });
+  
+  // Mutations
+  const addKecamatanMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase
+        .from('kecamatan')
+        .insert([{ name }])
+        .select();
+        
+      if (error) {
+        console.error("Error adding kecamatan:", error);
+        throw error;
+      }
+      
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kecamatan'] });
+      setNewKecamatanName("");
+      setShowAddKecamatan(false);
+      toast.success("Kecamatan berhasil ditambahkan");
+    },
+    onError: (error) => {
+      toast.error(`Gagal menambahkan kecamatan: ${error.message}`);
+    }
+  });
+  
+  const updateKecamatanMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { data, error } = await supabase
+        .from('kecamatan')
+        .update({ name })
+        .eq('id', id)
+        .select();
+        
+      if (error) {
+        console.error("Error updating kecamatan:", error);
+        throw error;
+      }
+      
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kecamatan'] });
+      setEditKecamatanId(null);
+      setEditKecamatanName("");
+      setShowEditKecamatan(false);
+      toast.success("Kecamatan berhasil diperbarui");
+    },
+    onError: (error) => {
+      toast.error(`Gagal memperbarui kecamatan: ${error.message}`);
+    }
+  });
+  
+  const addDesaMutation = useMutation({
+    mutationFn: async ({ name, kecamatan_id }: { name: string; kecamatan_id: string }) => {
+      const { data, error } = await supabase
+        .from('desa')
+        .insert([{ name, kecamatan_id }])
+        .select();
+        
+      if (error) {
+        console.error("Error adding desa:", error);
+        throw error;
+      }
+      
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['desa'] });
+      queryClient.invalidateQueries({ queryKey: ['kecamatan'] });
+      setNewDesaName("");
+      setNewDesaKecamatanId("");
+      setShowAddDesa(false);
+      toast.success("Desa berhasil ditambahkan");
+    },
+    onError: (error) => {
+      toast.error(`Gagal menambahkan desa: ${error.message}`);
+    }
+  });
+  
+  const updateDesaMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { data, error } = await supabase
+        .from('desa')
+        .update({ name })
+        .eq('id', id)
+        .select();
+        
+      if (error) {
+        console.error("Error updating desa:", error);
+        throw error;
+      }
+      
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['desa'] });
+      setEditDesaId(null);
+      setEditDesaName("");
+      setShowEditDesa(false);
+      toast.success("Desa berhasil diperbarui");
+    },
+    onError: (error) => {
+      toast.error(`Gagal memperbarui desa: ${error.message}`);
+    }
+  });
+  
+  const deleteItemMutation = useMutation({
+    mutationFn: async ({ id, type }: { id: string; type: 'kecamatan' | 'desa' }) => {
+      const table = type === 'kecamatan' ? 'kecamatan' : 'desa';
+      
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        console.error(`Error deleting ${type}:`, error);
+        throw error;
+      }
+    },
+    onSuccess: (_, variables) => {
+      if (variables.type === 'kecamatan') {
+        queryClient.invalidateQueries({ queryKey: ['kecamatan'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['desa'] });
+        queryClient.invalidateQueries({ queryKey: ['kecamatan'] });
+      }
+      setShowDeleteDialog(false);
+      setItemToDelete(null);
+      toast.success(`${variables.type === 'kecamatan' ? 'Kecamatan' : 'Desa'} berhasil dihapus`);
+    },
+    onError: (error, variables) => {
+      // Check if the error is because of foreign key constraint
+      if (error.message?.includes('foreign key constraint')) {
+        toast.error(`Tidak dapat menghapus ${variables.type} karena masih memiliki data terkait`);
+      } else {
+        toast.error(`Gagal menghapus ${variables.type}: ${error.message}`);
+      }
+      setShowDeleteDialog(false);
+      setItemToDelete(null);
+    }
+  });
   
   const getFilteredKecamatan = () => {
     if (!searchTerm) return kecamatanList;
     
     return kecamatanList.filter(kec => 
-      kec.nama.toLowerCase().includes(searchTerm.toLowerCase())
+      kec.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
   
   const getFilteredDesa = () => {
     let filtered = desaList;
     
-    if (selectedKecamatan) {
-      filtered = filtered.filter(desa => desa.kecamatan_id === selectedKecamatan);
-    }
-    
     if (searchTerm) {
       filtered = filtered.filter(desa => 
-        desa.nama.toLowerCase().includes(searchTerm.toLowerCase())
+        desa.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -98,7 +305,8 @@ export default function WilayahPage() {
   };
   
   const getKecamatanName = (id: string) => {
-    return kecamatanList.find(kec => kec.id === id)?.nama || "-";
+    const kecamatan = kecamatanList.find(kec => kec.id === id);
+    return kecamatan ? kecamatan.name : "-";
   };
   
   const handleAddKecamatan = () => {
@@ -107,16 +315,7 @@ export default function WilayahPage() {
       return;
     }
     
-    const newKecamatan = {
-      id: `kec-${kecamatanList.length + 1}`,
-      nama: newKecamatanName.trim(),
-      jumlah_desa: 0
-    };
-    
-    setKecamatanList([...kecamatanList, newKecamatan]);
-    setNewKecamatanName("");
-    setShowAddKecamatan(false);
-    toast.success(`Kecamatan ${newKecamatanName} berhasil ditambahkan`);
+    addKecamatanMutation.mutate(newKecamatanName.trim());
   };
   
   const handleEditKecamatan = () => {
@@ -126,16 +325,10 @@ export default function WilayahPage() {
       return;
     }
     
-    setKecamatanList(prev => 
-      prev.map(kec => 
-        kec.id === editKecamatanId ? { ...kec, nama: editKecamatanName.trim() } : kec
-      )
-    );
-    
-    setEditKecamatanId(null);
-    setEditKecamatanName("");
-    setShowEditKecamatan(false);
-    toast.success("Kecamatan berhasil diperbarui");
+    updateKecamatanMutation.mutate({ 
+      id: editKecamatanId, 
+      name: editKecamatanName.trim() 
+    });
   };
   
   const handleAddDesa = () => {
@@ -149,25 +342,10 @@ export default function WilayahPage() {
       return;
     }
     
-    const newDesa = {
-      id: `desa-${desaList.length + 1}`,
-      kecamatan_id: newDesaKecamatanId,
-      nama: newDesaName.trim()
-    };
-    
-    setDesaList([...desaList, newDesa]);
-    
-    // Update jumlah desa di kecamatan
-    setKecamatanList(prev => 
-      prev.map(kec => 
-        kec.id === newDesaKecamatanId ? { ...kec, jumlah_desa: kec.jumlah_desa + 1 } : kec
-      )
-    );
-    
-    setNewDesaName("");
-    setNewDesaKecamatanId("");
-    setShowAddDesa(false);
-    toast.success(`Desa ${newDesaName} berhasil ditambahkan`);
+    addDesaMutation.mutate({ 
+      name: newDesaName.trim(),
+      kecamatan_id: newDesaKecamatanId
+    });
   };
   
   const handleEditDesa = () => {
@@ -177,52 +355,15 @@ export default function WilayahPage() {
       return;
     }
     
-    setDesaList(prev => 
-      prev.map(desa => 
-        desa.id === editDesaId ? { ...desa, nama: editDesaName.trim() } : desa
-      )
-    );
-    
-    setEditDesaId(null);
-    setEditDesaName("");
-    setShowEditDesa(false);
-    toast.success("Desa berhasil diperbarui");
+    updateDesaMutation.mutate({ 
+      id: editDesaId, 
+      name: editDesaName.trim() 
+    });
   };
   
   const handleDeleteItem = () => {
     if (!itemToDelete) return;
-    
-    if (itemToDelete.type === 'kecamatan') {
-      // Check if there are desa in this kecamatan
-      const hasRelatedDesa = desaList.some(desa => desa.kecamatan_id === itemToDelete.id);
-      
-      if (hasRelatedDesa) {
-        toast.error("Tidak dapat menghapus kecamatan yang memiliki desa");
-        setShowDeleteDialog(false);
-        setItemToDelete(null);
-        return;
-      }
-      
-      setKecamatanList(prev => prev.filter(kec => kec.id !== itemToDelete.id));
-      toast.success("Kecamatan berhasil dihapus");
-    } else {
-      setDesaList(prev => prev.filter(desa => desa.id !== itemToDelete.id));
-      
-      // Update jumlah desa di kecamatan
-      const desa = desaList.find(d => d.id === itemToDelete.id);
-      if (desa) {
-        setKecamatanList(prev => 
-          prev.map(kec => 
-            kec.id === desa.kecamatan_id ? { ...kec, jumlah_desa: kec.jumlah_desa - 1 } : kec
-          )
-        );
-      }
-      
-      toast.success("Desa berhasil dihapus");
-    }
-    
-    setShowDeleteDialog(false);
-    setItemToDelete(null);
+    deleteItemMutation.mutate(itemToDelete);
   };
   
   const confirmDelete = (id: string, type: 'kecamatan' | 'desa') => {
@@ -230,15 +371,15 @@ export default function WilayahPage() {
     setShowDeleteDialog(true);
   };
   
-  const handleEditKecamatanClick = (kecamatan: any) => {
+  const handleEditKecamatanClick = (kecamatan: Kecamatan) => {
     setEditKecamatanId(kecamatan.id);
-    setEditKecamatanName(kecamatan.nama);
+    setEditKecamatanName(kecamatan.name);
     setShowEditKecamatan(true);
   };
   
-  const handleEditDesaClick = (desa: any) => {
+  const handleEditDesaClick = (desa: Desa) => {
     setEditDesaId(desa.id);
-    setEditDesaName(desa.nama);
+    setEditDesaName(desa.name);
     setShowEditDesa(true);
   };
   
@@ -268,7 +409,7 @@ export default function WilayahPage() {
                 </CardDescription>
               </div>
               <Button 
-                className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+                className="bg-primary hover:bg-primary/90 flex items-center gap-2"
                 onClick={() => setShowAddKecamatan(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -289,48 +430,58 @@ export default function WilayahPage() {
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>No</TableHead>
+                    <TableRow className="bg-secondary text-secondary-foreground">
+                      <TableHead className="w-12">No</TableHead>
                       <TableHead>Nama Kecamatan</TableHead>
                       <TableHead className="text-center">Jumlah Desa</TableHead>
-                      <TableHead className="text-center">Aksi</TableHead>
+                      <TableHead className="text-center w-[150px]">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getFilteredKecamatan().map((kecamatan, index) => (
-                      <TableRow key={kecamatan.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell className="font-medium">{kecamatan.nama}</TableCell>
-                        <TableCell className="text-center">{kecamatan.jumlah_desa}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleEditKecamatanClick(kecamatan)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                              onClick={() => confirmDelete(kecamatan.id, 'kecamatan')}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    {isLoadingKecamatan ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="flex justify-center items-center">
+                            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                            <span>Memuat data...</span>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                    
-                    {getFilteredKecamatan().length === 0 && (
+                    ) : getFilteredKecamatan().length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-4">
                           Tidak ada data kecamatan
                         </TableCell>
                       </TableRow>
+                    ) : (
+                      getFilteredKecamatan().map((kecamatan, index) => (
+                        <TableRow key={kecamatan.id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell className="font-medium">{kecamatan.name}</TableCell>
+                          <TableCell className="text-center">{kecamatan.jumlah_desa || 0}</TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleEditKecamatanClick(kecamatan)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                                onClick={() => confirmDelete(kecamatan.id, 'kecamatan')}
+                                disabled={(kecamatan.jumlah_desa || 0) > 0}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
                   </TableBody>
                 </Table>
@@ -349,7 +500,7 @@ export default function WilayahPage() {
                 </CardDescription>
               </div>
               <Button 
-                className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
+                className="bg-primary hover:bg-primary/90 flex items-center gap-2"
                 onClick={() => setShowAddDesa(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -376,7 +527,7 @@ export default function WilayahPage() {
                   <option value="">Semua Kecamatan</option>
                   {kecamatanList.map(kec => (
                     <option key={kec.id} value={kec.id}>
-                      {kec.nama}
+                      {kec.name}
                     </option>
                   ))}
                 </select>
@@ -385,48 +536,57 @@ export default function WilayahPage() {
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>No</TableHead>
+                    <TableRow className="bg-secondary text-secondary-foreground">
+                      <TableHead className="w-12">No</TableHead>
                       <TableHead>Nama Desa</TableHead>
                       <TableHead>Kecamatan</TableHead>
-                      <TableHead className="text-center">Aksi</TableHead>
+                      <TableHead className="text-center w-[150px]">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getFilteredDesa().map((desa, index) => (
-                      <TableRow key={desa.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell className="font-medium">{desa.nama}</TableCell>
-                        <TableCell>{getKecamatanName(desa.kecamatan_id)}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleEditDesaClick(desa)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                              onClick={() => confirmDelete(desa.id, 'desa')}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    {isLoadingDesa ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="flex justify-center items-center">
+                            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                            <span>Memuat data...</span>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                    
-                    {getFilteredDesa().length === 0 && (
+                    ) : getFilteredDesa().length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-4">
                           Tidak ada data desa
                         </TableCell>
                       </TableRow>
+                    ) : (
+                      getFilteredDesa().map((desa, index) => (
+                        <TableRow key={desa.id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell className="font-medium">{desa.name}</TableCell>
+                          <TableCell>{getKecamatanName(desa.kecamatan_id)}</TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleEditDesaClick(desa)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                                onClick={() => confirmDelete(desa.id, 'desa')}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
                   </TableBody>
                 </Table>
@@ -462,14 +622,23 @@ export default function WilayahPage() {
             <Button 
               variant="outline" 
               onClick={() => setShowAddKecamatan(false)}
+              disabled={addKecamatanMutation.isPending}
             >
               Batal
             </Button>
             <Button 
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleAddKecamatan}
+              disabled={addKecamatanMutation.isPending}
             >
-              Simpan
+              {addKecamatanMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -505,14 +674,23 @@ export default function WilayahPage() {
                 setEditKecamatanId(null);
                 setEditKecamatanName("");
               }}
+              disabled={updateKecamatanMutation.isPending}
             >
               Batal
             </Button>
             <Button 
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleEditKecamatan}
+              disabled={updateKecamatanMutation.isPending}
             >
-              Simpan
+              {updateKecamatanMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -552,7 +730,7 @@ export default function WilayahPage() {
                 <option value="">Pilih Kecamatan</option>
                 {kecamatanList.map(kec => (
                   <option key={kec.id} value={kec.id}>
-                    {kec.nama}
+                    {kec.name}
                   </option>
                 ))}
               </select>
@@ -562,14 +740,23 @@ export default function WilayahPage() {
             <Button 
               variant="outline" 
               onClick={() => setShowAddDesa(false)}
+              disabled={addDesaMutation.isPending}
             >
               Batal
             </Button>
             <Button 
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleAddDesa}
+              disabled={addDesaMutation.isPending}
             >
-              Simpan
+              {addDesaMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -605,14 +792,23 @@ export default function WilayahPage() {
                 setEditDesaId(null);
                 setEditDesaName("");
               }}
+              disabled={updateDesaMutation.isPending}
             >
               Batal
             </Button>
             <Button 
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-primary hover:bg-primary/90"
               onClick={handleEditDesa}
+              disabled={updateDesaMutation.isPending}
             >
-              Simpan
+              {updateDesaMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -634,14 +830,23 @@ export default function WilayahPage() {
                 setShowDeleteDialog(false);
                 setItemToDelete(null);
               }}
+              disabled={deleteItemMutation.isPending}
             >
               Batal
             </Button>
             <Button 
               variant="destructive"
               onClick={handleDeleteItem}
+              disabled={deleteItemMutation.isPending}
             >
-              Hapus
+              {deleteItemMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Menghapus...
+                </>
+              ) : (
+                "Hapus"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

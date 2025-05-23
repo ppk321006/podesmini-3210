@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -108,6 +107,8 @@ export default function VerifikasiPage() {
     }
   };
 
+  // ... keep existing code (sorting logic in sortedData is retained)
+
   const sortedData = [...ubinanData].sort((a, b) => {
     if (!sortColumn) return 0;
     
@@ -175,16 +176,16 @@ export default function VerifikasiPage() {
       <h1 className="text-3xl font-bold mb-6">Verifikasi Data Ubinan</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-blue-50">
+        <Card className="bg-orange-50 border-orange-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Data</CardTitle>
+            <CardTitle className="text-lg text-orange-800">Total Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{ubinanData.length}</p>
+            <p className="text-3xl font-bold text-orange-800">{ubinanData.length}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-yellow-50">
+        <Card className="bg-yellow-50 border-yellow-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-yellow-700">Menunggu Verifikasi</CardTitle>
           </CardHeader>
@@ -193,7 +194,7 @@ export default function VerifikasiPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-green-50">
+        <Card className="bg-green-50 border-green-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-green-700">Terverifikasi</CardTitle>
           </CardHeader>
@@ -202,7 +203,7 @@ export default function VerifikasiPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-red-50">
+        <Card className="bg-red-50 border-red-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-red-700">Ditolak</CardTitle>
           </CardHeader>
@@ -249,7 +250,7 @@ export default function VerifikasiPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-secondary text-secondary-foreground">
                     <TableHead onClick={() => handleSort('kode')} className="cursor-pointer">
                       Kode {sortColumn === 'kode' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
@@ -308,12 +309,12 @@ export default function VerifikasiPage() {
                         <Badge
                           className={
                             ubinan.status === 'dikonfirmasi'
-                              ? 'bg-green-100 text-green-800'
+                              ? 'bg-green-100 text-green-800 border-green-200'
                               : ubinan.status === 'ditolak'
-                              ? 'bg-red-100 text-red-800'
+                              ? 'bg-red-100 text-red-800 border-red-200'
                               : ubinan.status === 'sudah_diisi'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-orange-100 text-orange-800 border-orange-200'
+                              : 'bg-gray-100 text-gray-800 border-gray-200'
                           }
                         >
                           {ubinan.status === 'dikonfirmasi'
@@ -331,6 +332,7 @@ export default function VerifikasiPage() {
                           size="sm" 
                           disabled={ubinan.status !== 'sudah_diisi'}
                           onClick={() => handleVerify(ubinan)}
+                          className={ubinan.status === 'sudah_diisi' ? 'bg-primary hover:bg-primary/90' : ''}
                         >
                           Verifikasi
                         </Button>

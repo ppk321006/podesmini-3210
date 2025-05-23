@@ -43,10 +43,29 @@ export function ThemeProvider({
         : "light";
       
       root.classList.add(systemTheme);
+      
+      // Apply custom color scheme
+      if (systemTheme === "dark") {
+        root.style.setProperty('--primary', '30 95% 55%'); // Orange
+        root.style.setProperty('--secondary', '215 14% 34%'); // Dark gray
+      } else {
+        root.style.setProperty('--primary', '30 95% 55%'); // Orange
+        root.style.setProperty('--secondary', '215 14% 34%'); // Dark gray
+      }
+      
       return;
     }
     
     root.classList.add(theme);
+    
+    // Apply custom color scheme based on theme
+    if (theme === "dark") {
+      root.style.setProperty('--primary', '30 95% 55%'); // Orange
+      root.style.setProperty('--secondary', '215 14% 34%'); // Dark gray
+    } else {
+      root.style.setProperty('--primary', '30 95% 55%'); // Orange
+      root.style.setProperty('--secondary', '215 14% 34%'); // Dark gray
+    }
   }, [theme]);
 
   const value = {
