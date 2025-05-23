@@ -10,7 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getDataPendataanDesa } from '@/services/allocation-service';
 
 export default function PendataanPage() {
   const { user } = useAuth();
@@ -39,15 +38,33 @@ export default function PendataanPage() {
       if (!user?.id) return [];
       
       const { data, error } = await supabase
-        .from('desa_allocation_view')
-        .select('*')
+        .from('alokasi_petugas')
+        .select(`
+          desa_id,
+          desa:desa_id(
+            id,
+            name,
+            kecamatan:kecamatan_id(
+              id,
+              name
+            )
+          )
+        `)
         .eq('ppl_id', user.id);
         
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error("Error fetching alokasi petugas:", error);
+        throw error;
+      }
+      
+      return (data || []).map((item: any) => ({
+        desa_id: item.desa_id,
+        desa_name: item.desa?.name || 'Unknown',
+        kecamatan_name: item.desa?.kecamatan?.name || 'Unknown'
+      }));
     },
     enabled: !!user?.id,
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: false
   });
   
@@ -57,12 +74,23 @@ export default function PendataanPage() {
     refetch: refetchPendataan
   } = useQuery({
     queryKey: ['data_pendataan_desa', user?.id],
-    queryFn: () => {
+    queryFn: async () => {
       if (!user?.id) return [];
-      return getDataPendataanDesa(user.id);
+      
+      const { data, error } = await supabase
+        .from('data_pendataan_desa')
+        .select('*')
+        .eq('ppl_id', user.id);
+        
+      if (error) {
+        console.error("Error fetching data pendataan:", error);
+        throw error;
+      }
+      
+      return data || [];
     },
     enabled: !!user?.id,
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: false
   });
   
@@ -126,7 +154,7 @@ export default function PendataanPage() {
         status_infrastruktur: formValues.statusInfrastruktur,
         potensi_ekonomi: formValues.potensiEkonomi,
         catatan_khusus: formValues.catatanKhusus,
-        persentase_selesai: 100, // Anggap sudah selesai ketika disimpan
+        persentase_selesai: 100,
         updated_at: new Date().toISOString()
       };
       
@@ -143,17 +171,6 @@ export default function PendataanPage() {
           
         if (error) throw error;
         result = data;
-        
-        // Update status pendataan
-        await supabase
-          .from('status_pendataan_desa')
-          .update({
-            status: 'selesai',
-            tanggal_selesai: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('desa_id', selectedDesaId)
-          .eq('ppl_id', user?.id);
       } else {
         // Insert data baru
         const { data, error } = await supabase
@@ -168,18 +185,23 @@ export default function PendataanPage() {
           
         if (error) throw error;
         result = data;
-        
-        // Update status pendataan
+      }
+      
+      // Update status pendataan jika ada
+      try {
         await supabase
           .from('status_pendataan_desa')
-          .update({
+          .upsert({
+            desa_id: selectedDesaId,
+            ppl_id: user?.id,
             status: 'selesai',
             tanggal_mulai: new Date().toISOString(),
             tanggal_selesai: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          })
-          .eq('desa_id', selectedDesaId)
-          .eq('ppl_id', user?.id);
+          });
+      } catch (statusError) {
+        console.warn("Error updating status pendataan:", statusError);
+        // Tidak perlu throw error karena data utama sudah tersimpan
       }
       
       toast({
@@ -189,7 +211,6 @@ export default function PendataanPage() {
       
       // Refresh data
       refetchPendataan();
-      refetchAlokasi();
       
     } catch (error: any) {
       console.error('Error saving data:', error);
@@ -219,7 +240,7 @@ export default function PendataanPage() {
       <div className="container mx-auto py-6">
         <Card>
           <CardHeader>
-            <CardTitle>Data Pendataan</CardTitle>
+            <CardTitle>Data Pendataan Desa</CardTitle>
             <CardDescription>Isi data pendataan desa yang menjadi tugas Anda</CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center h-64">
@@ -246,11 +267,7 @@ export default function PendataanPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {isLoadingAlokasi ? (
-                  <div className="flex items-center justify-center h-20">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  </div>
-                ) : alokasiBertugas.map((desa: any) => {
+                {alokasiBertugas.map((desa: any) => {
                   // Cari status pendataan dari data yang sudah ada
                   const existingData = pendataanData.find((item: any) => item.desa_id === desa.desa_id);
                   const isCompleted = existingData !== undefined;

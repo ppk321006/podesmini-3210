@@ -15,26 +15,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VerificationDialog } from '@/components/verification/verification-dialog';
-import { getUbinanDataByPML, getProgressByPML } from '@/services/progress-service';
 import { UbinanData } from '@/types/database-schema';
 import { ArrowUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { CustomTables } from '@/types/supabase-custom';
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
   const [selectedUbinan, setSelectedUbinan] = useState<UbinanData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: ubinanData = [], isLoading, refetch } = useQuery({
-    queryKey: ['ubinan_verification', user?.id],
+    queryKey: ['ubinan_verification', user?.id, filterStatus],
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('ubinan_data')
         .select(`
           *,
@@ -55,6 +53,13 @@ export default function VerifikasiPage() {
           ppl:ppl_id(id, name, username)
         `)
         .eq('pml_id', user.id);
+
+      // Apply status filter if not 'all'
+      if (filterStatus !== 'all') {
+        query = query.eq('status', filterStatus);
+      }
+
+      const { data, error } = await query.order('tanggal_ubinan', { ascending: false });
         
       if (error) {
         console.error("Error fetching ubinan data:", error);
@@ -66,13 +71,9 @@ export default function VerifikasiPage() {
         
         let pplName = "Unknown";
         if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
-          if (typeof item.ppl === 'string') {
-            pplName = item.ppl;
-          } else {
-            const pplObj = item.ppl as any;
-            if (pplObj && pplObj.name) {
-              pplName = pplObj.name;
-            }
+          const pplObj = item.ppl as any;
+          if (pplObj && pplObj.name) {
+            pplName = pplObj.name;
           }
         }
           
@@ -89,21 +90,14 @@ export default function VerifikasiPage() {
     enabled: !!user?.id,
   });
 
-  const { data: progressData = { 
-    totalPadi: 0, 
-    totalPalawija: 0, 
-    pendingVerification: 0, 
-    verified: 0, 
-    rejected: 0 
-  }, isLoading: isLoadingProgress } = useQuery({
-    queryKey: ['pml_progress', user?.id],
-    queryFn: () => getProgressByPML(user?.id || ''),
-    enabled: !!user?.id,
-  });
-
-  const filteredData = filter === 'all' 
-    ? ubinanData 
-    : ubinanData.filter(item => item.status === filter);
+  // Calculate progress data from actual ubinan data
+  const progressData = {
+    totalPadi: ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length,
+    totalPalawija: ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length,
+    pendingVerification: ubinanData.filter(item => item.status === 'sudah_diisi').length,
+    verified: ubinanData.filter(item => item.status === 'dikonfirmasi').length,
+    rejected: ubinanData.filter(item => item.status === 'ditolak').length
+  };
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -114,7 +108,7 @@ export default function VerifikasiPage() {
     }
   };
 
-  const sortedData = [...filteredData].sort((a, b) => {
+  const sortedData = [...ubinanData].sort((a, b) => {
     if (!sortColumn) return 0;
     
     let valueA, valueB;
@@ -175,9 +169,6 @@ export default function VerifikasiPage() {
     setSelectedUbinan(null);
     refetch();
   };
-
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterKomoditas, setFilterKomoditas] = useState('all');
 
   return (
     <div className="container mx-auto py-6">

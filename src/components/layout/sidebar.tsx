@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -65,6 +64,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
       allowedRoles: [UserRole.PPL],
     },
     {
+      title: "Data Pendataan Desa",
+      icon: ClipboardEdit,
+      href: "/pendataan",
+      allowedRoles: [UserRole.PPL],
+    },
+    {
       title: "Manajemen Petugas",
       icon: Users,
       href: "/petugas",
@@ -81,12 +86,6 @@ export function Sidebar({ isOpen }: SidebarProps) {
       icon: UserCog,
       href: "/alokasi-petugas",
       allowedRoles: [UserRole.ADMIN],
-    },
-    {
-      title: "Rekap Progres Petugas",
-      icon: FileSpreadsheet,
-      href: "/petugas-progres",
-      allowedRoles: [UserRole.ADMIN, UserRole.PML],
     },
     {
       title: "Verifikasi Data",
@@ -108,13 +107,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
     },
   ];
 
-  // Filter sidebar items based on user role
+  // ... keep existing code (filter items, isActive function, and component return)
   const filteredItems = sidebarItems.filter(item => {
-    if (!user) return false; // Don't show any items if user isn't authenticated
+    if (!user) return false;
     return item.allowedRoles.includes(user.role);
   });
 
-  // Check if a path is active, handling nested paths
   const isActive = (href: string) => {
     if (href === '/dashboard' && pathname === '/') return true;
     return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
@@ -142,7 +140,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
                   !isOpen && "justify-center md:px-2 md:py-2"
                 )
               }
-              end={item.href === '/dashboard'} // Only make exact match for dashboard
+              end={item.href === '/dashboard'}
             >
               <item.icon className={cn("h-5 w-5", isActive(item.href) ? "text-simonita-green" : "text-gray-400")} />
               {(isOpen || isMobile) && <span className="ml-3">{item.title}</span>}
