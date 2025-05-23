@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getPPLDashboardData, getPMLDashboardData, getPendataanDesaStats } from "@/services/allocation-service";
 import { UserRole } from "@/types/user";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function DashboardPage() {
   const { user } = useAuth();
