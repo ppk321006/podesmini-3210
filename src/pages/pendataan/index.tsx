@@ -1,20 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function PendataanPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [formValues, setFormValues] = useState({
     desaId: '',
@@ -27,17 +27,25 @@ export default function PendataanPage() {
   });
   
   const [selectedDesaId, setSelectedDesaId] = useState<string | null>(null);
+  const [alokasiBertugas, setAlokasiBertugas] = useState<any[]>([]);
+  const [pendataanData, setPendataanData] = useState<any[]>([]);
   
-  const {
-    data: alokasiBertugas = [],
-    isLoading: isLoadingAlokasi,
-    refetch: refetchAlokasi
-  } = useQuery({
-    queryKey: ['alokasi_bertugas', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      const { data, error } = await supabase
+  useEffect(() => {
+    if (user?.id) {
+      fetchData();
+    }
+  }, [user?.id]);
+  
+  const fetchData = async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Fetch alokasi petugas
+      const { data: alokasiData, error: alokasiError } = await supabase
         .from('alokasi_petugas')
         .select(`
           desa_id,
@@ -52,47 +60,43 @@ export default function PendataanPage() {
         `)
         .eq('ppl_id', user.id);
         
-      if (error) {
-        console.error("Error fetching alokasi petugas:", error);
-        throw error;
+      if (alokasiError) {
+        console.error("Error fetching alokasi petugas:", alokasiError);
+        throw alokasiError;
       }
       
-      return (data || []).map((item: any) => ({
+      const processedAlokasi = (alokasiData || []).map((item: any) => ({
         desa_id: item.desa_id,
         desa_name: item.desa?.name || 'Unknown',
         kecamatan_name: item.desa?.kecamatan?.name || 'Unknown'
       }));
-    },
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    refetchOnWindowFocus: false
-  });
-  
-  const {
-    data: pendataanData = [],
-    isLoading: isLoadingPendataan,
-    refetch: refetchPendataan
-  } = useQuery({
-    queryKey: ['data_pendataan_desa', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
       
-      const { data, error } = await supabase
+      setAlokasiBertugas(processedAlokasi);
+      
+      // Fetch data pendataan
+      const { data: pendataanData, error: pendataanError } = await supabase
         .from('data_pendataan_desa')
         .select('*')
         .eq('ppl_id', user.id);
         
-      if (error) {
-        console.error("Error fetching data pendataan:", error);
-        throw error;
+      if (pendataanError) {
+        console.error("Error fetching data pendataan:", pendataanError);
+        throw pendataanError;
       }
       
-      return data || [];
-    },
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    refetchOnWindowFocus: false
-  });
+      setPendataanData(pendataanData || []);
+      
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal memuat data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -132,7 +136,7 @@ export default function PendataanPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedDesaId) {
+    if (!selectedDesaId || !user?.id) {
       toast({
         title: "Error",
         description: "Silakan pilih desa terlebih dahulu",
@@ -148,7 +152,7 @@ export default function PendataanPage() {
       
       const dataToSubmit = {
         desa_id: selectedDesaId,
-        ppl_id: user?.id,
+        ppl_id: user.id,
         jumlah_keluarga: parseInt(formValues.jumlahKeluarga) || 0,
         jumlah_lahan_pertanian: parseFloat(formValues.jumlahLahanPertanian) || 0,
         status_infrastruktur: formValues.statusInfrastruktur,
@@ -166,7 +170,7 @@ export default function PendataanPage() {
           .from('data_pendataan_desa')
           .update(dataToSubmit)
           .eq('desa_id', selectedDesaId)
-          .eq('ppl_id', user?.id)
+          .eq('ppl_id', user.id)
           .select();
           
         if (error) throw error;
@@ -193,7 +197,7 @@ export default function PendataanPage() {
           .from('status_pendataan_desa')
           .upsert({
             desa_id: selectedDesaId,
-            ppl_id: user?.id,
+            ppl_id: user.id,
             status: 'selesai',
             tanggal_mulai: new Date().toISOString(),
             tanggal_selesai: new Date().toISOString(),
@@ -210,7 +214,7 @@ export default function PendataanPage() {
       });
       
       // Refresh data
-      refetchPendataan();
+      fetchData();
       
     } catch (error: any) {
       console.error('Error saving data:', error);
@@ -224,7 +228,19 @@ export default function PendataanPage() {
     }
   };
   
-  if (isLoadingAlokasi) {
+  if (!user) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <p className="text-gray-500">Silakan login terlebih dahulu</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (isLoading) {
     return (
       <div className="container mx-auto py-6 flex items-center justify-center h-64">
         <div className="flex flex-col items-center">

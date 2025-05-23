@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -12,7 +11,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Plus } from "lucide-react";
+import { Edit } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +34,6 @@ interface DesaData {
 export default function InputDataPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [desaData, setDesaData] = useState<DesaData[]>([]);
   const [editingData, setEditingData] = useState<DesaData | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -44,55 +42,82 @@ export default function InputDataPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchDesaData();
     }
-  }, [user]);
+  }, [user?.id]);
 
   async function fetchDesaData() {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('desa_allocation_view')
+      // Query alokasi petugas untuk mendapatkan desa yang ditugaskan ke PPL
+      const { data: alokasiData, error: alokasiError } = await supabase
+        .from('alokasi_petugas')
         .select(`
           desa_id,
-          desa_name,
-          kecamatan_name,
-          status,
-          tanggal_mulai,
-          tanggal_selesai,
-          target
+          desa:desa_id(
+            id,
+            name,
+            kecamatan:kecamatan_id(
+              id,
+              name
+            )
+          )
         `)
-        .eq("ppl_id", user?.id || '')
-        .order('kecamatan_name')
-        .order('desa_name');
+        .eq('ppl_id', user.id);
 
-      if (error) {
-        console.error("Error fetching desa data:", error);
+      if (alokasiError) {
+        console.error("Error fetching alokasi data:", alokasiError);
         toast({
           title: "Error",
-          description: "Gagal mengambil data desa",
+          description: "Gagal mengambil data alokasi desa",
           variant: "destructive",
         });
         return;
       }
 
-      // Process the data with proper typing
-      const processedData = (data || []).map((item: any) => {
+      if (!alokasiData || alokasiData.length === 0) {
+        setDesaData([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Ambil daftar desa_id yang dialokasikan
+      const desaIds = alokasiData.map(item => item.desa_id);
+
+      // Query status pendataan untuk desa yang dialokasikan
+      const { data: statusData, error: statusError } = await supabase
+        .from('status_pendataan_desa')
+        .select('*')
+        .in('desa_id', desaIds);
+
+      if (statusError) {
+        console.error("Error fetching status data:", statusError);
+      }
+
+      // Gabungkan data
+      const processedData = alokasiData.map((item: any) => {
+        const statusItem = statusData?.find(s => s.desa_id === item.desa_id);
+        
         return {
           id: item.desa_id,
-          name: item.desa_name || "-",
-          kecamatan_name: item.kecamatan_name || "-",
-          status: item.status || "belum",
-          tanggal_mulai: item.tanggal_mulai,
-          tanggal_selesai: item.tanggal_selesai,
-          target: item.target
+          name: item.desa?.name || "-",
+          kecamatan_name: item.desa?.kecamatan?.name || "-",
+          status: statusItem?.status || "belum",
+          tanggal_mulai: statusItem?.tanggal_mulai || null,
+          tanggal_selesai: statusItem?.tanggal_selesai || null,
+          target: statusItem?.target || null
         };
       });
 
       setDesaData(processedData);
     } catch (err) {
-      console.error("Error in desa data fetch:", err);
+      console.error("Error in fetchDesaData:", err);
       toast({
         title: "Error",
         description: "Terjadi kesalahan saat mengambil data",
@@ -153,6 +178,18 @@ export default function InputDataPage() {
     return format(new Date(dateString), 'dd MMM yyyy', { locale: id });
   };
 
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <p className="text-gray-500">Silakan login terlebih dahulu</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Card>
@@ -209,7 +246,7 @@ export default function InputDataPage() {
                 ) : filteredData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      Tidak ada data
+                      {desaData.length === 0 ? "Anda belum memiliki alokasi desa" : "Tidak ada data yang sesuai filter"}
                     </TableCell>
                   </TableRow>
                 ) : (
