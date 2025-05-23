@@ -17,7 +17,6 @@ import VerifikasiPage from './pages/verifikasi';
 import VerifikasiDataPage from './pages/verifikasi-data';
 import PendataanPage from './pages/pendataan';
 import ProgressUbinanPage from './pages/progress-ubinan';
-import PetugasProgresPage from './pages/petugas-progres';
 import DokumenUploadPage from './pages/dokumen/upload';
 import DokumenViewerPage from './pages/dokumen/viewer';
 import NotificationsPage from './pages/notifications';
@@ -56,7 +55,6 @@ function App() {
             <Route path="/verifikasi-data" element={<VerifikasiDataPage />} />
             <Route path="/pendataan" element={<PendataanPage />} />
             <Route path="/progress-ubinan" element={<ProgressUbinanPage />} />
-            <Route path="/petugas-progres" element={<PetugasProgresPage />} />
             <Route path="/dokumen/upload" element={<DokumenUploadPage />} />
             <Route path="/dokumen/:id" element={<DokumenViewerPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
