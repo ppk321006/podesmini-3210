@@ -1,4 +1,3 @@
-
 import { Database } from '@/integrations/supabase/types';
 
 // Type definitions for tables that don't exist in the default Database type
@@ -211,4 +210,3 @@ export type ExtendedDatabase = Database & {
 
 // Type helper for Supabase queries
 export type TableName = keyof CustomTables | keyof Database['public']['Tables'];
-
