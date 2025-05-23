@@ -26,29 +26,29 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Hard-coded users for the application
+// Hard-coded users with valid UUIDs for the application
 const DEFAULT_USERS = [
   {
-    id: "admin-id-123",
+    id: "00000000-0000-0000-0000-000000000001",
     username: "admin",
     password: "admin123",
     name: "Administrator",
     role: "admin"
   },
   {
-    id: "pml-id-123",
+    id: "00000000-0000-0000-0000-000000000002",
     username: "pml",
     password: "pml123",
     name: "Petugas Memeriksa Lapangan",
     role: "pml"
   },
   {
-    id: "ppl-id-123",
+    id: "00000000-0000-0000-0000-000000000003",
     username: "ppl",
     password: "ppl123",
     name: "Petugas Pendataan Lapangan",
     role: "ppl",
-    pml_id: "pml-id-123"
+    pml_id: "00000000-0000-0000-0000-000000000002"
   }
 ];
 

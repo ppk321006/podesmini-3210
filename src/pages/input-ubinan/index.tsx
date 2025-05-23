@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,12 @@ interface DesaData {
   target: number | null;
 }
 
+// Helper function to validate UUID format
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 export default function InputDataPage() {
   const { user } = useAuth();
   const [desaData, setDesaData] = useState<DesaData[]>([]);
@@ -54,6 +59,14 @@ export default function InputDataPage() {
     if (!user?.id) {
       setIsLoading(false);
       setErrorMessage("User ID tidak ditemukan");
+      return;
+    }
+
+    // Validate user ID format
+    if (!isValidUUID(user.id)) {
+      setIsLoading(false);
+      setErrorMessage(`Format User ID tidak valid: ${user.id}. Silakan logout dan login kembali.`);
+      console.error("Invalid user ID format:", user.id);
       return;
     }
 
@@ -206,8 +219,16 @@ export default function InputDataPage() {
             <CardTitle>Error</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center h-64">
-            <p className="text-red-500 mb-4">{errorMessage}</p>
-            <Button onClick={() => fetchDesaData()}>Coba Lagi</Button>
+            <p className="text-red-500 mb-4 text-center">{errorMessage}</p>
+            <div className="flex gap-2">
+              <Button onClick={() => fetchDesaData()}>Coba Lagi</Button>
+              <Button variant="outline" onClick={() => {
+                localStorage.removeItem("potensidesa_user");
+                window.location.reload();
+              }}>
+                Logout & Login Ulang
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
