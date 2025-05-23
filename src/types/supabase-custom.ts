@@ -1,3 +1,4 @@
+
 import { Database } from '@/integrations/supabase/types';
 
 // Type definitions for tables that don't exist in the default Database type
@@ -8,7 +9,6 @@ export interface CustomTables {
       nks_id: string | null;
       segmen_id: string | null;
       ppl_id: string;
-      pml_id: string | null;
       responden_name: string;
       komoditas: string;
       tanggal_ubinan: string;
@@ -96,7 +96,7 @@ export interface CustomTables {
       id: string;
       desa_id: string;
       ppl_id: string | null;
-      status: 'belum' | 'proses' | 'selesai';
+      status: 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved';
       tanggal_mulai: string | null;
       tanggal_selesai: string | null;
       target: number | null;
@@ -107,7 +107,7 @@ export interface CustomTables {
       id?: string;
       desa_id: string;
       ppl_id?: string | null;
-      status?: 'belum' | 'proses' | 'selesai';
+      status?: 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved';
       tanggal_mulai?: string | null;
       tanggal_selesai?: string | null;
       target?: number | null;
@@ -116,7 +116,90 @@ export interface CustomTables {
     };
     Update: Partial<CustomTables['status_pendataan_desa']['Row']>;
   };
-};
+  data_pendataan_desa: {
+    Row: {
+      id: string;
+      desa_id: string;
+      ppl_id: string;
+      jumlah_keluarga: number | null;
+      jumlah_lahan_pertanian: number | null;
+      status_infrastruktur: string | null;
+      potensi_ekonomi: string | null;
+      catatan_khusus: string | null;
+      persentase_selesai: number | null;
+      tanggal_mulai: string | null;
+      tanggal_selesai: string | null;
+      status: 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved' | null;
+      updated_at: string | null;
+    };
+    Insert: {
+      id?: string;
+      desa_id: string;
+      ppl_id: string;
+      jumlah_keluarga?: number | null;
+      jumlah_lahan_pertanian?: number | null;
+      status_infrastruktur?: string | null;
+      potensi_ekonomi?: string | null;
+      catatan_khusus?: string | null;
+      persentase_selesai?: number | null;
+      tanggal_mulai?: string | null;
+      tanggal_selesai?: string | null;
+      status?: 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved' | null;
+      updated_at?: string | null;
+    };
+    Update: Partial<CustomTables['data_pendataan_desa']['Row']>;
+  };
+  dokumen_pendataan: {
+    Row: {
+      id: string;
+      desa_id: string;
+      ppl_id: string;
+      jenis_dokumen: string;
+      nama_file: string;
+      url: string;
+      status: 'belum_dikirim' | 'dikirim' | 'diterima' | 'ditolak' | null;
+      komentar: string | null;
+      uploaded_at: string | null;
+      updated_at: string | null;
+    };
+    Insert: {
+      id?: string;
+      desa_id: string;
+      ppl_id: string;
+      jenis_dokumen: string;
+      nama_file: string;
+      url: string;
+      status?: 'belum_dikirim' | 'dikirim' | 'diterima' | 'ditolak' | null;
+      komentar?: string | null;
+      uploaded_at?: string | null;
+      updated_at?: string | null;
+    };
+    Update: Partial<CustomTables['dokumen_pendataan']['Row']>;
+  };
+  activity_log: {
+    Row: {
+      id: string;
+      user_id: string | null;
+      action: string;
+      entity_type: string;
+      entity_id: string;
+      details: any | null;
+      created_at: string | null;
+    };
+  };
+  notifikasi: {
+    Row: {
+      id: string;
+      user_id: string;
+      judul: string;
+      pesan: string;
+      tipe: string;
+      dibaca: boolean | null;
+      created_at: string | null;
+      data: any | null;
+    };
+  };
+}
 
 // Create a type safe schema accessor for use with supabase.from() calls
 export type ExtendedDatabase = Database & {

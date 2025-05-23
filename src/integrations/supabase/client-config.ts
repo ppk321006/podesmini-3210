@@ -1,10 +1,10 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase-db';
+import { Database } from '@/integrations/supabase/types';
 import { ExtendedDatabase } from '@/types/supabase-custom';
 
-const SUPABASE_URL = "https://nqrqpzynzxknnmvihptw.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xcnFwenluenhrbm5tdmlocHR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjM4NTYsImV4cCI6MjA1OTU5OTg1Nn0.GzLbNKvXG_3CgUkdbHDS9vE7mslderFg0CWmRSK6Uds";
+const SUPABASE_URL = "https://apdmbwlzicaxtfyusgwh.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwZG1id2x6aWNheHRmeXVzZ3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMzk1MDksImV4cCI6MjA2MzYxNTUwOX0.U1uOV8dXpvXLOBA9xWiFPHYqziiMcz1V_xqxbLRZjk8";
 
 // Export a typed Supabase client
 export const supabaseClient = createClient<ExtendedDatabase>(
