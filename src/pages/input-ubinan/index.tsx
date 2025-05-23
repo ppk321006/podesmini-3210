@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { InputDataForm } from "./input-form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface DesaData {
   id: string;
@@ -28,12 +30,6 @@ interface DesaData {
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   target: number | null;
-}
-
-// Helper function to validate UUID format
-function isValidUUID(id: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(id);
 }
 
 export default function InputDataPage() {
@@ -62,13 +58,8 @@ export default function InputDataPage() {
       return;
     }
 
-    // Validate user ID format
-    if (!isValidUUID(user.id)) {
-      setIsLoading(false);
-      setErrorMessage(`Format User ID tidak valid: ${user.id}. Silakan logout dan login kembali.`);
-      console.error("Invalid user ID format:", user.id);
-      return;
-    }
+    // Removed the UUID validation as it's causing issues with the default users
+    // We'll trust the user.id value from the authentication context
 
     setIsLoading(true);
     setErrorMessage(null);
@@ -237,6 +228,42 @@ export default function InputDataPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Countdown Timer Component */}
+      <Card className="mb-6 border-orange-300 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col items-center">
+            <h3 className="text-base font-medium mb-2">Batas Waktu Pendataan</h3>
+            <div className="flex justify-center gap-2">
+              <div className="flex flex-col items-center">
+                <div className="bg-orange-500 text-white font-bold text-2xl w-14 h-12 rounded flex items-center justify-center">
+                  37
+                </div>
+                <span className="text-xs mt-1">Hari</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="bg-orange-500 text-white font-bold text-2xl w-14 h-12 rounded flex items-center justify-center">
+                  00
+                </div>
+                <span className="text-xs mt-1">Jam</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="bg-orange-500 text-white font-bold text-2xl w-14 h-12 rounded flex items-center justify-center">
+                  17
+                </div>
+                <span className="text-xs mt-1">Menit</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="bg-orange-500 text-white font-bold text-2xl w-14 h-12 rounded flex items-center justify-center">
+                  54
+                </div>
+                <span className="text-xs mt-1">Detik</span>
+              </div>
+            </div>
+            <span className="text-sm text-gray-600 mt-2">Tenggat: 30 Juni 2025</span>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
           <CardTitle className="text-2xl">Data Pendataan Desa</CardTitle>
