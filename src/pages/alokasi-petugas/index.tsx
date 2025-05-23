@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Card, CardContent, CardHeader, 
   CardTitle, CardDescription 
@@ -25,69 +25,78 @@ import { allocateDesa, getAllocatedDesaList } from "@/services/allocation-servic
 import { getKecamatanList, getDesaList } from "@/services/wilayah-api";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useQuery } from "@tanstack/react-query";
 
 export default function AlokasiPetugasPage() {
   const { toast } = useToast();
-  const [desaList, setDesaList] = useState([]);
-  const [pplList, setPplList] = useState([]);
-  const [pmlList, setPmlList] = useState([]);
   const [selectedDesa, setSelectedDesa] = useState("");
   const [selectedPpl, setSelectedPpl] = useState("");
   const [selectedPml, setSelectedPml] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [kecamatanList, setKecamatanList] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedKecamatan, setSelectedKecamatan] = useState("");
   const [availableDesaList, setAvailableDesaList] = useState([]);
 
   const { user } = useAuth();
 
-  // Only fetch data once when component mounts
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
+  // Menggunakan React Query untuk menghindari blinking data
+  const { 
+    data: desaList = [], 
+    error: desaError,
+    isLoading: isDesaLoading,
+    refetch: refetchDesa
+  } = useQuery({
+    queryKey: ['allocated_desa'],
+    queryFn: getAllocatedDesaList,
+    staleTime: 60000, // 1 menit
+    refetchOnWindowFocus: false
+  });
 
-  async function fetchData() {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      console.log("Fetching data for Alokasi Petugas page...");
-      
-      // Use Promise.all to fetch data concurrently
-      const [desaResponse, pplResponse, pmlResponse, kecamatanResponse] = await Promise.all([
-        getAllocatedDesaList(),
-        supabase.from('users').select('*').eq('role', 'ppl'),
-        supabase.from('users').select('*').eq('role', 'pml'),
-        getKecamatanList()
-      ]);
+  const { 
+    data: pplList = [], 
+    isLoading: isPplLoading 
+  } = useQuery({
+    queryKey: ['ppl_list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'ppl');
+        
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+    refetchOnWindowFocus: false
+  });
 
-      console.log("Data fetched successfully:", {
-        desaCount: desaResponse?.length || 0,
-        pplCount: pplResponse?.data?.length || 0,
-        pmlCount: pmlResponse?.data?.length || 0,
-        kecamatanCount: kecamatanResponse?.length || 0
-      });
+  const { 
+    data: pmlList = [], 
+    isLoading: isPmlLoading 
+  } = useQuery({
+    queryKey: ['pml_list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'pml');
+        
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+    refetchOnWindowFocus: false
+  });
 
-      setDesaList(desaResponse || []);
-      setPplList(pplResponse?.data || []);
-      setPmlList(pmlResponse?.data || []);
-      setKecamatanList(kecamatanResponse || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setError("Gagal mengambil data. Silakan coba lagi nanti.");
-      toast({
-        title: "Error",
-        description: "Gagal mengambil data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const { 
+    data: kecamatanList = [], 
+    isLoading: isKecamatanLoading 
+  } = useQuery({
+    queryKey: ['kecamatan_list'],
+    queryFn: getKecamatanList,
+    staleTime: 60000,
+    refetchOnWindowFocus: false
+  });
 
   // Fetch desa based on selected kecamatan
   useEffect(() => {
@@ -131,7 +140,7 @@ export default function AlokasiPetugasPage() {
           title: "Sukses",
           description: "Desa berhasil dialokasikan",
         });
-        fetchData();
+        refetchDesa();
         handleCloseDialog();
       }
     } catch (error) {
@@ -162,9 +171,7 @@ export default function AlokasiPetugasPage() {
     setSelectedPml("");
   };
   
-  const handleRefresh = () => {
-    fetchData();
-  };
+  const isDataLoading = isDesaLoading || isPplLoading || isPmlLoading || isKecamatanLoading;
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -176,16 +183,16 @@ export default function AlokasiPetugasPage() {
               Alokasikan petugas PPL dan PML untuk setiap desa
             </CardDescription>
           </div>
-          <Button onClick={handleRefresh} disabled={isLoading} variant="outline">
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+          <Button onClick={() => refetchDesa()} disabled={isDataLoading} variant="outline">
+            {isDesaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
           </Button>
         </CardHeader>
         <CardContent>
-          {error && (
+          {desaError && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>Gagal mengambil data alokasi. Silakan coba lagi nanti.</AlertDescription>
             </Alert>
           )}
           <div className="rounded-md border overflow-x-auto">
@@ -199,7 +206,7 @@ export default function AlokasiPetugasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {isDataLoading ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-8">
                       <div className="flex justify-center items-center">
@@ -227,7 +234,7 @@ export default function AlokasiPetugasPage() {
               </TableBody>
             </Table>
           </div>
-          <Button onClick={handleOpenDialog} className="mt-4" disabled={isLoading}>
+          <Button onClick={handleOpenDialog} className="mt-4" disabled={isDataLoading}>
             Alokasikan Petugas
           </Button>
         </CardContent>

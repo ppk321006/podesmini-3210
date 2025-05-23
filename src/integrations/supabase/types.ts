@@ -36,6 +36,13 @@ export type Database = {
             foreignKeyName: "alokasi_petugas_desa_id_fkey"
             columns: ["desa_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_ppl_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
             referencedRelation: "desa"
             referencedColumns: ["id"]
           },
@@ -97,6 +104,60 @@ export type Database = {
           },
         ]
       }
+      data_pendataan_desa: {
+        Row: {
+          catatan_khusus: string | null
+          created_at: string | null
+          desa_id: string
+          id: string
+          jumlah_keluarga: number | null
+          jumlah_lahan_pertanian: number | null
+          persentase_selesai: number | null
+          pml_id: string | null
+          potensi_ekonomi: string | null
+          ppl_id: string
+          status: string | null
+          status_infrastruktur: string | null
+          tanggal_mulai: string | null
+          tanggal_selesai: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          catatan_khusus?: string | null
+          created_at?: string | null
+          desa_id: string
+          id?: string
+          jumlah_keluarga?: number | null
+          jumlah_lahan_pertanian?: number | null
+          persentase_selesai?: number | null
+          pml_id?: string | null
+          potensi_ekonomi?: string | null
+          ppl_id: string
+          status?: string | null
+          status_infrastruktur?: string | null
+          tanggal_mulai?: string | null
+          tanggal_selesai?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          catatan_khusus?: string | null
+          created_at?: string | null
+          desa_id?: string
+          id?: string
+          jumlah_keluarga?: number | null
+          jumlah_lahan_pertanian?: number | null
+          persentase_selesai?: number | null
+          pml_id?: string | null
+          potensi_ekonomi?: string | null
+          ppl_id?: string
+          status?: string | null
+          status_infrastruktur?: string | null
+          tanggal_mulai?: string | null
+          tanggal_selesai?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       desa: {
         Row: {
           created_at: string | null
@@ -117,6 +178,13 @@ export type Database = {
           name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "desa_kecamatan_id_fkey"
+            columns: ["kecamatan_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_ppl_view"
+            referencedColumns: ["kecamatan_id"]
+          },
           {
             foreignKeyName: "desa_kecamatan_id_fkey"
             columns: ["kecamatan_id"]
@@ -302,6 +370,13 @@ export type Database = {
             foreignKeyName: "pendataan_desa_id_fkey"
             columns: ["desa_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_ppl_view"
+            referencedColumns: ["desa_id"]
+          },
+          {
+            foreignKeyName: "pendataan_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: false
             referencedRelation: "desa"
             referencedColumns: ["id"]
           },
@@ -377,6 +452,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "status_pendataan_desa_desa_id_fkey"
+            columns: ["desa_id"]
+            isOneToOne: true
+            referencedRelation: "dashboard_ppl_view"
+            referencedColumns: ["desa_id"]
+          },
           {
             foreignKeyName: "status_pendataan_desa_desa_id_fkey"
             columns: ["desa_id"]
@@ -478,6 +560,69 @@ export type Database = {
       }
     }
     Views: {
+      dashboard_ppl_view: {
+        Row: {
+          desa_id: string | null
+          desa_name: string | null
+          kecamatan_id: string | null
+          kecamatan_name: string | null
+          pml_id: string | null
+          pml_name: string | null
+          ppl_id: string | null
+          ppl_name: string | null
+          status: Database["public"]["Enums"]["status_pendataan_type"] | null
+          status_pendataan:
+            | Database["public"]["Enums"]["status_pendataan_type"]
+            | null
+          tanggal_mulai: string | null
+          tanggal_selesai: string | null
+          target: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_pml_id_fkey"
+            columns: ["pml_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["pml_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "progress_view"
+            referencedColumns: ["ppl_id"]
+          },
+          {
+            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
+            columns: ["ppl_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       desa_allocation_view: {
         Row: {
           desa_id: string | null

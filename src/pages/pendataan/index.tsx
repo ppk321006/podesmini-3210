@@ -1,386 +1,387 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/auth-context";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { 
-  Search, 
-  Plus, 
-  FileText, 
-  Calendar, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
-  Filter,
-  X,
-  Upload
-} from "lucide-react";
-import { Desa, DataPendataanDesa } from "@/types/pendataan";
-
-// Mock data for demonstration
-const mockDesaList: Desa[] = [
-  { 
-    id: "desa-1", 
-    kecamatan_id: "kec-1", 
-    nama: "Desa Cidahu", 
-    status: "proses", 
-    ppl_id: "ppl-id-123", 
-    pml_id: "pml-id-123",
-    last_updated: "2023-05-10T14:30:00Z"
-  },
-  { 
-    id: "desa-2", 
-    kecamatan_id: "kec-1", 
-    nama: "Desa Sukamaju", 
-    status: "selesai", 
-    ppl_id: "ppl-id-123", 
-    pml_id: "pml-id-123",
-    last_updated: "2023-05-15T09:20:00Z"
-  },
-  { 
-    id: "desa-3", 
-    kecamatan_id: "kec-2", 
-    nama: "Desa Cibunar", 
-    status: "ditolak", 
-    ppl_id: "ppl-id-123", 
-    pml_id: "pml-id-123",
-    last_updated: "2023-05-12T11:45:00Z"
-  },
-  { 
-    id: "desa-4", 
-    kecamatan_id: "kec-2", 
-    nama: "Desa Buniseuri", 
-    status: "belum", 
-    ppl_id: "ppl-id-123", 
-    pml_id: "pml-id-123"
-  },
-];
-
-const mockPendataanData: DataPendataanDesa[] = [
-  {
-    id: "pendataan-1",
-    desa_id: "desa-1",
-    ppl_id: "ppl-id-123",
-    jumlah_penduduk: 2500,
-    luas_wilayah: 5.2,
-    potensi_ekonomi: "Pertanian padi dan palawija",
-    infrastruktur: "Jalan utama sudah beraspal, terdapat 1 puskesmas",
-    catatan: "Beberapa bagian desa masih sering mengalami banjir saat musim hujan",
-    status: "submitted",
-    created_at: "2023-05-10T10:30:00Z",
-    updated_at: "2023-05-10T14:30:00Z"
-  },
-  {
-    id: "pendataan-2",
-    desa_id: "desa-2",
-    ppl_id: "ppl-id-123",
-    jumlah_penduduk: 3200,
-    luas_wilayah: 6.5,
-    potensi_ekonomi: "Peternakan sapi dan industri rumahan",
-    infrastruktur: "Jalan utama sudah beraspal, terdapat 1 puskesmas dan 1 pasar desa",
-    catatan: "Ekonomi desa berkembang dengan baik berkat industri rumahan",
-    status: "approved",
-    created_at: "2023-05-05T08:15:00Z",
-    updated_at: "2023-05-15T09:20:00Z"
-  },
-  {
-    id: "pendataan-3",
-    desa_id: "desa-3",
-    ppl_id: "ppl-id-123",
-    jumlah_penduduk: 1800,
-    luas_wilayah: 4.3,
-    potensi_ekonomi: "Perkebunan kopi dan pertanian",
-    infrastruktur: "Jalan sebagian belum beraspal, terdapat 1 puskesmas pembantu",
-    catatan: "Akses jalan masih perlu perbaikan untuk menunjang ekonomi",
-    status: "rejected",
-    alasan_penolakan: "Data jumlah penduduk tidak sesuai dengan data kependudukan. Mohon cek ulang data sensus terbaru.",
-    created_at: "2023-05-08T13:40:00Z",
-    updated_at: "2023-05-12T11:45:00Z"
-  }
-];
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/auth-context';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { getDataPendataanDesa } from '@/services/allocation-service';
 
 export default function PendataanPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const getPendataanByDesa = (desaId: string) => {
-    return mockPendataanData.find(data => data.desa_id === desaId);
+  const [formValues, setFormValues] = useState({
+    desaId: '',
+    pplId: user?.id || '',
+    jumlahKeluarga: '',
+    jumlahLahanPertanian: '',
+    statusInfrastruktur: '',
+    potensiEkonomi: '',
+    catatanKhusus: '',
+  });
+  
+  const [selectedDesaId, setSelectedDesaId] = useState<string | null>(null);
+  
+  const {
+    data: alokasiBertugas = [],
+    isLoading: isLoadingAlokasi,
+    refetch: refetchAlokasi
+  } = useQuery({
+    queryKey: ['alokasi_bertugas', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('desa_allocation_view')
+        .select('*')
+        .eq('ppl_id', user.id);
+        
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false
+  });
+  
+  const {
+    data: pendataanData = [],
+    isLoading: isLoadingPendataan,
+    refetch: refetchPendataan
+  } = useQuery({
+    queryKey: ['data_pendataan_desa', user?.id],
+    queryFn: () => {
+      if (!user?.id) return [];
+      return getDataPendataanDesa(user.id);
+    },
+    enabled: !!user?.id,
+    staleTime: 60000,
+    refetchOnWindowFocus: false
+  });
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormValues(prev => ({ ...prev, [name]: value }));
   };
   
-  const getFilteredDesaList = () => {
-    let filtered = mockDesaList;
+  const handleDesaSelect = (desaId: string) => {
+    setSelectedDesaId(desaId === selectedDesaId ? null : desaId);
     
-    if (searchQuery) {
-      filtered = filtered.filter(desa => 
-        desa.nama.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    // Cari data pendataan yang sudah ada untuk desa ini
+    const existingData = pendataanData.find((item: any) => item.desa_id === desaId);
+    
+    if (existingData) {
+      setFormValues({
+        desaId: existingData.desa_id,
+        pplId: user?.id || '',
+        jumlahKeluarga: existingData.jumlah_keluarga?.toString() || '',
+        jumlahLahanPertanian: existingData.jumlah_lahan_pertanian?.toString() || '',
+        statusInfrastruktur: existingData.status_infrastruktur || '',
+        potensiEkonomi: existingData.potensi_ekonomi || '',
+        catatanKhusus: existingData.catatan_khusus || '',
+      });
+    } else {
+      // Reset form jika belum ada data
+      setFormValues({
+        desaId: desaId,
+        pplId: user?.id || '',
+        jumlahKeluarga: '',
+        jumlahLahanPertanian: '',
+        statusInfrastruktur: '',
+        potensiEkonomi: '',
+        catatanKhusus: '',
+      });
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedDesaId) {
+      toast({
+        title: "Error",
+        description: "Silakan pilih desa terlebih dahulu",
+        variant: "destructive"
+      });
+      return;
     }
     
-    if (statusFilter) {
-      filtered = filtered.filter(desa => desa.status === statusFilter);
-    }
+    setIsSubmitting(true);
     
-    if (activeTab !== "all") {
-      switch (activeTab) {
-        case "belum":
-          filtered = filtered.filter(desa => desa.status === "belum");
-          break;
-        case "proses":
-          filtered = filtered.filter(desa => desa.status === "proses");
-          break;
-        case "selesai":
-          filtered = filtered.filter(desa => desa.status === "selesai");
-          break;
-        case "ditolak":
-          filtered = filtered.filter(desa => desa.status === "ditolak");
-          break;
+    try {
+      const existingData = pendataanData.find((item: any) => item.desa_id === selectedDesaId);
+      
+      const dataToSubmit = {
+        desa_id: selectedDesaId,
+        ppl_id: user?.id,
+        jumlah_keluarga: parseInt(formValues.jumlahKeluarga) || 0,
+        jumlah_lahan_pertanian: parseFloat(formValues.jumlahLahanPertanian) || 0,
+        status_infrastruktur: formValues.statusInfrastruktur,
+        potensi_ekonomi: formValues.potensiEkonomi,
+        catatan_khusus: formValues.catatanKhusus,
+        persentase_selesai: 100, // Anggap sudah selesai ketika disimpan
+        updated_at: new Date().toISOString()
+      };
+      
+      let result;
+      
+      if (existingData) {
+        // Update data yang sudah ada
+        const { data, error } = await supabase
+          .from('data_pendataan_desa')
+          .update(dataToSubmit)
+          .eq('desa_id', selectedDesaId)
+          .eq('ppl_id', user?.id)
+          .select();
+          
+        if (error) throw error;
+        result = data;
+        
+        // Update status pendataan
+        await supabase
+          .from('status_pendataan_desa')
+          .update({
+            status: 'selesai',
+            tanggal_selesai: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('desa_id', selectedDesaId)
+          .eq('ppl_id', user?.id);
+      } else {
+        // Insert data baru
+        const { data, error } = await supabase
+          .from('data_pendataan_desa')
+          .insert({
+            ...dataToSubmit,
+            tanggal_mulai: new Date().toISOString(),
+            tanggal_selesai: new Date().toISOString(),
+            status: 'selesai'
+          })
+          .select();
+          
+        if (error) throw error;
+        result = data;
+        
+        // Update status pendataan
+        await supabase
+          .from('status_pendataan_desa')
+          .update({
+            status: 'selesai',
+            tanggal_mulai: new Date().toISOString(),
+            tanggal_selesai: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('desa_id', selectedDesaId)
+          .eq('ppl_id', user?.id);
       }
+      
+      toast({
+        title: "Sukses",
+        description: "Data pendataan berhasil disimpan",
+      });
+      
+      // Refresh data
+      refetchPendataan();
+      refetchAlokasi();
+      
+    } catch (error: any) {
+      console.error('Error saving data:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menyimpan data pendataan",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    return filtered;
   };
   
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "selesai":
-        return <Badge className="bg-green-500">Selesai</Badge>;
-      case "proses":
-        return <Badge className="bg-orange-500">Dalam Proses</Badge>;
-      case "ditolak":
-        return <Badge className="bg-red-500">Ditolak</Badge>;
-      case "belum":
-      default:
-        return <Badge className="bg-gray-500">Belum Didata</Badge>;
-    }
-  };
+  if (isLoadingAlokasi) {
+    return (
+      <div className="container mx-auto py-6 flex items-center justify-center h-64">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="mt-2 text-gray-500">Memuat data alokasi desa...</p>
+        </div>
+      </div>
+    );
+  }
   
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric"
-    });
-  };
+  if (alokasiBertugas.length === 0) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Pendataan</CardTitle>
+            <CardDescription>Isi data pendataan desa yang menjadi tugas Anda</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-gray-500">Anda belum memiliki alokasi desa untuk mendata.</p>
+              <p className="text-sm text-muted-foreground mt-2">Silakan hubungi admin untuk mendapatkan alokasi desa.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   
-  const handleCreatePendataan = (desaId: string) => {
-    console.log(`Create pendataan for desa: ${desaId}`);
-    // In a real app, navigate to a form to create new pendataan
-    navigate(`/dokumen/upload?desa=${desaId}`);
-  };
-  
-  const handleViewPendataan = (pendataanId: string) => {
-    console.log(`View pendataan: ${pendataanId}`);
-    // In a real app, navigate to pendataan detail view
-    navigate(`/dokumen/viewer/${pendataanId}`);
-  };
-  
-  const clearFilters = () => {
-    setSearchQuery("");
-    setStatusFilter(null);
-  };
-
   return (
     <div className="container mx-auto py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Pendataan Desa</h1>
-          <p className="text-gray-500">Kelola pendataan potensi desa</p>
+      <h1 className="text-3xl font-bold mb-6">Data Pendataan Desa</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pilih Desa</CardTitle>
+              <CardDescription>Daftar desa yang menjadi tugas Anda</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {isLoadingAlokasi ? (
+                  <div className="flex items-center justify-center h-20">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : alokasiBertugas.map((desa: any) => {
+                  // Cari status pendataan dari data yang sudah ada
+                  const existingData = pendataanData.find((item: any) => item.desa_id === desa.desa_id);
+                  const isCompleted = existingData !== undefined;
+                  
+                  return (
+                    <button
+                      key={desa.desa_id}
+                      onClick={() => handleDesaSelect(desa.desa_id)}
+                      className={`w-full text-left p-3 rounded-md transition-all ${
+                        selectedDesaId === desa.desa_id
+                          ? 'bg-primary text-white'
+                          : isCompleted
+                            ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                            : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="font-medium">{desa.desa_name}</div>
+                      <div className="text-sm opacity-80">{desa.kecamatan_name}</div>
+                      {isCompleted && (
+                        <div className={`text-xs mt-1 ${selectedDesaId === desa.desa_id ? 'text-white/80' : 'text-green-600'}`}>
+                          ✓ Data sudah diisi
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </div>
         
-        <div className="mt-4 md:mt-0 flex items-center gap-2">
-          <Button 
-            className="bg-orange-500 hover:bg-orange-600 flex items-center gap-2"
-            onClick={() => navigate('/dokumen/upload')}
-          >
-            <Upload className="h-4 w-4" />
-            Unggah Dokumen
-          </Button>
+        <div className="md:col-span-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Form Pendataan Desa</CardTitle>
+              <CardDescription>
+                {selectedDesaId 
+                  ? `Isi data untuk desa ${alokasiBertugas.find((d: any) => d.desa_id === selectedDesaId)?.desa_name || ''}`
+                  : "Pilih desa terlebih dahulu dari panel sebelah kiri"
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="jumlahKeluarga">Jumlah Keluarga</Label>
+                    <Input
+                      id="jumlahKeluarga"
+                      name="jumlahKeluarga"
+                      type="number"
+                      placeholder="Masukkan jumlah keluarga"
+                      value={formValues.jumlahKeluarga}
+                      onChange={handleInputChange}
+                      disabled={!selectedDesaId || isSubmitting}
+                      min="0"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="jumlahLahanPertanian">Luas Lahan Pertanian (Ha)</Label>
+                    <Input
+                      id="jumlahLahanPertanian"
+                      name="jumlahLahanPertanian"
+                      type="number"
+                      step="0.01"
+                      placeholder="Masukkan luas lahan pertanian"
+                      value={formValues.jumlahLahanPertanian}
+                      onChange={handleInputChange}
+                      disabled={!selectedDesaId || isSubmitting}
+                      min="0"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="statusInfrastruktur">Status Infrastruktur</Label>
+                  <Textarea
+                    id="statusInfrastruktur"
+                    name="statusInfrastruktur"
+                    placeholder="Deskripsikan kondisi infrastruktur desa"
+                    value={formValues.statusInfrastruktur}
+                    onChange={handleInputChange}
+                    disabled={!selectedDesaId || isSubmitting}
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="potensiEkonomi">Potensi Ekonomi</Label>
+                  <Textarea
+                    id="potensiEkonomi"
+                    name="potensiEkonomi"
+                    placeholder="Deskripsikan potensi ekonomi desa"
+                    value={formValues.potensiEkonomi}
+                    onChange={handleInputChange}
+                    disabled={!selectedDesaId || isSubmitting}
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="catatanKhusus">Catatan Khusus</Label>
+                  <Textarea
+                    id="catatanKhusus"
+                    name="catatanKhusus"
+                    placeholder="Catatan khusus/tambahan untuk desa ini"
+                    value={formValues.catatanKhusus}
+                    onChange={handleInputChange}
+                    disabled={!selectedDesaId || isSubmitting}
+                    rows={3}
+                  />
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full md:w-auto" 
+                  disabled={!selectedDesaId || isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Menyimpan...
+                    </>
+                  ) : "Simpan Data"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
-      
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            placeholder="Cari desa..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className={`flex items-center gap-2 ${statusFilter ? 'border-orange-500 text-orange-500' : ''}`}
-            onClick={() => setStatusFilter(statusFilter ? null : 'selesai')}
-          >
-            <Filter className="h-4 w-4" />
-            {statusFilter ? 'Status: ' + statusFilter : 'Filter'}
-          </Button>
-          
-          {(searchQuery || statusFilter) && (
-            <Button
-              variant="ghost"
-              onClick={clearFilters}
-              className="flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Clear
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">Semua</TabsTrigger>
-          <TabsTrigger value="belum">Belum Didata</TabsTrigger>
-          <TabsTrigger value="proses">Dalam Proses</TabsTrigger>
-          <TabsTrigger value="selesai">Selesai</TabsTrigger>
-          <TabsTrigger value="ditolak">Ditolak</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value={activeTab} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {getFilteredDesaList().map((desa) => {
-              const pendataan = getPendataanByDesa(desa.id);
-              const isPending = desa.status === "proses";
-              const isRejected = desa.status === "ditolak";
-              const isComplete = desa.status === "selesai";
-              const notStarted = desa.status === "belum";
-              
-              return (
-                <Card key={desa.id} className={`${isRejected ? 'border-red-200' : isPending ? 'border-orange-200' : isComplete ? 'border-green-200' : ''}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle>{desa.nama}</CardTitle>
-                      {getStatusBadge(desa.status)}
-                    </div>
-                    <CardDescription>
-                      Terakhir diperbarui: {formatDate(desa.last_updated) || "Belum ada pembaruan"}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    {pendataan ? (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <p className="font-medium">Jumlah Penduduk</p>
-                            <p>{pendataan.jumlah_penduduk.toLocaleString()} jiwa</p>
-                          </div>
-                          <div>
-                            <p className="font-medium">Luas Wilayah</p>
-                            <p>{pendataan.luas_wilayah} km²</p>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <p className="font-medium text-sm">Potensi Ekonomi</p>
-                          <p className="text-sm line-clamp-2">{pendataan.potensi_ekonomi}</p>
-                        </div>
-                        
-                        {isRejected && pendataan.alasan_penolakan && (
-                          <div className="bg-red-50 p-3 rounded-md border border-red-200">
-                            <p className="font-medium text-sm text-red-700 flex items-center">
-                              <AlertCircle className="h-4 w-4 mr-1" />
-                              Alasan Penolakan
-                            </p>
-                            <p className="text-sm text-red-600 mt-1">
-                              {pendataan.alasan_penolakan}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {isPending && (
-                          <div className="bg-orange-50 p-3 rounded-md border border-orange-200">
-                            <p className="font-medium text-sm text-orange-700 flex items-center">
-                              <Clock className="h-4 w-4 mr-1" />
-                              Menunggu Verifikasi
-                            </p>
-                            <p className="text-sm text-orange-600 mt-1">
-                              Data sedang menunggu verifikasi dari PML
-                            </p>
-                          </div>
-                        )}
-                        
-                        {isComplete && (
-                          <div className="bg-green-50 p-3 rounded-md border border-green-200">
-                            <p className="font-medium text-sm text-green-700 flex items-center">
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Data Sudah Diverifikasi
-                            </p>
-                            <p className="text-sm text-green-600 mt-1">
-                              Pendataan untuk desa ini telah selesai
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-6 text-center">
-                        <FileText className="h-10 w-10 text-gray-300 mb-2" />
-                        <p className="text-gray-500 mb-4">Belum ada data pendataan</p>
-                      </div>
-                    )}
-                  </CardContent>
-                  
-                  <CardFooter className="flex justify-end pt-2">
-                    {pendataan ? (
-                      <Button 
-                        variant="outline"
-                        className="text-orange-500 border-orange-500 hover:bg-orange-50"
-                        onClick={() => handleViewPendataan(pendataan.id)}
-                      >
-                        Lihat Detail
-                      </Button>
-                    ) : (
-                      <Button 
-                        className="bg-orange-500 hover:bg-orange-600"
-                        onClick={() => handleCreatePendataan(desa.id)}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Buat Pendataan
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
-          
-          {getFilteredDesaList().length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center p-6">
-                <AlertCircle className="h-12 w-12 text-gray-300 mb-4" />
-                <h2 className="text-xl font-medium mb-2">Tidak ada data</h2>
-                <p className="text-gray-500">
-                  {searchQuery 
-                    ? `Tidak ada desa yang sesuai dengan pencarian "${searchQuery}"`
-                    : "Tidak ada desa yang ditemukan untuk kriteria filter ini"}
-                </p>
-                {(searchQuery || statusFilter) && (
-                  <Button 
-                    variant="outline"
-                    className="mt-4"
-                    onClick={clearFilters}
-                  >
-                    Hapus Filter
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

@@ -5,6 +5,15 @@ import { toast } from "sonner";
 export async function getAllocatedDesaList() {
   try {
     console.log("Fetching allocated desa list...");
+    // Tambah cache dan debounce untuk mencegah blinking
+    const cacheKey = 'allocated_desa_list';
+    const cachedData = sessionStorage.getItem(cacheKey);
+    
+    // Gunakan data cache sementara permintaan baru diproses
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+    
     const { data, error } = await supabase
       .from('desa_allocation_view')
       .select('*')
@@ -16,8 +25,11 @@ export async function getAllocatedDesaList() {
       throw error;
     }
     
-    console.log("Allocated desa list fetched:", data?.length || 0, "items");
-    return data || [];
+    // Simpan data ke cache untuk menghindari fetching berulang
+    const result = data || [];
+    sessionStorage.setItem(cacheKey, JSON.stringify(result));
+    console.log("Allocated desa list fetched:", result.length, "items");
+    return result;
   } catch (error) {
     console.error("Error fetching allocated desa list:", error);
     toast.error("Gagal mengambil data desa");
@@ -57,6 +69,9 @@ export async function allocateDesa(
       });
 
     if (statusError) throw statusError;
+    
+    // Hapus cache setelah perubahan
+    sessionStorage.removeItem('allocated_desa_list');
 
     toast.success("Desa berhasil dialokasikan");
     return true;
@@ -93,6 +108,9 @@ export async function updateDesaStatus(
       .eq('desa_id', desaId);
 
     if (error) throw error;
+    
+    // Hapus cache setelah perubahan
+    sessionStorage.removeItem('allocated_desa_list');
 
     toast.success("Status desa berhasil diperbarui");
     return true;
@@ -117,5 +135,165 @@ export async function getDesaStatus(desaId: string) {
   } catch (error) {
     console.error("Error getting desa status:", error);
     return null;
+  }
+}
+
+// Fungsi untuk mengambil data dashboard khusus untuk PPL
+export async function getPPLDashboardData(pplId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('dashboard_ppl_view')
+      .select('*')
+      .eq('ppl_id', pplId);
+      
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching PPL dashboard data:", error);
+    return [];
+  }
+}
+
+// Fungsi untuk mengambil data dashboard khusus untuk PML
+export async function getPMLDashboardData(pmlId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('dashboard_ppl_view')
+      .select('*')
+      .eq('pml_id', pmlId);
+      
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching PML dashboard data:", error);
+    return [];
+  }
+}
+
+// Fungsi untuk memperbarui verifikasi data ubinan
+export async function updateVerifikasiData(
+  ubinanId: string, 
+  status: 'dikonfirmasi' | 'ditolak',
+  alasanPenolakan?: string
+) {
+  try {
+    const updateData: any = { 
+      status: status
+    };
+    
+    if (status === 'ditolak' && alasanPenolakan) {
+      updateData.alasan_penolakan = alasanPenolakan;
+    }
+
+    const { error } = await supabase
+      .from('ubinan_data')
+      .update(updateData)
+      .eq('id', ubinanId);
+
+    if (error) throw error;
+
+    toast.success(
+      status === 'dikonfirmasi' 
+        ? "Data berhasil disetujui" 
+        : "Data berhasil ditolak"
+    );
+    return true;
+  } catch (error) {
+    console.error("Error updating verifikasi data:", error);
+    toast.error("Gagal memperbarui status verifikasi");
+    return false;
+  }
+}
+
+// Fungsi untuk mendapatkan data pendataan desa
+export async function getDataPendataanDesa(pplId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('data_pendataan_desa')
+      .select(`
+        *,
+        desa:desa_id(
+          id,
+          name,
+          kecamatan:kecamatan_id(
+            id,
+            name
+          )
+        )
+      `)
+      .eq('ppl_id', pplId);
+      
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching pendataan desa data:", error);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan status pendataan desa
+export async function getAllStatusPendataanDesa() {
+  try {
+    const { data, error } = await supabase
+      .from('status_pendataan_desa')
+      .select(`
+        *,
+        desa:desa_id(
+          id,
+          name,
+          kecamatan:kecamatan_id(
+            id,
+            name
+          )
+        ),
+        ppl:ppl_id(
+          id,
+          name
+        )
+      `);
+      
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching pendataan desa status:", error);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan statistik pendataan desa
+export async function getPendataanDesaStats() {
+  try {
+    const { data, error } = await supabase
+      .from('status_pendataan_desa')
+      .select('status');
+      
+    if (error) throw error;
+    
+    const stats = {
+      total: data.length,
+      belum: 0,
+      proses: 0,
+      selesai: 0,
+    };
+    
+    data.forEach(item => {
+      if (item.status === 'belum') stats.belum++;
+      else if (item.status === 'proses') stats.proses++;
+      else if (item.status === 'selesai') stats.selesai++;
+    });
+    
+    return stats;
+  } catch (error) {
+    console.error("Error fetching pendataan desa stats:", error);
+    return {
+      total: 0,
+      belum: 0,
+      proses: 0,
+      selesai: 0,
+    };
   }
 }
