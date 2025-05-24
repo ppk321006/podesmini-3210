@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AllocationStatus, Petugas, NKS, UbinanData } from '@/types/database-schema';
 
@@ -450,7 +451,7 @@ export const updateUbinanData = async (id: string, updateData: Partial<UbinanDat
 
 export const updateUbinanVerification = async (id: string, status: string, komentar?: string) => {
   const validStatuses = ['ditolak', 'belum_diisi', 'sudah_diisi', 'dikonfirmasi'];
-  const validatedStatus = validStatuses.includes(status) ? status : 'belum_diisi';
+  const validatedStatus = validStatuses.includes(status) ? status as 'ditolak' | 'belum_diisi' | 'sudah_diisi' | 'dikonfirmasi' : 'belum_diisi';
 
   const { data, error } = await supabase
     .from('ubinan_data')
