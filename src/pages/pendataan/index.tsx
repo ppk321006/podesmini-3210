@@ -157,11 +157,11 @@ export default function PendataanPage() {
     return alokasiData.filter((desa: any) => {
       if (!searchTerm) return true;
       
-      const desaName = desa.desa && desa.desa.name || "Desa tidak diketahui";
-      const kecamatanName = desa.desa && desa.desa.kecamatan && desa.desa.kecamatan.name || "-";
+      const desaName = desa.desa?.name || "Desa tidak diketahui";
+      const kecamatanName = desa.desa?.kecamatan?.name || "-";
       const searchLower = searchTerm.toLowerCase();
       
-      return desaName.includes(searchLower) || kecamatanName.includes(searchLower);
+      return desaName.toLowerCase().includes(searchLower) || kecamatanName.toLowerCase().includes(searchLower);
     });
   };
   

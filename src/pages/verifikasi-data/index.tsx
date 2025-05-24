@@ -186,9 +186,9 @@ export default function VerifikasiDataPage() {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(item => {
         return (
-          item.desa && item.desa.name?.toLowerCase().includes(searchLower) ||
-          item.desa && item.desa.kecamatan && item.desa.kecamatan.name?.toLowerCase().includes(searchLower) ||
-          item.ppl && item.ppl.name?.toLowerCase().includes(searchLower) ||
+          item.desa?.name?.toLowerCase().includes(searchLower) ||
+          item.desa?.kecamatan?.name?.toLowerCase().includes(searchLower) ||
+          item.ppl?.name?.toLowerCase().includes(searchLower) ||
           (item.status_infrastruktur && item.status_infrastruktur.toLowerCase().includes(searchLower)) ||
           (item.potensi_ekonomi && item.potensi_ekonomi.toLowerCase().includes(searchLower)) ||
           (item.catatan_khusus && item.catatan_khusus.toLowerCase().includes(searchLower))
@@ -203,16 +203,16 @@ export default function VerifikasiDataPage() {
         
         switch (sortColumn) {
           case 'desa':
-            valueA = a.desa && a.desa.name || '';
-            valueB = b.desa && b.desa.name || '';
+            valueA = a.desa?.name || '';
+            valueB = b.desa?.name || '';
             break;
           case 'kecamatan':
-            valueA = a.desa && a.desa.kecamatan && a.desa.kecamatan.name || '';
-            valueB = b.desa && b.desa.kecamatan && b.desa.kecamatan.name || '';
+            valueA = a.desa?.kecamatan?.name || '';
+            valueB = b.desa?.kecamatan?.name || '';
             break;
           case 'ppl':
-            valueA = a.ppl && a.ppl.name || '';
-            valueB = b.ppl && b.ppl.name || '';
+            valueA = a.ppl?.name || '';
+            valueB = b.ppl?.name || '';
             break;
           case 'tanggal':
             valueA = a.tanggal_selesai ? new Date(a.tanggal_selesai).getTime() : 0;
