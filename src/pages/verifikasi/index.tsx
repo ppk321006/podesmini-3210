@@ -69,6 +69,7 @@ export default function VerifikasiPage() {
     }
   };
   
+  // Filter data with correct property access using optional chaining
   const getFilteredList = () => {
     let filtered = pendataanList;
     
@@ -81,7 +82,7 @@ export default function VerifikasiPage() {
       filtered = filtered.filter(item => item.verification_status === "rejected");
     }
     
-    // Apply search filter
+    // Apply search filter with fixed property access
     if (searchTerm) {
       filtered = filtered.filter((item: any) => 
         (item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||

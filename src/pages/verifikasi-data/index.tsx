@@ -159,7 +159,7 @@ export default function VerifikasiDataPage() {
     total: pendataanData.length
   };
 
-  // Fix for the DisplayItem and PropertyAccess issues
+  // Format date function (only defined once)
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('id-ID');
@@ -277,12 +277,6 @@ export default function VerifikasiDataPage() {
     } else {
       return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Belum Dikerjakan</Badge>;
     }
-  };
-
-  // Format date
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID');
   };
   
   // Open verification dialog
