@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,7 +111,7 @@ const fetchPendataanProgressForPML = async (pmlId: string): Promise<PendataanPro
 
   if (pplError) {
     console.error('Error fetching PPLs:', pplError);
-    throw pmlError;
+    throw pplError;
   }
 
   if (!pplData || pplData.length === 0) {
