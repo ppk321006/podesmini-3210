@@ -497,7 +497,7 @@ export default function VerifikasiDataPage() {
                 {selectedData.verification_status === 'approved' ? 'Detail Data' : 'Verifikasi Data'}
               </DialogTitle>
               <DialogDescription>
-                Data desa {selectedData?.desa?.name || ''}, kecamatan {selectedData?.desa?.kecamatan?.name || ''}
+                Data desa {selectedData.desa?.name || ''}, kecamatan {selectedData.desa?.kecamatan?.name || ''}
               </DialogDescription>
             </DialogHeader>
             
