@@ -248,14 +248,14 @@ export default function VerifikasiPage() {
                 >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                      <CardTitle>{item.desa && item.desa.name || "Desa tidak diketahui"}</CardTitle>
+                      <CardTitle>{item.desa?.name || "Desa tidak diketahui"}</CardTitle>
                       {getStatusBadge(item.status, item.verification_status)}
                     </div>
                     <CardDescription className="flex items-center gap-1">
-                      <span>Kecamatan: {item.desa && item.desa.kecamatan && item.desa.kecamatan.name || "-"}</span>
+                      <span>Kecamatan: {item.desa?.kecamatan?.name || "-"}</span>
                     </CardDescription>
                     <CardDescription className="flex items-center gap-1">
-                      <span>Petugas: {item.ppl && item.ppl.name || "-"}</span>
+                      <span>Petugas: {item.ppl?.name || "-"}</span>
                     </CardDescription>
                   </CardHeader>
                   

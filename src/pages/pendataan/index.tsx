@@ -442,12 +442,12 @@ export default function VerifikasiDataPage() {
                   {sortedData.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        {item.desa && item.desa.name || '-'}
+                        {item.desa?.name || '-'}
                       </TableCell>
                       <TableCell>
-                        {item.desa && item.desa.kecamatan && item.desa.kecamatan.name || '-'}
+                        {item.desa?.kecamatan?.name || '-'}
                       </TableCell>
-                      <TableCell>{item.ppl && item.ppl.name || '-'}</TableCell>
+                      <TableCell>{item.ppl?.name || '-'}</TableCell>
                       <TableCell>{formatDate(item.tanggal_selesai)}</TableCell>
                       <TableCell>
                         {getStatusBadge(item.status, item.verification_status)}
