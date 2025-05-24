@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -7,24 +6,30 @@ import { ProgressTable } from "@/components/progress/progress-table";
 import { getProgressDetailBySubround, getUbinanTotalsBySubround } from "@/services/progress-service";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
+import { getProgressSummary } from "@/services/pendataan-service";
+import { UserRole } from "@/types/user";
 
 const Index = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedSubround, setSelectedSubround] = useState<number>(1);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const years = [2025, 2026, 2027, 2028, 2029, 2030];
   
+  // Use user role and ID for the queries
   const { 
     data: progressData = [], 
     isLoading: isLoadingProgress,
     error: progressError
   } = useQuery({
-    queryKey: ['progress_detail', selectedYear, selectedSubround],
-    queryFn: () => getProgressDetailBySubround(selectedSubround, selectedYear),
-    staleTime: 60000, // Add stale time of 1 minute
+    queryKey: ['progress_detail', selectedYear, selectedSubround, user?.role, user?.id],
+    queryFn: () => getProgressDetailBySubround(selectedSubround, selectedYear, user?.role, user?.id),
+    staleTime: 60000,
     refetchOnMount: true,
     refetchOnReconnect: true,
+    enabled: !!user,
   });
   
   const { 
@@ -32,11 +37,27 @@ const Index = () => {
     isLoading: isLoadingTotals,
     error: totalsError
   } = useQuery({
-    queryKey: ['ubinan_totals', selectedYear, selectedSubround],
-    queryFn: () => getUbinanTotalsBySubround(selectedSubround, selectedYear),
-    staleTime: 60000, // Add stale time of 1 minute
+    queryKey: ['ubinan_totals', selectedYear, selectedSubround, user?.role, user?.id],
+    queryFn: () => getUbinanTotalsBySubround(selectedSubround, selectedYear, user?.role, user?.id),
+    staleTime: 60000,
     refetchOnMount: true,
     refetchOnReconnect: true,
+    enabled: !!user,
+  });
+  
+  // Query for progress summary data based on user role
+  const { 
+    data: progressSummary, 
+    isLoading: isLoadingProgressSummary
+  } = useQuery({
+    queryKey: ['progress_summary', user?.role, user?.id],
+    queryFn: () => user ? getProgressSummary({
+      userRole: user.role,
+      userId: user.id,
+      kecamatanId: undefined // We can add filter by kecamatan later if needed
+    }) : Promise.resolve(null),
+    staleTime: 60000,
+    enabled: !!user,
   });
 
   useEffect(() => {
@@ -59,19 +80,6 @@ const Index = () => {
     }
   }, [progressError, totalsError, toast]);
   
-  // Convert data for chart display with fallback for empty data
-  const chartData = progressData && progressData.length > 0 
-    ? convertProgressDataToChartData(progressData)
-    : [];
-  
-  const handleChangeYear = (value: string) => {
-    setSelectedYear(parseInt(value));
-  };
-  
-  const handleChangeSubround = (value: string) => {
-    setSelectedSubround(parseInt(value));
-  };
-
   // Calculate percentages with fallbacks for safe rendering
   const padiPercentage = totals && totals.padi_target > 0 
     ? Math.round((totals.total_padi / totals.padi_target) * 100) 
@@ -84,6 +92,22 @@ const Index = () => {
   const totalProgress = totals && (totals.padi_target + totals.palawija_target) > 0
     ? Math.round((totals.total_padi + totals.total_palawija) / (totals.padi_target + totals.palawija_target) * 100)
     : 0;
+    
+  // Use progressSummary for additional statistics
+  const pendataanProgress = progressSummary ? progressSummary.persentase_selesai : 0;
+
+  const handleChangeYear = (value: string) => {
+    setSelectedYear(parseInt(value));
+  };
+  
+  const handleChangeSubround = (value: string) => {
+    setSelectedSubround(parseInt(value));
+  };
+
+  // Convert data for chart display with fallback for empty data
+  const chartData = progressData && progressData.length > 0 
+    ? convertProgressDataToChartData(progressData)
+    : [];
 
   return (
     <div className="container mx-auto py-6">
@@ -114,20 +138,20 @@ const Index = () => {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Progres Padi</CardTitle>
+            <CardTitle className="text-base">Progres Pendataan</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {padiPercentage}%
+              {pendataanProgress}%
             </div>
             <div className="text-xs text-muted-foreground">
-              {totals ? `${totals.total_padi}/${totals.padi_target}` : '0/0'}
+              {progressSummary ? `${progressSummary.selesai}/${progressSummary.total}` : '0/0'}
             </div>
             <div className="h-2 bg-gray-200 rounded-full mt-2">
               <div 
                 className="h-2 bg-green-500 rounded-full" 
                 style={{ 
-                  width: `${Math.min(100, padiPercentage)}%` 
+                  width: `${Math.min(100, pendataanProgress)}%`
                 }}
               />
             </div>

@@ -126,7 +126,7 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
         };
       }
       
-      // Make sure to treat desa as a single object, not an array
+      // The desa property should be a single object, not an array
       const desaData = item.desa as any;
       
       return {

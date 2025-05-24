@@ -25,10 +25,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
   
   // Extract data from initialData if available
   const [status, setStatus] = useState<PendataanStatus>(initialData?.status || "belum");
-  const [jumlahKeluarga, setJumlahKeluarga] = useState<string>(initialData?.jumlah_keluarga?.toString() || "");
-  const [jumlahLahanPertanian, setJumlahLahanPertanian] = useState<string>(initialData?.jumlah_lahan_pertanian?.toString() || "");
-  const [statusInfrastruktur, setStatusInfrastruktur] = useState<string>(initialData?.status_infrastruktur || "");
-  const [potensiEkonomi, setPotensiEkonomi] = useState<string>(initialData?.potensi_ekonomi || "");
   const [catatanKhusus, setCatatanKhusus] = useState<string>(initialData?.catatan_khusus || "");
 
   // For dates, we'll use the existing ones or null
@@ -44,10 +40,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
   useEffect(() => {
     if (initialData) {
       setStatus(initialData.status || "belum");
-      setJumlahKeluarga(initialData.jumlah_keluarga?.toString() || "");
-      setJumlahLahanPertanian(initialData.jumlah_lahan_pertanian?.toString() || "");
-      setStatusInfrastruktur(initialData.status_infrastruktur || "");
-      setPotensiEkonomi(initialData.potensi_ekonomi || "");
       setCatatanKhusus(initialData.catatan_khusus || "");
       
       if (initialData.tanggal_mulai) {
@@ -65,17 +57,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
     
     if (!initialData?.desa_id || !user?.id) {
       toast.error("Data desa tidak ditemukan");
-      return;
-    }
-    
-    // Validate target if provided
-    if (jumlahKeluarga && isNaN(parseInt(jumlahKeluarga))) {
-      toast.error("Jumlah keluarga harus berupa angka");
-      return;
-    }
-
-    if (jumlahLahanPertanian && isNaN(parseFloat(jumlahLahanPertanian))) {
-      toast.error("Jumlah lahan pertanian harus berupa angka");
       return;
     }
     
@@ -105,10 +86,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         desa_id: initialData.desa_id,
         ppl_id: user.id,
         status,
-        jumlah_keluarga: jumlahKeluarga ? parseInt(jumlahKeluarga) : null,
-        jumlah_lahan_pertanian: jumlahLahanPertanian ? parseFloat(jumlahLahanPertanian) : null,
-        status_infrastruktur: statusInfrastruktur || null,
-        potensi_ekonomi: potensiEkonomi || null,
         catatan_khusus: catatanKhusus || null,
         tanggal_mulai: tanggalMulai ? tanggalMulai.toISOString() : null,
         tanggal_selesai: tanggalSelesai ? tanggalSelesai.toISOString() : null,
@@ -190,31 +167,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
               </Select>
             </div>
             
-            <div>
-              <Label htmlFor="jumlahKeluarga">Jumlah Keluarga</Label>
-              <Input
-                id="jumlahKeluarga"
-                value={jumlahKeluarga}
-                onChange={(e) => setJumlahKeluarga(e.target.value)}
-                type="number"
-                placeholder="Masukkan jumlah keluarga"
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="jumlahLahanPertanian">Luas Lahan Pertanian (Ha)</Label>
-              <Input
-                id="jumlahLahanPertanian"
-                value={jumlahLahanPertanian}
-                onChange={(e) => setJumlahLahanPertanian(e.target.value)}
-                type="number"
-                step="0.01"
-                placeholder="Masukkan luas lahan pertanian"
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-              />
-            </div>
-            
             {(status === "proses" || status === "selesai") && (
               <div>
                 <Label htmlFor="tanggal-mulai">Tanggal Mulai</Label>
@@ -246,28 +198,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
                 </p>
               </div>
             )}
-            
-            <div>
-              <Label htmlFor="statusInfrastruktur">Status Infrastruktur</Label>
-              <Input
-                id="statusInfrastruktur"
-                value={statusInfrastruktur}
-                onChange={(e) => setStatusInfrastruktur(e.target.value)}
-                placeholder="Deskripsikan kondisi infrastruktur desa"
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="potensiEkonomi">Potensi Ekonomi</Label>
-              <Input
-                id="potensiEkonomi"
-                value={potensiEkonomi}
-                onChange={(e) => setPotensiEkonomi(e.target.value)}
-                placeholder="Deskripsikan potensi ekonomi desa"
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-              />
-            </div>
             
             <div>
               <Label htmlFor="catatanKhusus">Catatan Khusus</Label>
