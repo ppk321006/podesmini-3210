@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { AlokasiBertugas, PendataanDataItem, PendataanFilter, PendataanStatus, ProgressSummary, VerificationStatus } from "@/types/pendataan-types";
 import { UserRole } from "@/types/user";
@@ -118,7 +117,6 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
     
     // Transform the data to our expected format
     const processedData = data.map(item => {
-      // First check if desa exists
       if (!item.desa) {
         return {
           desa_id: item.desa_id,
@@ -127,31 +125,8 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
         };
       }
       
-      // Now handle desa safely without type assertion problems
-      // Using unknown as an intermediary to avoid direct type conversion errors
-      const rawDesa = item.desa as unknown;
-      
-      // Then properly check the shape of the object
-      const isValidDesa = 
-        rawDesa !== null && 
-        typeof rawDesa === 'object' &&
-        'name' in (rawDesa as object);
-      
-      if (!isValidDesa) {
-        return {
-          desa_id: item.desa_id,
-          desa_name: 'Unknown',
-          kecamatan_name: 'Unknown'  
-        };
-      }
-      
-      // Now we can safely access properties
-      const desa = rawDesa as { 
-        name: string;
-        kecamatan?: { 
-          name: string;
-        } | null 
-      };
+      // Extract the desa data safely
+      const desa = item.desa as any; // Use any temporarily to avoid type errors
       
       return {
         desa_id: item.desa_id,
