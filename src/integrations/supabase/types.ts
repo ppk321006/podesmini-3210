@@ -74,13 +74,6 @@ export type Database = {
             foreignKeyName: "alokasi_petugas_desa_id_fkey"
             columns: ["desa_id"]
             isOneToOne: false
-            referencedRelation: "dashboard_data_view"
-            referencedColumns: ["desa_id"]
-          },
-          {
-            foreignKeyName: "alokasi_petugas_desa_id_fkey"
-            columns: ["desa_id"]
-            isOneToOne: false
             referencedRelation: "desa"
             referencedColumns: ["id"]
           },
@@ -110,13 +103,11 @@ export type Database = {
           persentase_selesai: number | null
           potensi_ekonomi: string | null
           ppl_id: string
-          rejection_reason: string | null
           status: Database["public"]["Enums"]["verification_status"] | null
           status_infrastruktur: string | null
           tanggal_mulai: string | null
           tanggal_selesai: string | null
           updated_at: string | null
-          verification_status: string | null
         }
         Insert: {
           catatan_khusus?: string | null
@@ -127,13 +118,11 @@ export type Database = {
           persentase_selesai?: number | null
           potensi_ekonomi?: string | null
           ppl_id: string
-          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["verification_status"] | null
           status_infrastruktur?: string | null
           tanggal_mulai?: string | null
           tanggal_selesai?: string | null
           updated_at?: string | null
-          verification_status?: string | null
         }
         Update: {
           catatan_khusus?: string | null
@@ -144,22 +133,13 @@ export type Database = {
           persentase_selesai?: number | null
           potensi_ekonomi?: string | null
           ppl_id?: string
-          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["verification_status"] | null
           status_infrastruktur?: string | null
           tanggal_mulai?: string | null
           tanggal_selesai?: string | null
           updated_at?: string | null
-          verification_status?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "data_pendataan_desa_desa_id_fkey"
-            columns: ["desa_id"]
-            isOneToOne: false
-            referencedRelation: "dashboard_data_view"
-            referencedColumns: ["desa_id"]
-          },
           {
             foreignKeyName: "data_pendataan_desa_desa_id_fkey"
             columns: ["desa_id"]
@@ -193,13 +173,6 @@ export type Database = {
           name?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "desa_kecamatan_id_fkey"
-            columns: ["kecamatan_id"]
-            isOneToOne: false
-            referencedRelation: "dashboard_data_view"
-            referencedColumns: ["kecamatan_id"]
-          },
           {
             foreignKeyName: "desa_kecamatan_id_fkey"
             columns: ["kecamatan_id"]
@@ -247,13 +220,6 @@ export type Database = {
           url?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "dokumen_pendataan_desa_id_fkey"
-            columns: ["desa_id"]
-            isOneToOne: false
-            referencedRelation: "dashboard_data_view"
-            referencedColumns: ["desa_id"]
-          },
           {
             foreignKeyName: "dokumen_pendataan_desa_id_fkey"
             columns: ["desa_id"]
@@ -365,13 +331,6 @@ export type Database = {
             foreignKeyName: "status_pendataan_desa_desa_id_fkey"
             columns: ["desa_id"]
             isOneToOne: true
-            referencedRelation: "dashboard_data_view"
-            referencedColumns: ["desa_id"]
-          },
-          {
-            foreignKeyName: "status_pendataan_desa_desa_id_fkey"
-            columns: ["desa_id"]
-            isOneToOne: true
             referencedRelation: "desa"
             referencedColumns: ["id"]
           },
@@ -424,39 +383,7 @@ export type Database = {
       }
     }
     Views: {
-      dashboard_data_view: {
-        Row: {
-          desa_id: string | null
-          desa_name: string | null
-          kecamatan_id: string | null
-          kecamatan_name: string | null
-          persentase_selesai: number | null
-          pml_id: string | null
-          pml_name: string | null
-          ppl_id: string | null
-          ppl_name: string | null
-          status: Database["public"]["Enums"]["verification_status"] | null
-          tanggal_mulai: string | null
-          tanggal_selesai: string | null
-          verification_status: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "alokasi_petugas_pml_id_fkey"
-            columns: ["pml_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "alokasi_petugas_ppl_id_fkey"
-            columns: ["ppl_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       create_notification: {
@@ -468,24 +395,6 @@ export type Database = {
           related_data?: Json
         }
         Returns: string
-      }
-      get_dashboard_data: {
-        Args: { user_role: string; user_id: string }
-        Returns: {
-          desa_id: string
-          desa_name: string
-          kecamatan_id: string
-          kecamatan_name: string
-          status: string
-          verification_status: string
-          persentase_selesai: number
-          tanggal_mulai: string
-          tanggal_selesai: string
-          ppl_id: string
-          ppl_name: string
-          pml_id: string
-          pml_name: string
-        }[]
       }
       get_pendataan_progress: {
         Args: { kecamatan_id?: string; ppl_id?: string }

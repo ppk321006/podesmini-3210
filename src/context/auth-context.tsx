@@ -1,264 +1,220 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+
+import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
+  error: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (username: string, password: string, name: string, role: UserRole, pml_id?: string | null) => Promise<void>;
-  updateUser: (userData: any) => void;
+  isAuthenticated: boolean;
+  sessionTimeout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isLoading: false,
+  error: null,
+  login: async () => {},
+  logout: () => {},
+  isAuthenticated: false,
+  sessionTimeout: () => {},
+});
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+// Hard-coded users with valid UUIDs for the application
+const DEFAULT_USERS = [
+  {
+    id: "00000000-0000-0000-0000-000000000001",
+    username: "admin",
+    password: "admin123",
+    name: "Administrator",
+    role: "admin"
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000002",
+    username: "pml",
+    password: "pml123",
+    name: "Petugas Memeriksa Lapangan",
+    role: "pml"
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000003",
+    username: "ppl",
+    password: "ppl123",
+    name: "Petugas Pendataan Lapangan",
+    role: "ppl",
+    pml_id: "00000000-0000-0000-0000-000000000002"
+  }
+];
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [sessionTimeoutId, setSessionTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const loadUser = async () => {
-      setIsLoading(true);
+    const storedUser = localStorage.getItem("potensidesa_user");
+    
+    if (storedUser) {
       try {
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        setUser(JSON.parse(storedUser));
+        startSessionTimeout();
+      } catch (e) {
+        console.error("Error parsing stored user:", e);
+        localStorage.removeItem("potensidesa_user");
+      }
+    }
+    
+    setIsLoading(false);
 
-        if (supabaseUser) {
-          // Fetch the user's profile from the 'users' table
-          const { data: profileData, error: profileError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', supabaseUser.id)
-            .single();
-
-          if (profileError) {
-            throw profileError;
-          }
-
-          if (profileData) {
-            setUser({
-              id: profileData.id,
-              name: profileData.name,
-              username: profileData.username,
-              role: profileData.role,
-              pml_id: profileData.pml_id || null,
-              created_at: profileData.created_at
-            });
-            setIsAuthenticated(true);
-          } else {
-            setIsAuthenticated(false);
-            setUser(null);
-          }
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-      } catch (error: any) {
-        console.error("Authentication error:", error.message);
-        setIsAuthenticated(false);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
+    // Event listeners for resetting the session timeout
+    const resetTimeout = () => {
+      if (user) {
+        startSessionTimeout();
       }
     };
 
-    loadUser();
-  }, [navigate]);
+    window.addEventListener('mousemove', resetTimeout);
+    window.addEventListener('keypress', resetTimeout);
+    window.addEventListener('click', resetTimeout);
+
+    return () => {
+      window.removeEventListener('mousemove', resetTimeout);
+      window.removeEventListener('keypress', resetTimeout);
+      window.removeEventListener('click', resetTimeout);
+      
+      if (sessionTimeoutId) {
+        clearTimeout(sessionTimeoutId);
+      }
+    };
+  }, [user]);
+
+  const startSessionTimeout = () => {
+    if (sessionTimeoutId) {
+      clearTimeout(sessionTimeoutId);
+    }
+    
+    // 30 minutes session timeout
+    const newTimeoutId = setTimeout(sessionTimeout, 30 * 60 * 1000);
+    setSessionTimeoutId(newTimeoutId);
+  };
+
+  const sessionTimeout = () => {
+    logout();
+    toast.info("Sesi anda telah berakhir. Silahkan login kembali.");
+    // Instead of using navigate directly, we'll let the App.tsx handle navigation
+    // The useEffect in App.tsx that checks auth state will redirect to login
+  };
 
   const login = async (username: string, password: string) => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: username,
-        password: password,
-      });
+      console.log("Attempting login with:", username, password);
+      
+      // First check hard-coded default users
+      const defaultUser = DEFAULT_USERS.find(
+        (u) => u.username === username && u.password === password
+      );
 
-      if (error) {
-        throw error;
+      if (defaultUser) {
+        console.log("Login successful with default user:", defaultUser);
+        
+        const appUser: User = {
+          id: defaultUser.id,
+          username: defaultUser.username,
+          name: defaultUser.name,
+          role: defaultUser.role as UserRole,
+          pmlId: defaultUser.pml_id || undefined
+        };
+        
+        setUser(appUser);
+        localStorage.setItem("potensidesa_user", JSON.stringify(appUser));
+        startSessionTimeout();
+        toast.success("Login berhasil!");
+        return;
       }
 
-      // Fetch the user's profile from the 'users' table
-      const { data: profileData, error: profileError } = await supabase
+      // If not a default user, check database
+      const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', data.user.id)
+        .eq('username', username)
+        .eq('password', password)
         .single();
-
-      if (profileError) {
-        throw profileError;
+      
+      if (error) {
+        console.error("Login error:", error);
+        throw new Error("Username atau password salah");
       }
-
-      if (profileData) {
-        setUser({
-          id: profileData.id,
-          name: profileData.name,
-          username: profileData.username,
-          role: profileData.role,
-          pml_id: profileData.pml_id || null,
-          created_at: profileData.created_at
-        });
-        setIsAuthenticated(true);
-        toast.success("Login successful!");
-        navigate("/dashboard");
+      
+      if (data) {
+        const dbUser = data;
+        console.log("Login successful from database, user data:", dbUser);
+        
+        const appUser: User = {
+          id: dbUser.id,
+          username: dbUser.username,
+          name: dbUser.name,
+          role: dbUser.role as UserRole,
+          pmlId: dbUser.pml_id || undefined
+        };
+        
+        setUser(appUser);
+        localStorage.setItem("potensidesa_user", JSON.stringify(appUser));
+        startSessionTimeout();
+        toast.success("Login berhasil!");
+        return;
       } else {
-        setIsAuthenticated(false);
-        setUser(null);
-        toast.error("Failed to retrieve user profile.");
+        throw new Error("Username atau password salah");
       }
-    } catch (error: any) {
-      console.error("Login error:", error.message);
-      setIsAuthenticated(false);
-      setUser(null);
-      toast.error("Invalid credentials. Please try again.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+        toast.error(error.message);
+      } else {
+        setError("Terjadi kesalahan saat login");
+        toast.error("Terjadi kesalahan saat login");
+      }
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const mockLogin = (username: string, password: string) => {
-    setIsLoading(true);
-    
-    // Mock user data (replace with your actual data source)
-    const mockUsers = [
-      { id: '1', username: 'admin@example.com', password: 'password', name: 'Admin User', role: UserRole.ADMIN, pml_id: null, created_at: new Date().toISOString() },
-      { id: '2', username: 'pml@example.com', password: 'password', name: 'PML User', role: UserRole.PML, pml_id: null, created_at: new Date().toISOString() },
-      { id: '3', username: 'ppl@example.com', password: 'password', name: 'PPL User', role: UserRole.PPL, pml_id: null, created_at: new Date().toISOString() },
-      { id: '4', username: 'viewer@example.com', password: 'password', name: 'Viewer User', role: UserRole.VIEWER, pml_id: null, created_at: new Date().toISOString() }
-    ];
-    
-    const userData = mockUsers.find(u => u.username === username && u.password === password);
-    
-    if (userData) {
-      const user = {
-        id: userData.id,
-        name: userData.name,
-        username: userData.username,
-        role: userData.role,
-        pml_id: userData.pml_id,
-        created_at: userData.created_at
-      };
-      setUser(user);
-      setIsAuthenticated(true);
-      toast.success("Login successful!");
-      navigate("/dashboard");
-    } else {
-      setIsAuthenticated(false);
-      setUser(null);
-      toast.error("Invalid credentials. Please try again.");
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("potensidesa_user");
+    if (sessionTimeoutId) {
+      clearTimeout(sessionTimeoutId);
+      setSessionTimeoutId(null);
     }
-    setIsLoading(false);
+    toast.info("Berhasil logout");
   };
 
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
-      setUser(null);
-      setIsAuthenticated(false);
-      toast.success("Logout successful!");
-      navigate("/login");
-    } catch (error: any) {
-      console.error("Logout error:", error.message);
-      toast.error("Failed to logout. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (username: string, password: string, name: string, role: UserRole, pml_id?: string | null) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: username,
-        password: password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // After successful signup, create a user profile in the 'users' table
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          username: username,
-          name: name,
-          role: role,
-          pml_id: pml_id || null,
-        });
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      setIsAuthenticated(false);
-      setUser(null);
-      toast.success("Registration successful! Please verify your email.");
-      navigate("/login");
-    } catch (error: any) {
-      console.error("Registration error:", error.message);
-      setIsAuthenticated(false);
-      setUser(null);
-      toast.error("Registration failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const setMockUser = (userData: any) => {
-    const user = {
-      id: userData.id,
-      name: userData.name,
-      username: userData.username,
-      role: userData.role,
-      pml_id: userData.pml_id,
-      created_at: userData.created_at
-    };
-    setUser(user);
-    setIsAuthenticated(true);
-  };
-
-  const updateUser = (userData: any) => {
-    setUser(prevUser => ({
-      ...prevUser,
-      ...userData,
-    }));
-  };
-
-  const value: AuthContextType = {
-    user,
-    isAuthenticated,
-    isLoading,
-    login,
-    logout,
-    register,
-    updateUser,
-  };
+  // Update the isAuthenticated property
+  const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={value}>
-      {!isLoading && children}
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        error,
+        login,
+        logout,
+        isAuthenticated,
+        sessionTimeout,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };
