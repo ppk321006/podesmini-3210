@@ -118,17 +118,24 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
     
     // Transform the data to our expected format
     const processedData = data.map(item => {
-      // Type assertion to handle the complex nested structure
-      const desa = item.desa as any;
+      // Define the type for desa more precisely to handle the nested structure
+      const desa = item.desa as { 
+        id: string; 
+        name: string; 
+        kecamatan?: { 
+          id: string; 
+          name: string; 
+        } 
+      } | null;
       
       return {
         desa_id: item.desa_id,
         desa_name: desa && typeof desa === 'object' ? desa.name || 'Unknown' : 'Unknown',
         kecamatan_name: desa && 
-                      typeof desa === 'object' && 
-                      desa.kecamatan && 
-                      typeof desa.kecamatan === 'object' ? 
-                        desa.kecamatan.name || 'Unknown' : 'Unknown'
+                       typeof desa === 'object' && 
+                       desa.kecamatan && 
+                       typeof desa.kecamatan === 'object' ? 
+                         desa.kecamatan.name || 'Unknown' : 'Unknown'
       };
     });
     
