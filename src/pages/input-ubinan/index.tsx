@@ -21,12 +21,13 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { InputDataForm } from "./input-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PendataanDataItem, PendataanStatus } from "@/types/pendataan-types";
 
 interface DesaData {
   id: string;
   name: string;
   kecamatan_name: string;
-  status: "belum" | "proses" | "selesai" | null;
+  status: PendataanStatus | null;
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   target: number | null;
@@ -35,7 +36,7 @@ interface DesaData {
 export default function InputDataPage() {
   const { user } = useAuth();
   const [desaData, setDesaData] = useState<DesaData[]>([]);
-  const [editingData, setEditingData] = useState<DesaData | null>(null);
+  const [editingData, setEditingData] = useState<PendataanDataItem | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -145,7 +146,33 @@ export default function InputDataPage() {
   }
 
   function handleEdit(data: DesaData) {
-    setEditingData(data);
+    // Convert DesaData to PendataanDataItem format before passing to the form
+    const pendataanItem: PendataanDataItem = {
+      id: "",  // This will be empty for new items
+      desa_id: data.id,
+      ppl_id: user?.id || "",
+      jumlah_keluarga: null,
+      jumlah_lahan_pertanian: null,
+      status_infrastruktur: null,
+      potensi_ekonomi: null,
+      catatan_khusus: null,
+      status: data.status || "belum",
+      persentase_selesai: 0,
+      tanggal_mulai: data.tanggal_mulai,
+      tanggal_selesai: data.tanggal_selesai,
+      verification_status: "belum_verifikasi",
+      rejection_reason: null,
+      desa: {
+        id: data.id,
+        name: data.name,
+        kecamatan: {
+          id: "", // We don't have kecamatan id in DesaData
+          name: data.kecamatan_name
+        }
+      }
+    };
+    
+    setEditingData(pendataanItem);
     setIsDialogOpen(true);
   }
 

@@ -150,7 +150,7 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         )}
         
         {initialData?.verification_status === 'approved' && (
-          <Alert variant="success" className="mb-4 bg-green-50 border-green-200 text-green-800">
+          <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Data Disetujui</AlertTitle>
             <AlertDescription>
