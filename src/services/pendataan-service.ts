@@ -118,11 +118,17 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
     
     // Transform the data to our expected format
     const processedData = data.map(item => {
-      // Fix: Correctly access the nested object properties
+      // Check each nested property exists before accessing
+      const desaObj = item.desa as any; // Type assertion to avoid TypeScript errors
+      
       return {
         desa_id: item.desa_id,
-        desa_name: item.desa ? item.desa.name : 'Unknown',
-        kecamatan_name: item.desa && item.desa.kecamatan ? item.desa.kecamatan.name : 'Unknown'
+        desa_name: desaObj && typeof desaObj === 'object' ? desaObj.name || 'Unknown' : 'Unknown',
+        kecamatan_name: desaObj && 
+                        typeof desaObj === 'object' && 
+                        desaObj.kecamatan && 
+                        typeof desaObj.kecamatan === 'object' ? 
+                          desaObj.kecamatan.name || 'Unknown' : 'Unknown'
       };
     });
     
