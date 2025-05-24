@@ -118,24 +118,45 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
     
     // Transform the data to our expected format
     const processedData = data.map(item => {
-      // Define the type for desa more precisely to handle the nested structure
-      const desa = item.desa as { 
-        id: string; 
-        name: string; 
+      // First check if desa exists
+      if (!item.desa) {
+        return {
+          desa_id: item.desa_id,
+          desa_name: 'Unknown',
+          kecamatan_name: 'Unknown'
+        };
+      }
+      
+      // Now handle desa safely without type assertion problems
+      // Using unknown as an intermediary to avoid direct type conversion errors
+      const rawDesa = item.desa as unknown;
+      
+      // Then properly check the shape of the object
+      const isValidDesa = 
+        rawDesa !== null && 
+        typeof rawDesa === 'object' &&
+        'name' in (rawDesa as object);
+      
+      if (!isValidDesa) {
+        return {
+          desa_id: item.desa_id,
+          desa_name: 'Unknown',
+          kecamatan_name: 'Unknown'  
+        };
+      }
+      
+      // Now we can safely access properties
+      const desa = rawDesa as { 
+        name: string;
         kecamatan?: { 
-          id: string; 
-          name: string; 
-        } 
-      } | null;
+          name: string;
+        } | null 
+      };
       
       return {
         desa_id: item.desa_id,
-        desa_name: desa && typeof desa === 'object' ? desa.name || 'Unknown' : 'Unknown',
-        kecamatan_name: desa && 
-                       typeof desa === 'object' && 
-                       desa.kecamatan && 
-                       typeof desa.kecamatan === 'object' ? 
-                         desa.kecamatan.name || 'Unknown' : 'Unknown'
+        desa_name: desa.name || 'Unknown',
+        kecamatan_name: desa.kecamatan?.name || 'Unknown'
       };
     });
     
