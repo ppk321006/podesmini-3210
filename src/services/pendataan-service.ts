@@ -118,8 +118,8 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
     
     // Transform the data to our expected format
     const processedData = data.map(item => {
-      // Extract desa data safely
-      const desa = item.desa as any; // Type assertion to handle the complex nested structure
+      // Type assertion to handle the complex nested structure
+      const desa = item.desa as any;
       
       return {
         desa_id: item.desa_id,

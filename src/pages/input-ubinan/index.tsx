@@ -148,7 +148,7 @@ export default function InputDataPage() {
   function handleEdit(data: DesaData) {
     // Convert DesaData to PendataanDataItem format before passing to the form
     const pendataanItem: PendataanDataItem = {
-      id: "",  // This will be empty for new items
+      id: "", // This will be empty for new items
       desa_id: data.id,
       ppl_id: user?.id || "",
       jumlah_keluarga: null,

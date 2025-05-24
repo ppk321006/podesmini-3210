@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { PendataanDataItem, PendataanStatus } from "@/types/pendataan-types";
 import { submitOrUpdatePendataanData } from "@/services/pendataan-service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -151,7 +151,7 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         
         {initialData?.verification_status === 'approved' && (
           <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
-            <AlertCircle className="h-4 w-4" />
+            <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertTitle>Data Disetujui</AlertTitle>
             <AlertDescription>
               Data ini telah diverifikasi dan disetujui oleh PML.
