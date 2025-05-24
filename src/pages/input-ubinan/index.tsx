@@ -20,7 +20,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { InputDataForm } from "./input-form";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PendataanDataItem, PendataanStatus } from "@/types/pendataan-types";
 
 interface DesaData {
@@ -31,6 +30,7 @@ interface DesaData {
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   target: number | null;
+  persentase_selesai: number | null;
 }
 
 export default function InputDataPage() {
@@ -58,9 +58,6 @@ export default function InputDataPage() {
       setErrorMessage("User ID tidak ditemukan");
       return;
     }
-
-    // Removed the UUID validation as it's causing issues with the default users
-    // We'll trust the user.id value from the authentication context
 
     setIsLoading(true);
     setErrorMessage(null);
@@ -106,31 +103,33 @@ export default function InputDataPage() {
       
       console.log("Desa IDs to lookup:", desaIds);
 
-      // Query status pendataan untuk desa yang dialokasikan
-      const { data: statusData, error: statusError } = await supabase
-        .from('status_pendataan_desa')
+      // Query data pendataan untuk desa yang dialokasikan
+      const { data: pendataanData, error: pendataanError } = await supabase
+        .from('data_pendataan_desa')
         .select('*')
-        .in('desa_id', desaIds);
+        .in('desa_id', desaIds)
+        .eq('ppl_id', user.id);
 
-      if (statusError) {
-        console.error("Error fetching status data:", statusError);
-        setErrorMessage(`Gagal mengambil data status: ${statusError.message}`);
+      if (pendataanError) {
+        console.error("Error fetching pendataan data:", pendataanError);
+        setErrorMessage(`Gagal mengambil data pendataan: ${pendataanError.message}`);
       }
 
-      console.log("Status data:", statusData);
+      console.log("Pendataan data:", pendataanData);
 
       // Gabungkan data
       const processedData = alokasiData.map((item: any) => {
-        const statusItem = statusData?.find(s => s.desa_id === item.desa_id);
+        const pendataanItem = pendataanData?.find(p => p.desa_id === item.desa_id);
         
         return {
           id: item.desa_id,
           name: item.desa?.name || "-",
           kecamatan_name: item.desa?.kecamatan?.name || "-",
-          status: statusItem?.status || "belum",
-          tanggal_mulai: statusItem?.tanggal_mulai || null,
-          tanggal_selesai: statusItem?.tanggal_selesai || null,
-          target: statusItem?.target || null
+          status: pendataanItem?.status || "belum",
+          tanggal_mulai: pendataanItem?.tanggal_mulai || null,
+          tanggal_selesai: pendataanItem?.tanggal_selesai || null,
+          target: pendataanItem?.jumlah_keluarga || null,
+          persentase_selesai: pendataanItem?.persentase_selesai || 0
         };
       });
 
@@ -151,13 +150,13 @@ export default function InputDataPage() {
       id: "", // This will be empty for new items
       desa_id: data.id,
       ppl_id: user?.id || "",
-      jumlah_keluarga: null,
+      jumlah_keluarga: data.target,
       jumlah_lahan_pertanian: null,
       status_infrastruktur: null,
       potensi_ekonomi: null,
       catatan_khusus: null,
       status: data.status || "belum",
-      persentase_selesai: 0,
+      persentase_selesai: data.persentase_selesai || 0,
       tanggal_mulai: data.tanggal_mulai,
       tanggal_selesai: data.tanggal_selesai,
       verification_status: "belum_verifikasi",
@@ -207,6 +206,10 @@ export default function InputDataPage() {
         return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
       case "selesai":
         return <Badge className="bg-green-500 hover:bg-green-600">Selesai</Badge>;
+      case "approved":
+        return <Badge className="bg-blue-500 hover:bg-blue-600">Disetujui</Badge>;
+      case "ditolak":
+        return <Badge className="bg-red-500 hover:bg-red-600">Ditolak</Badge>;
       default:
         return <Badge variant="outline">Belum Dikerjakan</Badge>;
     }
@@ -321,6 +324,8 @@ export default function InputDataPage() {
                 <option value="belum">Belum Dikerjakan</option>
                 <option value="proses">Sedang Dikerjakan</option>
                 <option value="selesai">Selesai</option>
+                <option value="approved">Disetujui</option>
+                <option value="ditolak">Ditolak</option>
               </select>
             </div>
           </div>
@@ -332,6 +337,7 @@ export default function InputDataPage() {
                   <TableHead>Kecamatan</TableHead>
                   <TableHead>Desa</TableHead>
                   <TableHead>Target</TableHead>
+                  <TableHead>Progress (%)</TableHead>
                   <TableHead>Tanggal Mulai</TableHead>
                   <TableHead>Tanggal Selesai</TableHead>
                   <TableHead>Status</TableHead>
@@ -341,13 +347,13 @@ export default function InputDataPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Memuat data...
                     </TableCell>
                   </TableRow>
                 ) : filteredData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       {desaData.length === 0 ? "Anda belum memiliki alokasi desa" : "Tidak ada data yang sesuai filter"}
                     </TableCell>
                   </TableRow>
@@ -357,6 +363,7 @@ export default function InputDataPage() {
                       <TableCell>{item.kecamatan_name}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>{item.target || '-'}</TableCell>
+                      <TableCell>{item.persentase_selesai || 0}%</TableCell>
                       <TableCell>{formatDate(item.tanggal_mulai)}</TableCell>
                       <TableCell>{formatDate(item.tanggal_selesai)}</TableCell>
                       <TableCell>{getStatusBadge(item.status)}</TableCell>

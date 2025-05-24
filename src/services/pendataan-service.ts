@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { AlokasiBertugas, PendataanDataItem, PendataanFilter, PendataanStatus, ProgressSummary, VerificationStatus } from "@/types/pendataan-types";
 import { UserRole } from "@/types/user";
@@ -186,7 +185,11 @@ export async function submitOrUpdatePendataanData(
         tanggal_selesai: pendataanData.tanggal_selesai,
         persentase_selesai: pendataanData.persentase_selesai,
         verification_status: pendataanData.verification_status,
-        rejection_reason: pendataanData.rejection_reason
+        rejection_reason: pendataanData.rejection_reason,
+        jumlah_keluarga: pendataanData.jumlah_keluarga,
+        jumlah_lahan_pertanian: pendataanData.jumlah_lahan_pertanian,
+        status_infrastruktur: pendataanData.status_infrastruktur,
+        potensi_ekonomi: pendataanData.potensi_ekonomi
       };
 
       const { data, error } = await supabase
@@ -201,27 +204,67 @@ export async function submitOrUpdatePendataanData(
       
       result = data?.[0];
     } else {
-      // For updates, check if verification status needs to be reset
+      // For updates, check if there's existing data to update
+      const { data: existingData } = await supabase
+        .from('data_pendataan_desa')
+        .select('id')
+        .eq('desa_id', pendataanData.desa_id as string)
+        .eq('ppl_id', pendataanData.ppl_id as string)
+        .single();
+
       let updateData = { ...pendataanData };
       
       // If status is changing to 'selesai', reset verification status
       if (pendataanData.status === 'selesai') {
         updateData.verification_status = 'belum_verifikasi';
+        updateData.rejection_reason = null; // Clear rejection reason when resubmitting
       }
-      
-      const { data, error } = await supabase
-        .from('data_pendataan_desa')
-        .update(updateData)
-        .eq('desa_id', pendataanData.desa_id as string)
-        .eq('ppl_id', pendataanData.ppl_id as string)
-        .select();
+
+      if (existingData) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from('data_pendataan_desa')
+          .update(updateData)
+          .eq('desa_id', pendataanData.desa_id as string)
+          .eq('ppl_id', pendataanData.ppl_id as string)
+          .select();
+          
+        if (error) {
+          console.error("Error updating pendataan data:", error);
+          throw error;
+        }
         
-      if (error) {
-        console.error("Error updating pendataan data:", error);
-        throw error;
+        result = data?.[0];
+      } else {
+        // Insert new record if not exists
+        const insertData = {
+          desa_id: pendataanData.desa_id,
+          ppl_id: pendataanData.ppl_id,
+          catatan_khusus: pendataanData.catatan_khusus,
+          status: pendataanData.status,
+          tanggal_mulai: pendataanData.tanggal_mulai,
+          tanggal_selesai: pendataanData.tanggal_selesai,
+          persentase_selesai: pendataanData.persentase_selesai,
+          verification_status: pendataanData.verification_status,
+          rejection_reason: pendataanData.rejection_reason,
+          jumlah_keluarga: pendataanData.jumlah_keluarga,
+          jumlah_lahan_pertanian: pendataanData.jumlah_lahan_pertanian,
+          status_infrastruktur: pendataanData.status_infrastruktur,
+          potensi_ekonomi: pendataanData.potensi_ekonomi
+        };
+
+        const { data, error } = await supabase
+          .from('data_pendataan_desa')
+          .insert(insertData)
+          .select();
+          
+        if (error) {
+          console.error("Error inserting new pendataan data:", error);
+          throw error;
+        }
+        
+        result = data?.[0];
       }
-      
-      result = data?.[0];
     }
     
     return result as PendataanDataItem || null;

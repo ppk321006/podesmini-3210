@@ -1,411 +1,355 @@
 
-import { useState } from "react";
-import { useAuth } from "@/context/auth-context";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import { CalendarIcon, FileDown, Search, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { downloadToExcel } from "@/services/export-service";
-import { UserRole } from "@/types/user";
 import { 
-  getAllStatusPendataanDesa,
-  getPendataanDesaStats
-} from "@/services/allocation-service";
+  Table, TableBody, TableCell, TableHead, 
+  TableHeader, TableRow 
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/auth-context";
+import { UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Loader2, AlertCircle } from "lucide-react";
 
-export default function ProgresPendataanDesaPage() {
+interface PendataanProgress {
+  id: string;
+  desa_id: string;
+  ppl_id: string;
+  desa_name: string;
+  kecamatan_name: string;
+  ppl_name: string;
+  status: string;
+  verification_status: string;
+  persentase_selesai: number;
+  tanggal_mulai: string | null;
+  tanggal_selesai: string | null;
+}
+
+// Fetch progress data for PPL role
+const fetchPendataanProgressForPPL = async (pplId: string): Promise<PendataanProgress[]> => {
+  console.log("Fetching pendataan progress for PPL:", pplId);
+  
+  // Get allocated desa for this PPL
+  const { data: alokasiData, error: alokasiError } = await supabase
+    .from('alokasi_petugas')
+    .select(`
+      desa_id,
+      desa:desa_id (
+        id,
+        name,
+        kecamatan:kecamatan_id (
+          id,
+          name
+        )
+      )
+    `)
+    .eq('ppl_id', pplId);
+
+  if (alokasiError) {
+    console.error('Error fetching alokasi:', alokasiError);
+    throw alokasiError;
+  }
+
+  if (!alokasiData || alokasiData.length === 0) {
+    return [];
+  }
+
+  const desaIds = alokasiData.map(item => item.desa_id);
+
+  // Get pendataan data for allocated desa
+  const { data: pendataanData, error: pendataanError } = await supabase
+    .from('data_pendataan_desa')
+    .select(`
+      *,
+      ppl:ppl_id (
+        id,
+        name
+      )
+    `)
+    .in('desa_id', desaIds)
+    .eq('ppl_id', pplId);
+
+  if (pendataanError) {
+    console.error('Error fetching pendataan data:', pendataanError);
+    throw pendataanError;
+  }
+
+  // Combine data
+  const progressData = alokasiData.map((alokasi: any) => {
+    const pendataan = pendataanData?.find(p => p.desa_id === alokasi.desa_id);
+    
+    return {
+      id: pendataan?.id || alokasi.desa_id,
+      desa_id: alokasi.desa_id,
+      ppl_id: pplId,
+      desa_name: alokasi.desa?.name || 'Unknown',
+      kecamatan_name: alokasi.desa?.kecamatan?.name || 'Unknown',
+      ppl_name: pendataan?.ppl?.name || 'Unknown',
+      status: pendataan?.status || 'belum',
+      verification_status: pendataan?.verification_status || 'belum_verifikasi',
+      persentase_selesai: pendataan?.persentase_selesai || 0,
+      tanggal_mulai: pendataan?.tanggal_mulai || null,
+      tanggal_selesai: pendataan?.tanggal_selesai || null
+    };
+  });
+
+  return progressData;
+};
+
+// Fetch progress data for PML role
+const fetchPendataanProgressForPML = async (pmlId: string): Promise<PendataanProgress[]> => {
+  // Get PPLs under this PML
+  const { data: pplData, error: pplError } = await supabase
+    .from('users')
+    .select('id, name')
+    .eq('pml_id', pmlId)
+    .eq('role', 'ppl');
+
+  if (pplError) {
+    console.error('Error fetching PPLs:', pplError);
+    throw pmlError;
+  }
+
+  if (!pplData || pplData.length === 0) {
+    return [];
+  }
+
+  const pplIds = pplData.map(ppl => ppl.id);
+
+  // Get pendataan data for all PPLs under this PML
+  const { data: pendataanData, error: pendataanError } = await supabase
+    .from('data_pendataan_desa')
+    .select(`
+      *,
+      desa:desa_id (
+        id,
+        name,
+        kecamatan:kecamatan_id (
+          id,
+          name
+        )
+      ),
+      ppl:ppl_id (
+        id,
+        name
+      )
+    `)
+    .in('ppl_id', pplIds);
+
+  if (pendataanError) {
+    console.error('Error fetching pendataan data:', pendataanError);
+    throw pendataanError;
+  }
+
+  // Transform data
+  const progressData = pendataanData?.map((item: any) => ({
+    id: item.id,
+    desa_id: item.desa_id,
+    ppl_id: item.ppl_id,
+    desa_name: item.desa?.name || 'Unknown',
+    kecamatan_name: item.desa?.kecamatan?.name || 'Unknown',
+    ppl_name: item.ppl?.name || 'Unknown',
+    status: item.status || 'belum',
+    verification_status: item.verification_status || 'belum_verifikasi',
+    persentase_selesai: item.persentase_selesai || 0,
+    tanggal_mulai: item.tanggal_mulai,
+    tanggal_selesai: item.tanggal_selesai
+  })) || [];
+
+  return progressData;
+};
+
+export default function ProgressUbinanPage() {
   const { user } = useAuth();
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number>(0);
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedPPL, setSelectedPPL] = useState<string>("all");
-  const [selectedPML, setSelectedPML] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const years = [2025, 2026, 2027, 2028, 2029, 2030];
-
-  const handleChangeYear = (value: string) => {
-    setSelectedYear(parseInt(value));
-  };
-
-  const handleChangeMonth = (value: string) => {
-    setSelectedMonth(parseInt(value));
-  };
-
-  const handleChangeStatus = (value: string) => {
-    setSelectedStatus(value);
-  };
-
-  const handleChangePPL = (value: string) => {
-    setSelectedPPL(value);
-  };
-
-  const handleChangePML = (value: string) => {
-    setSelectedPML(value);
-  };
-
-  const handleDateChange = (date: Date | undefined) => {
-    if (date) {
-      setDate(date);
-      setSelectedMonth(date.getMonth() + 1);
-      setSelectedYear(date.getFullYear());
-    }
-  };
-
-  // Fetch PPL users
-  const { data: pplUsers = [], isLoading: isLoadingPPL } = useQuery({
-    queryKey: ['ppl_users'],
+  // Fetch data based on user role
+  const { data: progressData = [], isLoading, error } = useQuery({
+    queryKey: ['pendataan_progress', user?.id, user?.role],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, name')
-        .eq('role', 'ppl')
-        .order('name');
-        
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER,
-    staleTime: 300000,
-  });
-
-  // Fetch PML users
-  const { data: pmlUsers = [], isLoading: isLoadingPML } = useQuery({
-    queryKey: ['pml_users'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, name')
-        .eq('role', 'pml')
-        .order('name');
-        
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER,
-    staleTime: 300000,
-  });
-
-  // Fetch status pendataan desa
-  const { 
-    data: pendataanStatus = [], 
-    isLoading: isLoadingStatus,
-    refetch: refetchStatus
-  } = useQuery({
-    queryKey: ['status_pendataan_desa', user?.id, selectedStatus, selectedPPL, selectedPML],
-    queryFn: getAllStatusPendataanDesa,
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-  });
-
-  // Fetch stats
-  const { 
-    data: pendataanStats, 
-    isLoading: isLoadingStats 
-  } = useQuery({
-    queryKey: ['pendataan_stats'],
-    queryFn: getPendataanDesaStats,
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-  });
-
-  // Filter data based on status, PPL, and PML
-  const filteredStatus = pendataanStatus.filter((item: any) => {
-    // Filter by search term
-    const searchLower = searchTerm.toLowerCase();
-    const desaName = item.desa?.name?.toLowerCase() || '';
-    const kecamatanName = item.desa?.kecamatan?.name?.toLowerCase() || '';
-    const pplName = item.ppl?.name?.toLowerCase() || '';
-    
-    const matchesSearch = !searchTerm || 
-      desaName.includes(searchLower) || 
-      kecamatanName.includes(searchLower) ||
-      pplName.includes(searchLower);
+      if (!user?.id || !user?.role) return [];
       
-    // Filter by status
-    const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
-    
-    // Filter by PPL
-    const matchesPPL = selectedPPL === 'all' || item.ppl_id === selectedPPL;
-    
-    // Filter by PML (if applicable)
-    const matchesPML = selectedPML === 'all';  // In this simplified version, we don't filter by PML
-    
-    return matchesSearch && matchesStatus && matchesPPL && matchesPML;
+      if (user.role === UserRole.PPL) {
+        return fetchPendataanProgressForPPL(user.id);
+      } else if (user.role === UserRole.PML) {
+        return fetchPendataanProgressForPML(user.id);
+      }
+      
+      return [];
+    },
+    enabled: !!user?.id && !!user?.role
   });
 
-  // Handle export
-  const handleExportToExcel = () => {
-    if (!filteredStatus.length) return;
-
-    const exportData = filteredStatus.map((item: any, index: number) => ({
-      'No': index + 1,
-      'Desa': item.desa?.name || '-',
-      'Kecamatan': item.desa?.kecamatan?.name || '-',
-      'PPL': item.ppl?.name || '-',
-      'Status': item.status === 'belum' ? 'Belum Dimulai' : 
-               item.status === 'proses' ? 'Dalam Proses' : 'Selesai',
-      'Tanggal Mulai': item.tanggal_mulai ? format(new Date(item.tanggal_mulai), 'dd/MM/yyyy') : '-',
-      'Tanggal Selesai': item.tanggal_selesai ? format(new Date(item.tanggal_selesai), 'dd/MM/yyyy') : '-',
-      'Target': item.target || '-'
-    }));
-
-    downloadToExcel(exportData, `rekap-progres-pendataan-${format(new Date(), 'yyyy-MM-dd')}`);
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "belum":
+        return <Badge variant="outline">Belum Dikerjakan</Badge>;
+      case "proses":
+        return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
+      case "selesai":
+        return <Badge className="bg-green-500 hover:bg-green-600">Selesai</Badge>;
+      case "approved":
+        return <Badge className="bg-blue-500 hover:bg-blue-600">Disetujui</Badge>;
+      case "ditolak":
+        return <Badge className="bg-red-500 hover:bg-red-600">Ditolak</Badge>;
+      default:
+        return <Badge variant="outline">Belum Dikerjakan</Badge>;
+    }
   };
 
-  // Get status badge style
-  function getStatusBadge(status: string) {
-    if (status === 'belum') {
-      return <Badge variant="outline" className="bg-gray-100">Belum Dimulai</Badge>;
-    } else if (status === 'proses') {
-      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Dalam Proses</Badge>;
-    } else if (status === 'selesai') {
-      return <Badge variant="outline" className="bg-green-100 text-green-800">Selesai</Badge>;
+  const getVerificationBadge = (verificationStatus: string) => {
+    switch (verificationStatus) {
+      case "belum_verifikasi":
+        return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
+      case "approved":
+        return <Badge className="bg-green-500">Disetujui</Badge>;
+      case "ditolak":
+        return <Badge className="bg-red-500">Ditolak</Badge>;
+      default:
+        return <Badge className="bg-gray-500">-</Badge>;
     }
-    return <Badge variant="outline">Unknown</Badge>;
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long", 
+      year: "numeric"
+    });
+  };
+
+  const filteredData = progressData.filter((item) => {
+    if (statusFilter !== "all" && item.status !== statusFilter) {
+      return false;
+    }
+
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        item.desa_name.toLowerCase().includes(searchLower) ||
+        item.kecamatan_name.toLowerCase().includes(searchLower) ||
+        item.ppl_name.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return true;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Memuat data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <AlertCircle className="h-8 w-8 text-red-500 mr-2" />
+          <span>Gagal memuat data. Silakan coba lagi.</span>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Progres Pendataan Desa</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Total Desa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Memuat...</span>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold">
-                  {pendataanStats?.total || 0}
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full mt-2">
-                  <div 
-                    className="h-2 bg-primary rounded-full" 
-                    style={{ 
-                      width: '100%'
-                    }}
-                  />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Dalam Proses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Memuat...</span>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold">
-                  {pendataanStats?.proses || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {pendataanStats && pendataanStats.total > 0 
-                    ? `${Math.round((pendataanStats.proses / pendataanStats.total) * 100)}% dari total` 
-                    : '0%'
-                  }
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full mt-2">
-                  <div 
-                    className="h-2 bg-yellow-500 rounded-full" 
-                    style={{ 
-                      width: pendataanStats && pendataanStats.total > 0 
-                        ? `${(pendataanStats.proses / pendataanStats.total) * 100}%` 
-                        : '0%'
-                    }}
-                  />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Selesai</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStats ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Memuat...</span>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold">
-                  {pendataanStats?.selesai || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {pendataanStats && pendataanStats.total > 0 
-                    ? `${Math.round((pendataanStats.selesai / pendataanStats.total) * 100)}% dari total` 
-                    : '0%'
-                  }
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full mt-2">
-                  <div 
-                    className="h-2 bg-green-500 rounded-full" 
-                    style={{ 
-                      width: pendataanStats && pendataanStats.total > 0 
-                        ? `${(pendataanStats.selesai / pendataanStats.total) * 100}%` 
-                        : '0%'
-                    }}
-                  />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Progress Pendataan Desa</h1>
+          <p className="text-gray-500">Pantau progress pendataan potensi desa</p>
+        </div>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Progres Pendataan</CardTitle>
-            <CardDescription>
-              Rekap data progres pendataan desa berdasarkan status
-            </CardDescription>
-          </div>
-          <Button onClick={() => refetchStatus()} variant="outline">
-            {isLoadingStatus ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : "Refresh"}
-          </Button>
+        <CardHeader>
+          <CardTitle>Data Progress Pendataan</CardTitle>
+          <CardDescription>
+            {user?.role === UserRole.PPL 
+              ? "Daftar desa yang menjadi tanggung jawab Anda" 
+              : "Daftar progress pendataan dari semua PPL"
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4 md:flex-row md:items-end mb-6">
-            <div className="grid gap-2 flex-1">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
               <Label htmlFor="search">Cari</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Cari desa, kecamatan, petugas..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+              <Input
+                id="search"
+                placeholder="Cari berdasarkan desa, kecamatan, atau PPL..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="status-select">Status</Label>
-              <Select value={selectedStatus} onValueChange={handleChangeStatus}>
-                <SelectTrigger id="status-select" className="w-full md:w-[180px]">
-                  <SelectValue placeholder="Pilih status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="belum">Belum Dimulai</SelectItem>
-                  <SelectItem value="proses">Dalam Proses</SelectItem>
-                  <SelectItem value="selesai">Selesai</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="w-full md:w-64">
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status"
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Semua Status</option>
+                <option value="belum">Belum Dikerjakan</option>
+                <option value="proses">Sedang Dikerjakan</option>
+                <option value="selesai">Selesai</option>
+                <option value="approved">Disetujui</option>
+                <option value="ditolak">Ditolak</option>
+              </select>
             </div>
-            
-            {(user?.role === UserRole.ADMIN || user?.role === UserRole.VIEWER) && (
-              <div className="grid gap-2">
-                <Label htmlFor="ppl-select">PPL</Label>
-                <Select value={selectedPPL} onValueChange={handleChangePPL}>
-                  <SelectTrigger id="ppl-select" className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Pilih PPL" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua PPL</SelectItem>
-                    {!isLoadingPPL && Array.isArray(pplUsers) && pplUsers.map((ppl) => (
-                      <SelectItem key={ppl.id} value={ppl.id}>{ppl.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            <Button 
-              variant="outline" 
-              className="flex gap-2 items-center" 
-              onClick={handleExportToExcel}
-              disabled={!filteredStatus.length}
-            >
-              <FileDown className="h-4 w-4" />
-              <span>Export Excel</span>
-            </Button>
           </div>
 
-          {isLoadingStatus ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2">Loading...</p>
-            </div>
-          ) : filteredStatus.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-lg text-gray-500">Tidak ada data progres pendataan yang tersedia</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Desa</TableHead>
+                  <TableHead>Kecamatan</TableHead>
+                  <TableHead>PPL</TableHead>
+                  <TableHead>Status Pendataan</TableHead>
+                  <TableHead>Status Verifikasi</TableHead>
+                  <TableHead>Progress (%)</TableHead>
+                  <TableHead>Tanggal Mulai</TableHead>
+                  <TableHead>Tanggal Selesai</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData.length === 0 ? (
                   <TableRow>
-                    <TableHead className="w-[50px]">No</TableHead>
-                    <TableHead>Desa</TableHead>
-                    <TableHead>Kecamatan</TableHead>
-                    <TableHead>PPL</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Tanggal Mulai</TableHead>
-                    <TableHead>Tanggal Selesai</TableHead>
-                    <TableHead>Target</TableHead>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      {progressData.length === 0 ? "Tidak ada data pendataan" : "Tidak ada data yang sesuai filter"}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStatus.map((item: any, index) => (
+                ) : (
+                  filteredData.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>{item.desa?.name || '-'}</TableCell>
-                      <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
-                      <TableCell>{item.ppl?.name || '-'}</TableCell>
+                      <TableCell className="font-medium">{item.desa_name}</TableCell>
+                      <TableCell>{item.kecamatan_name}</TableCell>
+                      <TableCell>{item.ppl_name}</TableCell>
                       <TableCell>{getStatusBadge(item.status)}</TableCell>
-                      <TableCell>
-                        {item.tanggal_mulai 
-                          ? format(new Date(item.tanggal_mulai), 'dd MMM yyyy', { locale: id })
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        {item.tanggal_selesai 
-                          ? format(new Date(item.tanggal_selesai), 'dd MMM yyyy', { locale: id })
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell>{item.target || '-'}</TableCell>
+                      <TableCell>{getVerificationBadge(item.verification_status)}</TableCell>
+                      <TableCell>{item.persentase_selesai}%</TableCell>
+                      <TableCell>{formatDate(item.tanggal_mulai)}</TableCell>
+                      <TableCell>{formatDate(item.tanggal_selesai)}</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
