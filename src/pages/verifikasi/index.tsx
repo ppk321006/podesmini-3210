@@ -7,151 +7,105 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Search, CheckCircle, XCircle, FileText, Eye, Filter, X, AlertCircle } from "lucide-react";
-import { DataPendataanDesa } from "@/types/pendataan";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, CheckCircle, XCircle, FileText, Eye, X, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-// Mock data for demonstration
-const mockPendataanList: DataPendataanDesa[] = [
-  {
-    id: "pendataan-1",
-    desa_id: "desa-1",
-    ppl_id: "ppl-id-123",
-    jumlah_penduduk: 2500,
-    luas_wilayah: 5.2,
-    potensi_ekonomi: "Pertanian padi dan palawija",
-    infrastruktur: "Jalan utama sudah beraspal, terdapat 1 puskesmas",
-    catatan: "Beberapa bagian desa masih sering mengalami banjir saat musim hujan",
-    status: "submitted",
-    created_at: "2023-05-20T10:30:00Z",
-    updated_at: "2023-05-20T14:30:00Z"
-  },
-  {
-    id: "pendataan-2",
-    desa_id: "desa-2",
-    ppl_id: "ppl-id-456",
-    jumlah_penduduk: 3200,
-    luas_wilayah: 6.5,
-    potensi_ekonomi: "Peternakan sapi dan industri rumahan",
-    infrastruktur: "Jalan utama sudah beraspal, terdapat 1 puskesmas dan 1 pasar desa",
-    catatan: "Ekonomi desa berkembang dengan baik berkat industri rumahan",
-    status: "approved",
-    created_at: "2023-05-15T08:15:00Z",
-    updated_at: "2023-05-19T09:20:00Z"
-  },
-  {
-    id: "pendataan-3",
-    desa_id: "desa-3",
-    ppl_id: "ppl-id-789",
-    jumlah_penduduk: 1800,
-    luas_wilayah: 4.3,
-    potensi_ekonomi: "Perkebunan kopi dan pertanian",
-    infrastruktur: "Jalan sebagian belum beraspal, terdapat 1 puskesmas pembantu",
-    catatan: "Akses jalan masih perlu perbaikan untuk menunjang ekonomi",
-    status: "rejected",
-    alasan_penolakan: "Data jumlah penduduk tidak sesuai dengan data kependudukan. Mohon cek ulang data sensus terbaru.",
-    created_at: "2023-05-18T13:40:00Z",
-    updated_at: "2023-05-21T11:45:00Z"
-  },
-  {
-    id: "pendataan-4",
-    desa_id: "desa-4",
-    ppl_id: "ppl-id-123",
-    jumlah_penduduk: 2100,
-    luas_wilayah: 3.8,
-    potensi_ekonomi: "Pertanian dan perikanan",
-    infrastruktur: "Jalan desa sebagian rusak, memiliki 1 puskesmas pembantu",
-    catatan: "Wilayah berpotensi untuk pengembangan perikanan darat",
-    status: "submitted",
-    created_at: "2023-05-21T09:15:00Z",
-    updated_at: "2023-05-21T11:20:00Z"
-  }
-];
-
-// Mock data for desa names
-const mockDesaNameMap: Record<string, string> = {
-  "desa-1": "Desa Cidahu",
-  "desa-2": "Desa Sukamaju",
-  "desa-3": "Desa Cibunar",
-  "desa-4": "Desa Buniseuri"
-};
-
-// Mock data for PPL names
-const mockPplNameMap: Record<string, string> = {
-  "ppl-id-123": "Ahmad Suprapto",
-  "ppl-id-456": "Budi Santoso",
-  "ppl-id-789": "Citra Dewi"
-};
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getVerificationDataForPML, approveDataPendataan, rejectDataPendataan } from "@/services/verification-service";
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
-  const [pendataanList, setPendataanList] = useState<DataPendataanDesa[]>(mockPendataanList);
-  const [selectedItem, setSelectedItem] = useState<DataPendataanDesa | null>(null);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  
+  // Fetch verification data
+  const { 
+    data: pendataanList = [], 
+    isLoading,
+    error 
+  } = useQuery({
+    queryKey: ['verification_data', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      return await getVerificationDataForPML(user.id);
+    },
+    enabled: !!user?.id
+  });
+  
+  // Mutations
+  const approveMutation = useMutation({
+    mutationFn: (dataId: string) => approveDataPendataan(dataId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['verification_data'] });
+      setShowApproveDialog(false);
+      setSelectedItem(null);
+    }
+  });
+  
+  const rejectMutation = useMutation({
+    mutationFn: ({ dataId, reason }: { dataId: string; reason: string }) => 
+      rejectDataPendataan(dataId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['verification_data'] });
+      setShowRejectDialog(false);
+      setSelectedItem(null);
+      setRejectReason("");
+    }
+  });
   
   const getFilteredList = () => {
     let filtered = pendataanList;
     
     // Apply tab filter
     if (activeTab === "pending") {
-      filtered = filtered.filter(item => item.status === "submitted");
+      filtered = filtered.filter(item => item.status === "selesai" && item.verification_status === "belum_verifikasi");
     } else if (activeTab === "approved") {
-      filtered = filtered.filter(item => item.status === "approved");
+      filtered = filtered.filter(item => item.verification_status === "approved");
     } else if (activeTab === "rejected") {
-      filtered = filtered.filter(item => item.status === "rejected");
+      filtered = filtered.filter(item => item.verification_status === "rejected");
     }
     
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(item => 
-        mockDesaNameMap[item.desa_id].toLowerCase().includes(searchTerm.toLowerCase()) ||
-        mockPplNameMap[item.ppl_id].toLowerCase().includes(searchTerm.toLowerCase())
+        item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.ppl?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.desa?.kecamatan?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
     return filtered;
   };
   
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-green-500">Disetujui</Badge>;
-      case "rejected":
-        return <Badge className="bg-red-500">Ditolak</Badge>;
-      case "submitted":
-        return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
-      default:
-        return <Badge className="bg-gray-500">Draft</Badge>;
+  const getStatusBadge = (status: string, verificationStatus: string) => {
+    if (verificationStatus === "approved") {
+      return <Badge className="bg-green-500">Disetujui</Badge>;
+    } else if (verificationStatus === "rejected") {
+      return <Badge className="bg-red-500">Ditolak</Badge>;
+    } else if (status === "selesai") {
+      return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
+    } else {
+      return <Badge className="bg-gray-500">Draft</Badge>;
     }
   };
   
   const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
+      year: "numeric"
     });
   };
   
   const handleApprove = () => {
     if (!selectedItem) return;
-    
-    setPendataanList(prev => 
-      prev.map(item => 
-        item.id === selectedItem.id ? { ...item, status: "approved", updated_at: new Date().toISOString() } : item
-      )
-    );
-    
-    toast.success(`Data ${mockDesaNameMap[selectedItem.desa_id]} telah disetujui`);
-    setShowApproveDialog(false);
-    setSelectedItem(null);
+    approveMutation.mutate(selectedItem.id);
   };
   
   const handleReject = () => {
@@ -162,34 +116,58 @@ export default function VerifikasiPage() {
       return;
     }
     
-    setPendataanList(prev => 
-      prev.map(item => 
-        item.id === selectedItem.id ? 
-        { 
-          ...item, 
-          status: "rejected", 
-          alasan_penolakan: rejectReason,
-          updated_at: new Date().toISOString() 
-        } : item
-      )
-    );
-    
-    toast.success(`Data ${mockDesaNameMap[selectedItem.desa_id]} telah ditolak`);
-    setShowRejectDialog(false);
-    setSelectedItem(null);
-    setRejectReason("");
+    rejectMutation.mutate({ 
+      dataId: selectedItem.id, 
+      reason: rejectReason 
+    });
   };
   
   const clearFilters = () => {
     setSearchTerm("");
   };
 
+  if (!user) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <p className="text-gray-500">Silakan login terlebih dahulu</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+            <AlertCircle className="h-10 w-10 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Error</h2>
+            <p className="text-gray-500">Terjadi kesalahan saat memuat data verifikasi</p>
+            <Button 
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['verification_data'] })}
+              className="mt-4"
+            >
+              Coba Lagi
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const filteredList = getFilteredList();
+  const pendingCount = pendataanList.filter(item => 
+    item.status === "selesai" && item.verification_status === "belum_verifikasi").length;
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Verifikasi Data</h1>
-          <p className="text-gray-500">Verifikasi data pendataan potensi desa</p>
+          <p className="text-gray-500">Verifikasi data pendataan desa</p>
         </div>
       </div>
       
@@ -221,7 +199,7 @@ export default function VerifikasiPage() {
           <TabsTrigger value="pending">
             Menunggu Verifikasi
             <Badge variant="outline" className="ml-2 bg-orange-100 text-orange-800 border-orange-200">
-              {pendataanList.filter(item => item.status === "submitted").length}
+              {pendingCount}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="approved">Disetujui</TabsTrigger>
@@ -230,7 +208,16 @@ export default function VerifikasiPage() {
         </TabsList>
         
         <TabsContent value={activeTab} className="space-y-4">
-          {getFilteredList().length === 0 ? (
+          {isLoading ? (
+            <Card>
+              <CardContent className="flex justify-center items-center py-8">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p>Memuat data...</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : filteredList.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center p-6">
                 <FileText className="h-12 w-12 text-gray-300 mb-4" />
@@ -249,168 +236,121 @@ export default function VerifikasiPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getFilteredList().map((item) => (
+              {filteredList.map((item) => (
                 <Card 
                   key={item.id}
                   className={`${
-                    item.status === "rejected" ? "border-red-200" : 
-                    item.status === "approved" ? "border-green-200" : 
-                    item.status === "submitted" ? "border-orange-200" : ""
+                    item.verification_status === "rejected" ? "border-red-200" : 
+                    item.verification_status === "approved" ? "border-green-200" : 
+                    "border-orange-200"
                   }`}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                      <CardTitle>{mockDesaNameMap[item.desa_id]}</CardTitle>
-                      {getStatusBadge(item.status)}
+                      <CardTitle>{item.desa?.name || "Desa tidak diketahui"}</CardTitle>
+                      {getStatusBadge(item.status, item.verification_status)}
                     </div>
                     <CardDescription className="flex items-center gap-1">
-                      <span>Petugas: {mockPplNameMap[item.ppl_id]}</span>
+                      <span>Kecamatan: {item.desa?.kecamatan?.name || "-"}</span>
+                    </CardDescription>
+                    <CardDescription className="flex items-center gap-1">
+                      <span>Petugas: {item.ppl?.name || "-"}</span>
                     </CardDescription>
                   </CardHeader>
                   
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <p className="font-medium">Jumlah Penduduk</p>
-                        <p>{item.jumlah_penduduk.toLocaleString()} jiwa</p>
+                        <p className="font-medium">Jumlah Keluarga</p>
+                        <p>{item.jumlah_keluarga?.toLocaleString() || "-"}</p>
                       </div>
                       <div>
-                        <p className="font-medium">Luas Wilayah</p>
-                        <p>{item.luas_wilayah} km²</p>
+                        <p className="font-medium">Luas Lahan</p>
+                        <p>{item.jumlah_lahan_pertanian || "-"} Ha</p>
                       </div>
                     </div>
                     
                     <div className="text-sm">
                       <p className="font-medium">Potensi Ekonomi</p>
-                      <p className="line-clamp-2">{item.potensi_ekonomi}</p>
+                      <p className="line-clamp-2">{item.potensi_ekonomi || "-"}</p>
+                    </div>
+
+                    <div className="text-sm">
+                      <p className="font-medium">Infrastruktur</p>
+                      <p className="line-clamp-2">{item.status_infrastruktur || "-"}</p>
+                    </div>
+
+                    <div className="text-sm">
+                      <p className="font-medium">Catatan</p>
+                      <p className="line-clamp-2">{item.catatan_khusus || "-"}</p>
                     </div>
                     
-                    {item.status === "rejected" && item.alasan_penolakan && (
+                    {item.verification_status === "rejected" && item.rejection_reason && (
                       <div className="bg-red-50 p-3 rounded-md border border-red-200">
                         <p className="font-medium text-sm text-red-700 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
                           Alasan Penolakan
                         </p>
                         <p className="text-sm text-red-600 mt-1">
-                          {item.alasan_penolakan}
+                          {item.rejection_reason}
                         </p>
                       </div>
                     )}
                     
                     <div className="text-xs text-gray-500 flex justify-between">
-                      <span>Dibuat: {formatDate(item.created_at)}</span>
-                      <span>Diupdate: {formatDate(item.updated_at)}</span>
+                      <span>Mulai: {formatDate(item.tanggal_mulai)}</span>
+                      <span>Selesai: {formatDate(item.tanggal_selesai)}</span>
                     </div>
                   </CardContent>
                   
                   <CardFooter className="pt-0 flex justify-between">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="flex items-center gap-1"
-                      onClick={() => window.location.href = `/dokumen/viewer/${item.id}`}
-                    >
-                      <Eye className="h-4 w-4" />
-                      Detail
-                    </Button>
-                    
-                    {item.status === "submitted" && (
-                      <div className="flex gap-2">
-                        <Dialog open={showApproveDialog && selectedItem?.id === item.id} onOpenChange={(open) => {
-                          if (!open) setSelectedItem(null);
-                          setShowApproveDialog(open);
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="bg-green-500 hover:bg-green-600 text-white border-none flex items-center gap-1"
-                              onClick={() => setSelectedItem(item)}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Setujui
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Konfirmasi Persetujuan</DialogTitle>
-                              <DialogDescription>
-                                Apakah Anda yakin ingin menyetujui data pendataan {mockDesaNameMap[item.desa_id]}?
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <Button 
-                                variant="outline" 
-                                onClick={() => {
-                                  setShowApproveDialog(false);
-                                  setSelectedItem(null);
-                                }}
-                              >
-                                Batal
-                              </Button>
-                              <Button 
-                                className="bg-green-500 hover:bg-green-600"
-                                onClick={handleApprove}
-                              >
-                                Setujui
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                        
-                        <Dialog open={showRejectDialog && selectedItem?.id === item.id} onOpenChange={(open) => {
-                          if (!open) {
-                            setSelectedItem(null);
-                            setRejectReason("");
-                          }
-                          setShowRejectDialog(open);
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="bg-red-500 hover:bg-red-600 text-white border-none flex items-center gap-1"
-                              onClick={() => setSelectedItem(item)}
-                            >
-                              <XCircle className="h-4 w-4" />
-                              Tolak
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Tolak Pendataan</DialogTitle>
-                              <DialogDescription>
-                                Berikan alasan penolakan untuk data pendataan {mockDesaNameMap[item.desa_id]}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <Textarea 
-                              placeholder="Alasan penolakan..."
-                              value={rejectReason}
-                              onChange={(e) => setRejectReason(e.target.value)}
-                              className="min-h-[100px]"
-                            />
-                            <DialogFooter>
-                              <Button 
-                                variant="outline" 
-                                onClick={() => {
-                                  setShowRejectDialog(false);
-                                  setSelectedItem(null);
-                                  setRejectReason("");
-                                }}
-                              >
-                                Batal
-                              </Button>
-                              <Button 
-                                className="bg-red-500 hover:bg-red-600"
-                                onClick={handleReject}
-                                disabled={!rejectReason.trim()}
-                              >
-                                Tolak Data
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                    {item.verification_status === "belum_verifikasi" && (
+                      <div className="flex gap-2 w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="bg-green-500 hover:bg-green-600 text-white border-none flex-1"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setShowApproveDialog(true);
+                          }}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Setujui
+                        </Button>
+                          
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="bg-red-500 hover:bg-red-600 text-white border-none flex-1"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setShowRejectDialog(true);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Tolak
+                        </Button>
                       </div>
+                    )}
+                    
+                    {item.verification_status !== "belum_verifikasi" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex items-center gap-1 w-full"
+                        onClick={() => {
+                          setSelectedItem(item);
+                          if (item.verification_status === "rejected") {
+                            setShowRejectDialog(true);
+                          } else {
+                            setShowApproveDialog(true);
+                          }
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                        Lihat Detail
+                      </Button>
                     )}
                   </CardFooter>
                 </Card>
@@ -419,6 +359,121 @@ export default function VerifikasiPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Approval Dialog */}
+      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedItem?.verification_status === "approved" 
+                ? "Detail Persetujuan" 
+                : "Konfirmasi Persetujuan"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.verification_status === "approved" 
+                ? `Data pendataan desa ${selectedItem?.desa?.name || ""}` 
+                : `Apakah Anda yakin ingin menyetujui data pendataan ${selectedItem?.desa?.name || ""}?`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium">Desa</h3>
+                <p>{selectedItem.desa?.name}</p>
+              </div>
+              <div>
+                <h3 className="font-medium">Kecamatan</h3>
+                <p>{selectedItem.desa?.kecamatan?.name}</p>
+              </div>
+              <div>
+                <h3 className="font-medium">Petugas</h3>
+                <p>{selectedItem.ppl?.name}</p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowApproveDialog(false);
+                setSelectedItem(null);
+              }}
+            >
+              {selectedItem?.verification_status === "approved" ? "Tutup" : "Batal"}
+            </Button>
+            
+            {selectedItem?.verification_status !== "approved" && (
+              <Button 
+                className="bg-green-500 hover:bg-green-600"
+                onClick={handleApprove}
+                disabled={approveMutation.isPending}
+              >
+                {approveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Setujui
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Rejection Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedItem?.verification_status === "rejected" 
+                ? "Detail Penolakan" 
+                : "Tolak Pendataan"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.verification_status === "rejected" 
+                ? `Alasan penolakan untuk ${selectedItem?.desa?.name || ""}` 
+                : `Berikan alasan penolakan untuk data pendataan ${selectedItem?.desa?.name || ""}`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem?.verification_status === "rejected" ? (
+            <div className="p-3 bg-red-50 rounded-md border border-red-200">
+              <p className="font-medium text-sm text-red-700">Alasan Penolakan</p>
+              <p className="mt-1 text-red-600">{selectedItem?.rejection_reason || "Tidak ada alasan yang diberikan"}</p>
+            </div>
+          ) : (
+            <Textarea 
+              placeholder="Alasan penolakan..."
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="min-h-[100px]"
+              disabled={rejectMutation.isPending}
+            />
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowRejectDialog(false);
+                setSelectedItem(null);
+                setRejectReason("");
+              }}
+            >
+              {selectedItem?.verification_status === "rejected" ? "Tutup" : "Batal"}
+            </Button>
+            
+            {selectedItem?.verification_status !== "rejected" && (
+              <Button 
+                className="bg-red-500 hover:bg-red-600"
+                onClick={handleReject}
+                disabled={rejectMutation.isPending}
+              >
+                {rejectMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Tolak
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
