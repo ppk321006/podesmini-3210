@@ -10,12 +10,19 @@ import { useQuery } from "@tanstack/react-query";
 import { getPPLDashboardData, getPMLDashboardData, getPendataanDesaStats } from "@/services/allocation-service";
 import { UserRole } from "@/types/user";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PendataanStats {
   total: number;
   selesai: number;
   proses: number;
   belum: number;
+}
+
+interface VerificationStats {
+  menunggu_verifikasi: number;
+  approved: number;
+  ditolak: number;
 }
 
 export default function DashboardPage() {
@@ -60,6 +67,66 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['pendataan_stats'],
     queryFn: getPendataanDesaStats,
+    staleTime: 60000,
+    refetchOnWindowFocus: false
+  });
+
+  // Ambil statistik verifikasi berdasarkan role
+  const {
+    data: verificationStats,
+    isLoading: isLoadingVerification
+  } = useQuery({
+    queryKey: ['verification_stats', user?.id, user?.role],
+    queryFn: async (): Promise<VerificationStats> => {
+      if (!user?.id) return { menunggu_verifikasi: 0, approved: 0, ditolak: 0 };
+
+      let query = supabase
+        .from('data_pendataan_desa')
+        .select('verification_status, ppl_id');
+
+      // Filter berdasarkan role
+      if (user.role === UserRole.PPL) {
+        query = query.eq('ppl_id', user.id);
+      } else if (user.role === UserRole.PML) {
+        // Ambil data dari PPL yang di bawah PML ini
+        const { data: pplData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('pml_id', user.id)
+          .eq('role', 'ppl');
+        
+        if (pplData && pplData.length > 0) {
+          const pplIds = pplData.map(ppl => ppl.id);
+          query = query.in('ppl_id', pplIds);
+        }
+      }
+      // Untuk ADMIN, ambil semua data (tidak ada filter tambahan)
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching verification stats:', error);
+        return { menunggu_verifikasi: 0, approved: 0, ditolak: 0 };
+      }
+
+      const stats = {
+        menunggu_verifikasi: 0,
+        approved: 0,
+        ditolak: 0
+      };
+
+      data?.forEach(item => {
+        if (item.verification_status === 'belum_verifikasi') {
+          stats.menunggu_verifikasi++;
+        } else if (item.verification_status === 'approved') {
+          stats.approved++;
+        } else if (item.verification_status === 'ditolak') {
+          stats.ditolak++;
+        }
+      });
+
+      return stats;
+    },
     staleTime: 60000,
     refetchOnWindowFocus: false
   });
@@ -237,6 +304,73 @@ export default function DashboardPage() {
                         : '0%'
                       }
                     </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Verification Status Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Menunggu Verifikasi</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoadingVerification ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Memuat...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {verificationStats?.menunggu_verifikasi || 0}
+                    </div>
+                    <p className="text-xs text-gray-500">data menunggu verifikasi</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Disetujui</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoadingVerification ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Memuat...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-green-600">
+                      {verificationStats?.approved || 0}
+                    </div>
+                    <p className="text-xs text-gray-500">data disetujui</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Ditolak</CardTitle>
+                <XCircle className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoadingVerification ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Memuat...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-red-600">
+                      {verificationStats?.ditolak || 0}
+                    </div>
+                    <p className="text-xs text-gray-500">data ditolak</p>
                   </>
                 )}
               </CardContent>

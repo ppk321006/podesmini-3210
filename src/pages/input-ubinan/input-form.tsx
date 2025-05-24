@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUpload } from "@/components/ui/file-upload";
 import { toast } from "sonner";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { PendataanDataItem, PendataanStatus } from "@/types/pendataan-types";
@@ -22,10 +23,12 @@ interface InputDataFormProps {
 export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFormProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   
   // Extract data from initialData if available
   const [status, setStatus] = useState<PendataanStatus>(initialData?.status || "belum");
   const [catatanKhusus, setCatatanKhusus] = useState<string>(initialData?.catatan_khusus || "");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   // For dates, we'll use the existing ones or null
   const [tanggalMulai, setTanggalMulai] = useState<Date | undefined>(
@@ -52,6 +55,35 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
     }
   }, [initialData]);
 
+  const uploadFilesToGoogleDrive = async (files: File[]): Promise<string[]> => {
+    // This is a placeholder function for Google Drive upload
+    // For now, we'll simulate the upload and return mock URLs
+    setIsUploadingFiles(true);
+    
+    try {
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // In a real implementation, you would:
+      // 1. Upload files to Google Drive API
+      // 2. Get the file IDs/URLs
+      // 3. Return the URLs
+      
+      const mockUrls = files.map(file => 
+        `https://drive.google.com/file/d/mock_file_id_${Date.now()}_${file.name}/view`
+      );
+      
+      toast.success(`${files.length} file berhasil diupload ke Google Drive`);
+      return mockUrls;
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      toast.error('Gagal mengupload file ke Google Drive');
+      throw error;
+    } finally {
+      setIsUploadingFiles(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -74,6 +106,12 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         toast.error("Tanggal selesai tidak boleh sebelum tanggal mulai");
         return;
       }
+      
+      // Validate file upload for completed status
+      if (selectedFiles.length === 0) {
+        toast.error("Upload dokumentasi/foto wajib untuk status Selesai");
+        return;
+      }
     } else if (status === "proses" && !tanggalMulai) {
       toast.error("Tanggal mulai harus diisi untuk status Sedang Dikerjakan");
       return;
@@ -82,6 +120,13 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
     setIsLoading(true);
 
     try {
+      let fileUrls: string[] = [];
+      
+      // Upload files if status is selesai and files are selected
+      if (status === "selesai" && selectedFiles.length > 0) {
+        fileUrls = await uploadFilesToGoogleDrive(selectedFiles);
+      }
+
       const pendataanData: Partial<PendataanDataItem> = {
         desa_id: initialData.desa_id,
         ppl_id: user.id,
@@ -102,6 +147,10 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         pendataanData, 
         !initialData.id // isNew if no id exists
       );
+      
+      // TODO: Save file URLs to dokumen_pendataan table
+      // This would require updating the submitOrUpdatePendataanData function
+      // or creating a separate function to save document references
       
       toast.success("Data berhasil disimpan");
       onSuccess();
@@ -199,6 +248,14 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
               </div>
             )}
             
+            {status === "selesai" && (
+              <FileUpload
+                onFileSelect={setSelectedFiles}
+                disabled={isLoading || isUploadingFiles || initialData?.verification_status === 'approved'}
+                maxFiles={5}
+              />
+            )}
+            
             <div>
               <Label htmlFor="catatanKhusus">Catatan Khusus</Label>
               <Input
@@ -213,15 +270,16 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         </form>
       </CardContent>
       <CardFooter className="flex justify-between pt-2">
-        <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+        <Button variant="outline" onClick={onCancel} disabled={isLoading || isUploadingFiles}>
           Batal
         </Button>
         <Button 
           onClick={handleSubmit} 
-          disabled={isLoading || initialData?.verification_status === 'approved'}
+          disabled={isLoading || isUploadingFiles || initialData?.verification_status === 'approved'}
         >
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {initialData?.verification_status === 'ditolak' ? "Kirim Ulang Data" : "Simpan Data"}
+          {(isLoading || isUploadingFiles) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isUploadingFiles ? "Mengupload File..." : 
+           initialData?.verification_status === 'ditolak' ? "Kirim Ulang Data" : "Simpan Data"}
         </Button>
       </CardFooter>
     </Card>

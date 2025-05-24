@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -178,21 +177,17 @@ export default function VerifikasiPage() {
         valueA = a.desa?.name || '';
         valueB = b.desa?.name || '';
         break;
-      case 'kecamatan':
-        valueA = a.desa?.kecamatan?.name || '';
-        valueB = b.desa?.kecamatan?.name || '';
-        break;
-      case 'ppl':
-        valueA = a.ppl?.name || '';
-        valueB = b.ppl?.name || '';
-        break;
-      case 'tanggal':
-        valueA = a.tanggal_selesai ? new Date(a.tanggal_selesai).getTime() : 0;
-        valueB = b.tanggal_selesai ? new Date(b.tanggal_selesai).getTime() : 0;
-        break;
       case 'status':
         valueA = a.verification_status;
         valueB = b.verification_status;
+        break;
+      case 'tanggal_mulai':
+        valueA = a.tanggal_mulai ? new Date(a.tanggal_mulai).getTime() : 0;
+        valueB = b.tanggal_mulai ? new Date(b.tanggal_mulai).getTime() : 0;
+        break;
+      case 'tanggal_selesai':
+        valueA = a.tanggal_selesai ? new Date(a.tanggal_selesai).getTime() : 0;
+        valueB = b.tanggal_selesai ? new Date(b.tanggal_selesai).getTime() : 0;
         break;
       default:
         return 0;
@@ -297,7 +292,7 @@ export default function VerifikasiPage() {
           <Label htmlFor="search">Cari</Label>
           <Input
             id="search"
-            placeholder="Cari berdasarkan desa, kecamatan, atau nama PPL"
+            placeholder="Cari berdasarkan nama desa"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -330,19 +325,17 @@ export default function VerifikasiPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead onClick={() => handleSort('desa')} className="cursor-pointer">
-                      Desa {sortColumn === 'desa' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('kecamatan')} className="cursor-pointer">
-                      Kecamatan {sortColumn === 'kecamatan' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('ppl')} className="cursor-pointer">
-                      PPL {sortColumn === 'ppl' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
-                      Tgl Selesai {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                      Nama Desa {sortColumn === 'desa' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
                     <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
                       Status {sortColumn === 'status' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead>Progress</TableHead>
+                    <TableHead onClick={() => handleSort('tanggal_mulai')} className="cursor-pointer">
+                      Tanggal Mulai {sortColumn === 'tanggal_mulai' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    </TableHead>
+                    <TableHead onClick={() => handleSort('tanggal_selesai')} className="cursor-pointer">
+                      Tanggal Selesai {sortColumn === 'tanggal_selesai' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
@@ -350,15 +343,29 @@ export default function VerifikasiPage() {
                 <TableBody>
                   {sortedData.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{item.desa?.name || '-'}</TableCell>
-                      <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
-                      <TableCell>{item.ppl?.name || '-'}</TableCell>
+                      <TableCell className="font-medium">{item.desa?.name || '-'}</TableCell>
+                      <TableCell>{renderVerificationStatus(item.verification_status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${item.persentase_selesai || 0}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs">{item.persentase_selesai || 0}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {item.tanggal_mulai 
+                          ? format(new Date(item.tanggal_mulai), 'dd MMM yyyy', { locale: id })
+                          : '-'}
+                      </TableCell>
                       <TableCell>
                         {item.tanggal_selesai 
                           ? format(new Date(item.tanggal_selesai), 'dd MMM yyyy', { locale: id })
                           : '-'}
                       </TableCell>
-                      <TableCell>{renderVerificationStatus(item.verification_status)}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant={item.verification_status === 'belum_verifikasi' ? 'default' : 'outline'}
