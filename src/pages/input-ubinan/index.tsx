@@ -382,7 +382,7 @@ export default function InputDataPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              Update Data Pendataan Desa {editingData?.name}
+              Update Data Pendataan Desa {editingData?.desa?.name}
             </DialogTitle>
           </DialogHeader>
           <InputDataForm 
