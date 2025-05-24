@@ -237,7 +237,8 @@ export default function PendataanPage() {
   // Get desa info from alokasi data
   const getCurrentDesaInfo = () => {
     if (!selectedDesaId) return null;
-    return alokasiData.find((item: any) => item.desa_id === selectedDesaId)?.desa;
+    const desaInfo = alokasiData.find((item: any) => item.desa_id === selectedDesaId);
+    return desaInfo?.desa || null;
   };
   
   // Get current pendataan data

@@ -71,7 +71,7 @@ export default function VerifikasiPage() {
     
     // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter((item: any) => 
         item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.ppl?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.desa?.kecamatan?.name?.toLowerCase().includes(searchTerm.toLowerCase())

@@ -184,7 +184,7 @@ export default function VerifikasiDataPage() {
     // Apply search
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(item => {
+      filtered = filtered.filter((item: any) => {
         return (
           item.desa?.name?.toLowerCase().includes(searchLower) ||
           item.desa?.kecamatan?.name?.toLowerCase().includes(searchLower) ||
@@ -198,7 +198,7 @@ export default function VerifikasiDataPage() {
     
     // Sort data
     if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
+      filtered = [...filtered].sort((a: any, b: any) => {
         let valueA, valueB;
         
         switch (sortColumn) {

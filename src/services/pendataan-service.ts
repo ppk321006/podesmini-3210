@@ -28,7 +28,7 @@ export async function savePendataanData(formData: PendataanFormData) {
     if (checkError) throw checkError;
     
     // Prepare data
-    const dataToSave = {
+    const dataToSave: any = {
       desa_id: formData.desaId,
       ppl_id: formData.pplId,
       status: formData.status,
