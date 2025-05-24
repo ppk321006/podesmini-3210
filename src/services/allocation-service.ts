@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -208,6 +207,191 @@ export async function getDashboardData() {
 
   } catch (error) {
     console.error("Error in getDashboardData:", error);
+    throw error;
+  }
+}
+
+// New functions for PPL and PML dashboard data
+export async function getPPLDashboardData(pplId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('data_pendataan_desa')
+      .select(`
+        id,
+        desa_id,
+        status,
+        tanggal_mulai,
+        tanggal_selesai,
+        persentase_selesai,
+        desa:desa_id (
+          id,
+          name,
+          kecamatan:kecamatan_id (
+            id,
+            name
+          )
+        )
+      `)
+      .eq('ppl_id', pplId);
+
+    if (error) {
+      console.error("Error fetching PPL dashboard data:", error);
+      throw error;
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      desa_id: item.desa_id,
+      desa_name: item.desa?.name || 'Unknown',
+      kecamatan_id: item.desa?.kecamatan?.id || null,
+      kecamatan_name: item.desa?.kecamatan?.name || 'Unknown',
+      status: item.status,
+      tanggal_mulai: item.tanggal_mulai,
+      tanggal_selesai: item.tanggal_selesai,
+      persentase_selesai: item.persentase_selesai
+    }));
+
+  } catch (error) {
+    console.error("Error in getPPLDashboardData:", error);
+    throw error;
+  }
+}
+
+export async function getPMLDashboardData(pmlId: string) {
+  try {
+    // Get all PPL under this PML
+    const { data: pplUsers, error: pplError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('pml_id', pmlId)
+      .eq('role', 'ppl');
+
+    if (pplError) {
+      console.error("Error fetching PPL users:", pplError);
+      throw pplError;
+    }
+
+    const pplIds = (pplUsers || []).map(ppl => ppl.id);
+    
+    if (pplIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('data_pendataan_desa')
+      .select(`
+        id,
+        desa_id,
+        status,
+        tanggal_mulai,
+        tanggal_selesai,
+        persentase_selesai,
+        desa:desa_id (
+          id,
+          name,
+          kecamatan:kecamatan_id (
+            id,
+            name
+          )
+        )
+      `)
+      .in('ppl_id', pplIds);
+
+    if (error) {
+      console.error("Error fetching PML dashboard data:", error);
+      throw error;
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      desa_id: item.desa_id,
+      desa_name: item.desa?.name || 'Unknown',
+      kecamatan_id: item.desa?.kecamatan?.id || null,
+      kecamatan_name: item.desa?.kecamatan?.name || 'Unknown',
+      status: item.status,
+      tanggal_mulai: item.tanggal_mulai,
+      tanggal_selesai: item.tanggal_selesai,
+      persentase_selesai: item.persentase_selesai
+    }));
+
+  } catch (error) {
+    console.error("Error in getPMLDashboardData:", error);
+    throw error;
+  }
+}
+
+export async function getPendataanDesaStats() {
+  try {
+    const { data, error } = await supabase
+      .from('data_pendataan_desa')
+      .select('status');
+
+    if (error) {
+      console.error("Error fetching pendataan stats:", error);
+      throw error;
+    }
+
+    const stats = {
+      total: data?.length || 0,
+      selesai: data?.filter(item => item.status === 'selesai').length || 0,
+      proses: data?.filter(item => item.status === 'proses').length || 0,
+      belum: data?.filter(item => item.status === 'belum').length || 0
+    };
+
+    return stats;
+
+  } catch (error) {
+    console.error("Error in getPendataanDesaStats:", error);
+    throw error;
+  }
+}
+
+export async function getAllStatusPendataanDesa() {
+  try {
+    const { data, error } = await supabase
+      .from('data_pendataan_desa')
+      .select(`
+        id,
+        desa_id,
+        status,
+        tanggal_mulai,
+        tanggal_selesai,
+        persentase_selesai,
+        verification_status,
+        desa:desa_id (
+          id,
+          name,
+          kecamatan:kecamatan_id (
+            id,
+            name
+          )
+        ),
+        ppl:ppl_id (
+          id,
+          name
+        )
+      `);
+
+    if (error) {
+      console.error("Error fetching all status pendataan desa:", error);
+      throw error;
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      desa_id: item.desa_id,
+      desa_name: item.desa?.name || 'Unknown',
+      kecamatan_name: item.desa?.kecamatan?.name || 'Unknown',
+      status: item.status,
+      verification_status: item.verification_status,
+      tanggal_mulai: item.tanggal_mulai,
+      tanggal_selesai: item.tanggal_selesai,
+      persentase_selesai: item.persentase_selesai,
+      ppl_name: item.ppl?.name || 'Unknown'
+    }));
+
+  } catch (error) {
+    console.error("Error in getAllStatusPendataanDesa:", error);
     throw error;
   }
 }

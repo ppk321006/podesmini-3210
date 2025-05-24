@@ -6,17 +6,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Clock, CalendarClock, FileText, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
-import { StatusPendataan } from "@/types/pendataan";
 import { useQuery } from "@tanstack/react-query";
 import { getPPLDashboardData, getPMLDashboardData, getPendataanDesaStats } from "@/services/allocation-service";
 import { UserRole } from "@/types/user";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+
+interface PendataanStats {
+  total: number;
+  selesai: number;
+  proses: number;
+  belum: number;
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
-  const [statusData, setStatusData] = useState<StatusPendataan | null>(null);
   
   // Calculate the days remaining until deadline (June 30, 2025)
   const today = new Date();
@@ -43,12 +47,7 @@ export default function DashboardPage() {
       }
       
       // Default: ambil semua data (untuk admin)
-      const { data, error } = await supabase
-        .from('dashboard_ppl_view')
-        .select('*');
-        
-      if (error) throw error;
-      return data || [];
+      return await getPMLDashboardData(user.id);
     },
     staleTime: 60000,
     refetchOnWindowFocus: false
@@ -88,9 +87,9 @@ export default function DashboardPage() {
   
   // Generate pie chart data
   const pieData = pendataanStats ? [
-    { name: "Selesai", value: pendataanStats.selesai, color: "#22c55e" },
-    { name: "Proses", value: pendataanStats.proses, color: "#f97316" },
-    { name: "Belum", value: pendataanStats.belum, color: "#64748b" }
+    { name: "Selesai", value: (pendataanStats as PendataanStats).selesai, color: "#22c55e" },
+    { name: "Proses", value: (pendataanStats as PendataanStats).proses, color: "#f97316" },
+    { name: "Belum", value: (pendataanStats as PendataanStats).belum, color: "#64748b" }
   ] : [];
 
   const COLORS = ["#22c55e", "#f97316", "#64748b"];
@@ -157,7 +156,7 @@ export default function DashboardPage() {
                 ) : (
                   <>
                     <div className="text-2xl font-bold">
-                      {pendataanStats?.total || 0}
+                      {(pendataanStats as PendataanStats)?.total || 0}
                     </div>
                     <p className="text-xs text-gray-500">100%</p>
                   </>
@@ -178,11 +177,11 @@ export default function DashboardPage() {
                 ) : (
                   <>
                     <div className="text-2xl font-bold">
-                      {pendataanStats?.selesai || 0}
+                      {(pendataanStats as PendataanStats)?.selesai || 0}
                     </div>
                     <p className="text-xs text-gray-500">
-                      {pendataanStats && pendataanStats.total > 0
-                        ? `${Math.round((pendataanStats.selesai / pendataanStats.total) * 100)}% dari total`
+                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                        ? `${Math.round(((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100)}% dari total`
                         : '0%'
                       }
                     </p>
@@ -204,11 +203,11 @@ export default function DashboardPage() {
                 ) : (
                   <>
                     <div className="text-2xl font-bold">
-                      {pendataanStats?.proses || 0}
+                      {(pendataanStats as PendataanStats)?.proses || 0}
                     </div>
                     <p className="text-xs text-gray-500">
-                      {pendataanStats && pendataanStats.total > 0
-                        ? `${Math.round((pendataanStats.proses / pendataanStats.total) * 100)}% dari total`
+                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                        ? `${Math.round(((pendataanStats as PendataanStats).proses / (pendataanStats as PendataanStats).total) * 100)}% dari total`
                         : '0%'
                       }
                     </p>
@@ -230,11 +229,11 @@ export default function DashboardPage() {
                 ) : (
                   <>
                     <div className="text-2xl font-bold">
-                      {pendataanStats?.belum || 0}
+                      {(pendataanStats as PendataanStats)?.belum || 0}
                     </div>
                     <p className="text-xs text-gray-500">
-                      {pendataanStats && pendataanStats.total > 0
-                        ? `${Math.round((pendataanStats.belum / pendataanStats.total) * 100)}% dari total`
+                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                        ? `${Math.round(((pendataanStats as PendataanStats).belum / (pendataanStats as PendataanStats).total) * 100)}% dari total`
                         : '0%'
                       }
                     </p>
@@ -297,15 +296,15 @@ export default function DashboardPage() {
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Progress Keseluruhan</span>
                     <span className="text-sm font-medium">
-                      {pendataanStats && pendataanStats.total > 0
-                        ? `${Math.round((pendataanStats?.selesai / pendataanStats?.total) * 100)}%`
+                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                        ? `${Math.round(((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100)}%`
                         : '0%'
                       }
                     </span>
                   </div>
                   <Progress 
-                    value={pendataanStats && pendataanStats.total > 0
-                      ? (pendataanStats.selesai / pendataanStats.total) * 100
+                    value={pendataanStats && (pendataanStats as PendataanStats).total > 0
+                      ? ((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100
                       : 0
                     } 
                     className="h-2" 

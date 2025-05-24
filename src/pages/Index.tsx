@@ -10,6 +10,12 @@ import { UserRole } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData } from "@/types/database-schema";
 
+interface ProgressDataPoint {
+  name: string;
+  padi: number;
+  palawija: number;
+}
+
 const Index = () => {
   const { user } = useAuth();
   const [progressData, setProgressData] = useState<DetailProgressData[]>([]);
@@ -91,6 +97,13 @@ const Index = () => {
       </Badge>
     );
   };
+
+  // Transform data for ProgressChart
+  const chartData: ProgressDataPoint[] = progressData.map(item => ({
+    name: `Bulan ${item.month}`,
+    padi: item.padi_count,
+    palawija: item.palawija_count
+  }));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -175,7 +188,7 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ProgressChart data={progressData} />
+                <ProgressChart data={chartData} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -189,7 +202,11 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ProgressTable data={progressData} />
+                <ProgressTable 
+                  data={progressData}
+                  title="Progress Bulanan"
+                  description="Detail progress per bulan"
+                />
               </CardContent>
             </Card>
           </TabsContent>
