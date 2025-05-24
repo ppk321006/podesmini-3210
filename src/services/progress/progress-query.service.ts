@@ -19,11 +19,12 @@ export async function getProgressDetailBySubround(subround: number, year: number
         palawija_count: 3,
         padi_target: 10,
         palawija_target: 8,
-        pendingVerification: 2,
+        pending_verification: 2,
         verified: 6,
         rejected: 0,
         padi_percentage: 50,
-        palawija_percentage: 37.5
+        palawija_percentage: 37.5,
+        pendingVerification: 2
       },
       {
         month: 2,
@@ -35,11 +36,12 @@ export async function getProgressDetailBySubround(subround: number, year: number
         palawija_count: 4,
         padi_target: 10,
         palawija_target: 8,
-        pendingVerification: 3,
+        pending_verification: 3,
         verified: 8,
         rejected: 0,
         padi_percentage: 70,
-        palawija_percentage: 50
+        palawija_percentage: 50,
+        pendingVerification: 3
       },
       {
         month: 3,
@@ -51,11 +53,12 @@ export async function getProgressDetailBySubround(subround: number, year: number
         palawija_count: 6,
         padi_target: 10,
         palawija_target: 8,
-        pendingVerification: 2,
+        pending_verification: 2,
         verified: 12,
         rejected: 0,
         padi_percentage: 80,
-        palawija_percentage: 75
+        palawija_percentage: 75,
+        pendingVerification: 2
       },
       {
         month: 4,
@@ -67,11 +70,12 @@ export async function getProgressDetailBySubround(subround: number, year: number
         palawija_count: 7,
         padi_target: 10,
         palawija_target: 8,
-        pendingVerification: 1,
+        pending_verification: 1,
         verified: 15,
         rejected: 0,
         padi_percentage: 90,
-        palawija_percentage: 87.5
+        palawija_percentage: 87.5,
+        pendingVerification: 1
       }
     ];
     

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData } from "@/types/database-schema";
 
@@ -121,15 +122,21 @@ export function createProgressDataFromUbinan(
     
     return {
       month: item.month,
+      padi_count: item.totalPadi,
+      palawija_count: item.totalPalawija,
+      pending_verification: item.pendingVerification,
+      verified: item.verified,
+      rejected: item.rejected,
+      padi_target: padiTargetForMonth,
+      palawija_target: palawijaTargetForMonth,
+      padi_percentage: padiTargetForMonth > 0 ? (item.totalPadi / padiTargetForMonth) * 100 : 0,
+      palawija_percentage: palawijaTargetForMonth > 0 ? (item.totalPalawija / palawijaTargetForMonth) * 100 : 0,
+      // Legacy properties for backward compatibility
       totalPadi: item.totalPadi,
       totalPalawija: item.totalPalawija,
       pendingVerification: item.pendingVerification,
-      verified: item.verified,
-      rejected: item.rejected,
       padiTarget: padiTargetForMonth,
-      palawijaTarget: palawijaTargetForMonth,
-      padi_percentage: padiTargetForMonth > 0 ? (item.totalPadi / padiTargetForMonth) * 100 : 0,
-      palawija_percentage: palawijaTargetForMonth > 0 ? (item.totalPalawija / palawijaTargetForMonth) * 100 : 0
+      palawijaTarget: palawijaTargetForMonth
     };
   });
 }

@@ -421,27 +421,31 @@ export const createUbinanData = async (data: {
   return result as UbinanData;
 };
 
-export const updateUbinanData = async (id: string, data: {
-  responden_name?: string;
-  sample_status?: string;
-  komoditas?: string;
-  tanggal_ubinan?: string;
-  berat_hasil?: number;
-  status?: string;
-  dokumen_diterima?: boolean;
-}) => {
-  const { data: result, error } = await supabase
-    .from('ubinan_data')
-    .update(data)
-    .eq('id', id)
-    .select()
-    .single();
-  
-  if (error) {
-    throw error;
+export const updateUbinanData = async (id: string, updateData: Partial<UbinanData>): Promise<boolean> {
+  try {
+    // Ensure status is properly typed
+    const validStatuses = ['ditolak', 'belum_diisi', 'sudah_diisi', 'dikonfirmasi'];
+    const updatePayload: any = { ...updateData };
+    
+    if (updatePayload.status && !validStatuses.includes(updatePayload.status)) {
+      updatePayload.status = 'belum_diisi'; // Default fallback
+    }
+
+    const { error } = await supabase
+      .from('ubinan_data')
+      .update(updatePayload)
+      .eq('id', id);
+
+    if (error) {
+      console.error("Error updating ubinan data:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in updateUbinanData:", error);
+    return false;
   }
-  
-  return result as UbinanData;
 };
 
 export const updateUbinanVerification = async (id: string, status: string, komentar?: string) => {
@@ -645,95 +649,95 @@ export async function getPMLList(): Promise<Petugas[]> {
 
 export async function getAllocationStatus(): Promise<AllocationStatus[]> {
   try {
-    const { data: viewData, error: viewError } = await supabase
-      .from('allocation_status')
-      .select('*');
-      
-    if (viewError) {
-      console.error("Error fetching allocation status:", viewError);
+    // Query NKS allocations directly from tables
+    const { data: nksData, error: nksError } = await supabase
+      .from('nks')
+      .select(`
+        id,
+        code,
+        desa_id,
+        desa:desa_id (
+          id,
+          name,
+          kecamatan:kecamatan_id (
+            id,
+            name
+          )
+        ),
+        wilayah_tugas (
+          ppl_id,
+          pml_id
+        )
+      `);
+
+    if (nksError) {
+      console.error("Error fetching NKS data:", nksError);
       return [];
     }
-    
-    // Get NKS items with target information
-    const { data: nksWithTargets, error: nksError } = await supabase
-      .from('nks')
-      .select('id, target_padi, target_palawija');
-      
-    if (nksError) {
-      console.error("Error fetching NKS targets:", nksError);
-    }
-    
-    // Get Segmen items with target information
-    const { data: segmenWithTargets, error: segmenError } = await supabase
+
+    // Query Segmen allocations directly from tables
+    const { data: segmenData, error: segmenError } = await supabase
       .from('segmen')
-      .select('id, target_padi');
-      
+      .select(`
+        id,
+        code,
+        desa_id,
+        desa:desa_id (
+          id,
+          name,
+          kecamatan:kecamatan_id (
+            id,
+            name
+          )
+        ),
+        wilayah_tugas_segmen (
+          ppl_id,
+          pml_id
+        )
+      `);
+
     if (segmenError) {
-      console.error("Error fetching Segmen targets:", segmenError);
-    }
-    
-    // Get komoditas information for NKS
-    const { data: nksKomoditas, error: komoditasError } = await supabase
-      .from('nks_komoditas')
-      .select('nks_id, komoditas');
-      
-    if (komoditasError) {
-      console.error("Error fetching NKS komoditas:", komoditasError);
-    }
-    
-    // Get PML names
-    const { data: pmlList, error: pmlError } = await supabase
-      .from('users')
-      .select('id, name')
-      .eq('role', 'pml');
-      
-    if (pmlError) {
-      console.error("Error fetching PML names:", pmlError);
+      console.error("Error fetching Segmen data:", segmenError);
+      return [];
     }
 
-    // Combine data
-    const komoditasByNks = nksKomoditas?.reduce((acc, item) => {
-      if (!acc[item.nks_id]) {
-        acc[item.nks_id] = [];
-      }
-      acc[item.nks_id].push(item.komoditas);
-      return acc;
-    }, {} as Record<string, string[]>) || {};
-    
-    const nksTargetsMap = nksWithTargets?.reduce((acc, item) => {
-      acc[item.id] = { padi_target: item.target_padi, palawija_target: item.target_palawija };
-      return acc;
-    }, {} as Record<string, { padi_target: number, palawija_target: number }>) || {};
-    
-    const segmenTargetsMap = segmenWithTargets?.reduce((acc, item) => {
-      acc[item.id] = { padi_target: item.target_padi };
-      return acc;
-    }, {} as Record<string, { padi_target: number }>) || {};
-    
-    const pmlNameMap = pmlList?.reduce((acc, item) => {
-      acc[item.id] = item.name;
-      return acc;
-    }, {} as Record<string, string>) || {};
-    
-    // Add target and komoditas information to each allocation status
-    return (viewData || []).map(item => {
-      const enhancedItem = { ...item } as AllocationStatus;
-      
-      if (item.type === 'nks' && nksTargetsMap[item.id]) {
-        enhancedItem.padi_target = nksTargetsMap[item.id].padi_target;
-        enhancedItem.palawija_target = nksTargetsMap[item.id].palawija_target;
-        enhancedItem.komoditas = komoditasByNks[item.id] || [];
-      } else if (item.type === 'segmen' && segmenTargetsMap[item.id]) {
-        enhancedItem.padi_target = segmenTargetsMap[item.id].padi_target;
-        enhancedItem.palawija_target = 0;
-      }
-      
-      if (item.pml_id && pmlNameMap[item.pml_id]) {
-        enhancedItem.pml_name = pmlNameMap[item.pml_id];
-      }
-      
-      return enhancedItem;
+    const allocationStatus: AllocationStatus[] = [];
+
+    // Process NKS data
+    (nksData || []).forEach((nks: any) => {
+      const allocation = nks.wilayah_tugas?.[0];
+      allocationStatus.push({
+        type: "nks" as const,
+        id: nks.id,
+        code: nks.code,
+        desa_id: nks.desa_id,
+        desa_name: nks.desa?.name || 'Unknown',
+        kecamatan_name: nks.desa?.kecamatan?.name || 'Unknown',
+        kecamatan_id: nks.desa?.kecamatan?.id || '',
+        is_allocated: !!allocation,
+        ppl_id: allocation?.ppl_id || null,
+        pml_id: allocation?.pml_id || null
+      });
     });
+
+    // Process Segmen data
+    (segmenData || []).forEach((segmen: any) => {
+      const allocation = segmen.wilayah_tugas_segmen?.[0];
+      allocationStatus.push({
+        type: "segmen" as const,
+        id: segmen.id,
+        code: segmen.code,
+        desa_id: segmen.desa_id,
+        desa_name: segmen.desa?.name || 'Unknown',
+        kecamatan_name: segmen.desa?.kecamatan?.name || 'Unknown',
+        kecamatan_id: segmen.desa?.kecamatan?.id || '',
+        is_allocated: !!allocation,
+        ppl_id: allocation?.ppl_id || null,
+        pml_id: allocation?.pml_id || null
+      });
+    });
+
+    return allocationStatus;
   } catch (error) {
     console.error("Error in getAllocationStatus:", error);
     return [];

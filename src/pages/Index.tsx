@@ -188,7 +188,11 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ProgressChart data={chartData} />
+                <ProgressChart 
+                  title="Progress Ubinan per Bulan"
+                  description="Grafik progress pengumpulan data ubinan"
+                  data={chartData} 
+                />
               </CardContent>
             </Card>
           </TabsContent>
