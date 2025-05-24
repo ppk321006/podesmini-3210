@@ -2,7 +2,7 @@
 import { UserRole } from "./user";
 
 export type VerificationStatus = 'belum_verifikasi' | 'approved' | 'ditolak';
-export type PendataanStatus = 'belum' | 'proses' | 'selesai';
+export type PendataanStatus = 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved';
 
 export interface KecamatanData {
   id: string;
@@ -14,6 +14,10 @@ export interface DesaData {
   name: string;
   kecamatan_id?: string;
   kecamatan?: KecamatanData;
+  status?: PendataanStatus;
+  tanggal_mulai?: string;
+  tanggal_selesai?: string;
+  target?: number;
 }
 
 export interface PplData {

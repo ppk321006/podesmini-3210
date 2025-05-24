@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/types/supabase-db";
 import { AllocationStatus, Petugas, UbinanData } from "@/types/database-schema";
@@ -174,7 +175,7 @@ export const getSubround = async () => {
 
 export const getUbinanProgressBySubround = async (subround: number) => {
   try {
-    const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { 
+    const { data, error } = await supabase.rpc('get_ubinan_progress_by_subround', { 
       subround_param: subround 
     });
     

@@ -1,3 +1,4 @@
+
 import { CustomTables } from "@/types/supabase-custom";
 
 // Types from the Supabase database
@@ -7,8 +8,7 @@ export type UbinanData = CustomTables['ubinan_data']['Row'] & {
   location_code?: string;
   ppl_name?: string;
   pml_name?: string;
-  pml_id?: string; // Add pml_id property to match database structure
-  // Add these properties to fix the type errors
+  pml_id?: string;
   nks?: {
     id: string;
     code: string;
@@ -44,25 +44,24 @@ export type Petugas = {
   created_at?: string;
 };
 
-// Updated DetailProgressData type to match both naming conventions to avoid breaking changes
+// Updated DetailProgressData type to match database structure
 export type DetailProgressData = {
   month: number;
-  // Properties from createProgressDataFromUbinan function
-  totalPadi: number;
-  totalPalawija: number;
-  pendingVerification: number;
+  padi_count: number;
+  palawija_count: number;
+  pending_verification: number;
   verified: number;
   rejected: number;
-  padiTarget: number;
-  palawijaTarget: number;
-  // Properties from database functions
-  padi_count?: number;
-  palawija_count?: number;
-  padi_target?: number;
-  palawija_target?: number;
-  // Common properties
+  padi_target: number;
+  palawija_target: number;
   padi_percentage: number;
   palawija_percentage: number;
+  // Legacy properties for backward compatibility
+  totalPadi?: number;
+  totalPalawija?: number;
+  pendingVerification?: number;
+  padiTarget?: number;
+  palawijaTarget?: number;
 };
 
 export type SubroundProgressData = {
@@ -120,7 +119,6 @@ export type AllocationStatus = {
   is_allocated: boolean;
   ppl_id: string | null;
   pml_id: string | null;
-  // Add missing properties
   padi_target?: number;
   palawija_target?: number;
   komoditas?: string[];
@@ -151,7 +149,6 @@ export type PPLActivitySummary = {
   rejected_count: number;
 };
 
-// Add the missing PerformanceData type
 export type PerformanceData = {
   id: string;
   name: string;

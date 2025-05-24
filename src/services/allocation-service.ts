@@ -2,347 +2,212 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Helper function to validate UUID
-function isValidUUID(id: string) {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(id);
+export interface AllocatedDesaItem {
+  id: string;
+  desa_id: string;
+  desa_name: string;
+  kecamatan_name: string;
+  ppl_id: string;
+  ppl_name: string;
+  pml_id: string | null;
+  pml_name: string | null;
 }
 
-export async function getAllocatedDesaList() {
+export async function getAllocatedDesaList(): Promise<AllocatedDesaItem[]> {
   try {
-    console.log("Fetching allocated desa list...");
-    // Tambah cache dan debounce untuk mencegah blinking
-    const cacheKey = 'allocated_desa_list';
-    const cachedData = sessionStorage.getItem(cacheKey);
-    
-    // Gunakan data cache sementara permintaan baru diproses
-    if (cachedData) {
-      return JSON.parse(cachedData);
-    }
-    
+    // Query from the alokasi_petugas table with joins to get names
     const { data, error } = await supabase
-      .from('desa_allocation_view')
-      .select('*')
-      .order('kecamatan_name', { ascending: true })
-      .order('desa_name', { ascending: true });
+      .from('alokasi_petugas')
+      .select(`
+        id,
+        desa_id,
+        ppl_id,
+        pml_id,
+        desa:desa_id (
+          id,
+          name,
+          kecamatan:kecamatan_id (
+            id,
+            name
+          )
+        ),
+        ppl:ppl_id (
+          id,
+          name
+        ),
+        pml:pml_id (
+          id,
+          name
+        )
+      `);
 
     if (error) {
       console.error("Error fetching allocated desa list:", error);
       throw error;
     }
-    
-    // Simpan data ke cache untuk menghindari fetching berulang
-    const result = data || [];
-    sessionStorage.setItem(cacheKey, JSON.stringify(result));
-    console.log("Allocated desa list fetched:", result.length, "items");
-    return result;
+
+    // Transform the data to match the expected interface
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      desa_id: item.desa_id,
+      desa_name: item.desa?.name || 'Unknown',
+      kecamatan_name: item.desa?.kecamatan?.name || 'Unknown',
+      ppl_id: item.ppl_id,
+      ppl_name: item.ppl?.name || 'Unknown',
+      pml_id: item.pml_id,
+      pml_name: item.pml?.name || null
+    }));
+
   } catch (error) {
-    console.error("Error fetching allocated desa list:", error);
-    toast.error("Gagal mengambil data desa");
-    return [];
+    console.error("Error in getAllocatedDesaList:", error);
+    throw error;
   }
 }
 
 export async function allocateDesa(
-  desaId: string,
-  pplId: string,
-  pmlId: string | null
-) {
+  desaId: string, 
+  pplId: string, 
+  pmlId?: string
+): Promise<boolean> {
   try {
-    console.log("Allocating desa:", { desaId, pplId, pmlId });
-    
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('alokasi_petugas')
       .insert({
         desa_id: desaId,
         ppl_id: pplId,
-        pml_id: pmlId
+        pml_id: pmlId || null
       });
 
     if (error) {
-      if (error.code === '23505') {
-        toast.error("Desa ini sudah dialokasikan");
-        return false;
-      }
-      throw error;
+      console.error("Error allocating desa:", error);
+      toast.error("Gagal mengalokasikan desa: " + error.message);
+      return false;
     }
 
-    // Initialize status_pendataan_desa record
-    const { error: statusError } = await supabase
-      .from('status_pendataan_desa')
-      .insert({
-        desa_id: desaId,
-        ppl_id: pplId,
-        status: 'belum'
-      });
-
-    if (statusError) throw statusError;
-    
-    // Hapus cache setelah perubahan
-    sessionStorage.removeItem('allocated_desa_list');
-
-    toast.success("Desa berhasil dialokasikan");
     return true;
   } catch (error) {
-    console.error("Error allocating desa:", error);
-    toast.error("Gagal mengalokasikan desa");
+    console.error("Error in allocateDesa:", error);
+    toast.error("Terjadi kesalahan saat mengalokasikan desa");
     return false;
   }
 }
 
-export async function updateDesaStatus(
-  desaId: string,
-  status: 'belum' | 'proses' | 'selesai',
-  target?: number | null
-) {
+// Function to get PPL performance data using direct queries
+export async function getPPLPerformance() {
   try {
-    console.log("Updating desa status:", { desaId, status, target });
-    
-    const updateData: any = { status };
-    
-    // Set dates based on status
-    if (status === 'proses') {
-      updateData.tanggal_mulai = new Date().toISOString();
-      updateData.tanggal_selesai = null;
-    } else if (status === 'selesai') {
-      if (!updateData.tanggal_mulai) {
-        updateData.tanggal_mulai = new Date().toISOString();
-      }
-      updateData.tanggal_selesai = new Date().toISOString();
-    }
-
-    if (target !== undefined) {
-      updateData.target = target;
-    }
-
-    const { error } = await supabase
-      .from('status_pendataan_desa')
-      .update(updateData)
-      .eq('desa_id', desaId);
-
-    if (error) throw error;
-    
-    // Hapus cache setelah perubahan
-    sessionStorage.removeItem('allocated_desa_list');
-
-    toast.success("Status desa berhasil diperbarui");
-    return true;
-  } catch (error) {
-    console.error("Error updating desa status:", error);
-    toast.error("Gagal memperbarui status desa");
-    return false;
-  }
-}
-
-export async function getDesaStatus(desaId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('status_pendataan_desa')
-      .select('*')
-      .eq('desa_id', desaId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-    
-    return data;
-  } catch (error) {
-    console.error("Error getting desa status:", error);
-    return null;
-  }
-}
-
-// Fungsi untuk mengambil data dashboard khusus untuk PPL
-export async function getPPLDashboardData(pplId: string) {
-  try {
-    console.log("Fetching PPL dashboard data for:", pplId);
-    
-    if (!pplId) {
-      console.error("Invalid PPL ID: empty ID provided");
-      return [];
-    }
-    
-    // Use RLS filtering with eq() rather than direct UUID validation
-    // This allows the database to handle the type casting
-    const { data, error } = await supabase
-      .from('dashboard_ppl_view')
-      .select('*')
-      .eq('ppl_id', pplId);
-      
-    if (error) {
-      console.error("Error fetching PPL dashboard data:", error);
-      throw error;
-    }
-    
-    console.log("PPL dashboard data fetched:", data?.length || 0, "items");
-    return data || [];
-  } catch (error) {
-    console.error("Error fetching PPL dashboard data:", error);
-    return [];
-  }
-}
-
-// Fungsi untuk mengambil data dashboard khusus untuk PML
-export async function getPMLDashboardData(pmlId: string) {
-  try {
-    console.log("Fetching PML dashboard data for:", pmlId);
-    
-    if (!pmlId) {
-      console.error("Invalid PML ID: empty ID provided");
-      return [];
-    }
-    
-    // Use RLS filtering with eq() rather than direct UUID validation
-    const { data, error } = await supabase
-      .from('dashboard_ppl_view')
-      .select('*')
-      .eq('pml_id', pmlId);
-      
-    if (error) {
-      console.error("Error fetching PML dashboard data:", error);
-      throw error;
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error("Error fetching PML dashboard data:", error);
-    return [];
-  }
-}
-
-// Fungsi untuk memperbarui verifikasi data ubinan
-export async function updateVerifikasiData(
-  ubinanId: string, 
-  status: 'dikonfirmasi' | 'ditolak',
-  alasanPenolakan?: string
-) {
-  try {
-    const updateData: any = { 
-      status: status
-    };
-    
-    if (status === 'ditolak' && alasanPenolakan) {
-      updateData.alasan_penolakan = alasanPenolakan;
-    }
-
-    const { error } = await supabase
-      .from('ubinan_data')
-      .update(updateData)
-      .eq('id', ubinanId);
-
-    if (error) throw error;
-
-    toast.success(
-      status === 'dikonfirmasi' 
-        ? "Data berhasil disetujui" 
-        : "Data berhasil ditolak"
-    );
-    return true;
-  } catch (error) {
-    console.error("Error updating verifikasi data:", error);
-    toast.error("Gagal memperbarui status verifikasi");
-    return false;
-  }
-}
-
-// Fungsi untuk mendapatkan data pendataan desa
-export async function getDataPendataanDesa(pplId: string) {
-  try {
-    console.log("Fetching data pendataan desa for PPL ID:", pplId);
-    
-    if (!pplId) {
-      console.error("Invalid PPL ID: empty ID provided");
-      return [];
-    }
-    
-    // Use RLS filtering with eq() rather than direct UUID validation
-    const { data, error } = await supabase
-      .from('data_pendataan_desa')
+    // Query users with role PPL and their ubinan data
+    const { data: pplUsers, error: pplError } = await supabase
+      .from('users')
       .select(`
-        *,
-        desa:desa_id(
+        id,
+        name,
+        ubinan_data (
           id,
-          name,
-          kecamatan:kecamatan_id(
-            id,
-            name
-          )
+          status,
+          komoditas
         )
       `)
-      .eq('ppl_id', pplId);
-      
-    if (error) {
-      console.error("Error fetching pendataan desa data:", error);
-      throw error;
+      .eq('role', 'ppl');
+
+    if (pplError) {
+      console.error("Error fetching PPL users:", pplError);
+      throw pplError;
     }
-    
-    console.log("Pendataan desa data fetched:", data?.length || 0, "items");
-    return data || [];
+
+    // Transform data to performance metrics
+    return (pplUsers || []).map((ppl: any) => {
+      const ubinanData = ppl.ubinan_data || [];
+      const padiData = ubinanData.filter((item: any) => item.komoditas === 'padi');
+      const palawijaData = ubinanData.filter((item: any) => item.komoditas !== 'padi');
+      
+      return {
+        ppl_id: ppl.id,
+        ppl_name: ppl.name,
+        total_count: ubinanData.length,
+        padi_count: padiData.length,
+        palawija_count: palawijaData.length,
+        confirmed_count: ubinanData.filter((item: any) => item.status === 'dikonfirmasi').length,
+        pending_count: ubinanData.filter((item: any) => item.status === 'sudah_diisi').length,
+        rejected_count: ubinanData.filter((item: any) => item.status === 'ditolak').length
+      };
+    });
+
   } catch (error) {
-    console.error("Error fetching pendataan desa data:", error);
-    return [];
+    console.error("Error in getPPLPerformance:", error);
+    throw error;
   }
 }
 
-// Fungsi untuk mendapatkan status pendataan desa
-export async function getAllStatusPendataanDesa() {
+// Function to get dashboard data using direct queries
+export async function getDashboardData() {
   try {
-    const { data, error } = await supabase
-      .from('status_pendataan_desa')
+    // Get all ubinan data with user information
+    const { data: ubinanData, error: ubinanError } = await supabase
+      .from('ubinan_data')
       .select(`
-        *,
-        desa:desa_id(
-          id,
-          name,
-          kecamatan:kecamatan_id(
-            id,
-            name
-          )
-        ),
-        ppl:ppl_id(
+        id,
+        status,
+        komoditas,
+        created_at,
+        ppl:ppl_id (
           id,
           name
         )
       `);
-      
-    if (error) throw error;
-    
-    return data || [];
-  } catch (error) {
-    console.error("Error fetching pendataan desa status:", error);
-    return [];
-  }
-}
 
-// Fungsi untuk mendapatkan statistik pendataan desa
-export async function getPendataanDesaStats() {
-  try {
-    const { data, error } = await supabase
-      .from('status_pendataan_desa')
-      .select('status');
+    if (ubinanError) {
+      console.error("Error fetching ubinan data:", ubinanError);
+      throw ubinanError;
+    }
+
+    // Group by PPL and calculate metrics
+    const pplMetrics = new Map();
+    
+    (ubinanData || []).forEach((item: any) => {
+      const pplId = item.ppl?.id;
+      const pplName = item.ppl?.name;
       
-    if (error) throw error;
-    
-    const stats = {
-      total: data.length,
-      belum: 0,
-      proses: 0,
-      selesai: 0,
-    };
-    
-    data.forEach(item => {
-      if (item.status === 'belum') stats.belum++;
-      else if (item.status === 'proses') stats.proses++;
-      else if (item.status === 'selesai') stats.selesai++;
+      if (!pplId) return;
+      
+      if (!pplMetrics.has(pplId)) {
+        pplMetrics.set(pplId, {
+          ppl_id: pplId,
+          ppl_name: pplName,
+          total_count: 0,
+          padi_count: 0,
+          palawija_count: 0,
+          confirmed_count: 0,
+          pending_count: 0,
+          rejected_count: 0
+        });
+      }
+      
+      const metrics = pplMetrics.get(pplId);
+      metrics.total_count++;
+      
+      if (item.komoditas === 'padi') {
+        metrics.padi_count++;
+      } else {
+        metrics.palawija_count++;
+      }
+      
+      switch (item.status) {
+        case 'dikonfirmasi':
+          metrics.confirmed_count++;
+          break;
+        case 'sudah_diisi':
+          metrics.pending_count++;
+          break;
+        case 'ditolak':
+          metrics.rejected_count++;
+          break;
+      }
     });
-    
-    return stats;
+
+    return Array.from(pplMetrics.values());
+
   } catch (error) {
-    console.error("Error fetching pendataan desa stats:", error);
-    return {
-      total: 0,
-      belum: 0,
-      proses: 0,
-      selesai: 0,
-    };
+    console.error("Error in getDashboardData:", error);
+    throw error;
   }
 }

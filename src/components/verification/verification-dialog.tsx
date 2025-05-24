@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserRole } from "@/types/user";
 import { Loader2 } from "lucide-react";
-import { CustomTables } from "@/types/supabase-custom";
 
 interface VerificationDialogProps {
   isOpen: boolean;
@@ -99,11 +98,10 @@ export function VerificationDialog({
         tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
         berat_hasil: parseFloat(beratHasil),
         komentar: komentar,
-        status: newStatus,
+        status: newStatus as "belum_diisi" | "sudah_diisi" | "dikonfirmasi" | "ditolak",
         updated_at: new Date().toISOString()
       };
 
-      // Type cast to ensure we're using the correct types for update
       const { data: updatedData, error } = await supabase
         .from('ubinan_data')
         .update(updateData)

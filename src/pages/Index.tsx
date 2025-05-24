@@ -1,244 +1,199 @@
+
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import { ProgressChart, convertProgressDataToChartData } from "@/components/progress/progress-chart"; 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProgressChart } from "@/components/progress/progress-chart";
 import { ProgressTable } from "@/components/progress/progress-table";
-import { getProgressDetailBySubround, getUbinanTotalsBySubround } from "@/services/progress-service";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/auth-context";
-import { getProgressSummary } from "@/services/pendataan-service";
 import { UserRole } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
+import { DetailProgressData } from "@/types/database-schema";
 
 const Index = () => {
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedSubround, setSelectedSubround] = useState<number>(1);
-  const { toast } = useToast();
   const { user } = useAuth();
-  
-  const years = [2025, 2026, 2027, 2028, 2029, 2030];
-  
-  // Use user role and ID for the queries
-  const { 
-    data: progressData = [], 
-    isLoading: isLoadingProgress,
-    error: progressError
-  } = useQuery({
-    queryKey: ['progress_detail', selectedYear, selectedSubround, user?.role, user?.id],
-    queryFn: () => getProgressDetailBySubround(selectedSubround, selectedYear, user?.role, user?.id),
-    staleTime: 60000,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    enabled: !!user,
-  });
-  
-  const { 
-    data: totals, 
-    isLoading: isLoadingTotals,
-    error: totalsError
-  } = useQuery({
-    queryKey: ['ubinan_totals', selectedYear, selectedSubround, user?.role, user?.id],
-    queryFn: () => getUbinanTotalsBySubround(selectedSubround, selectedYear, user?.role, user?.id),
-    staleTime: 60000,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    enabled: !!user,
-  });
-  
-  // Query for progress summary data based on user role
-  const { 
-    data: progressSummary, 
-    isLoading: isLoadingProgressSummary
-  } = useQuery({
-    queryKey: ['progress_summary', user?.role, user?.id],
-    queryFn: () => user ? getProgressSummary({
-      userRole: user.role,
-      userId: user.id,
-      kecamatanId: undefined // We can add filter by kecamatan later if needed
-    }) : Promise.resolve(null),
-    staleTime: 60000,
-    enabled: !!user,
-  });
+  const [progressData, setProgressData] = useState<DetailProgressData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (progressError) {
-      console.error("Error fetching progress data:", progressError);
-      toast({
-        title: "Error",
-        description: "Gagal memuat data progres bulanan. Silakan coba lagi nanti.",
-        variant: "destructive",
-      });
-    }
-    
-    if (totalsError) {
-      console.error("Error fetching totals data:", totalsError);
-      toast({
-        title: "Error",
-        description: "Gagal memuat data total ubinan. Silakan coba lagi nanti.",
-        variant: "destructive",
-      });
-    }
-  }, [progressError, totalsError, toast]);
-  
-  // Calculate percentages with fallbacks for safe rendering
-  const padiPercentage = totals && totals.padi_target > 0 
-    ? Math.round((totals.total_padi / totals.padi_target) * 100) 
-    : 0;
-    
-  const palawijaPercentage = totals && totals.palawija_target > 0 
-    ? Math.round((totals.total_palawija / totals.palawija_target) * 100) 
-    : 0;
-    
-  const totalProgress = totals && (totals.padi_target + totals.palawija_target) > 0
-    ? Math.round((totals.total_padi + totals.total_palawija) / (totals.padi_target + totals.palawija_target) * 100)
-    : 0;
-    
-  // Use progressSummary for additional statistics
-  const pendataanProgress = progressSummary ? progressSummary.persentase_selesai : 0;
+    const fetchProgressData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch from ubinan_progress_monthly view
+        const { data, error } = await supabase
+          .from('ubinan_progress_monthly')
+          .select('*')
+          .order('month');
 
-  const handleChangeYear = (value: string) => {
-    setSelectedYear(parseInt(value));
-  };
-  
-  const handleChangeSubround = (value: string) => {
-    setSelectedSubround(parseInt(value));
-  };
+        if (error) {
+          console.error("Error fetching progress data:", error);
+          return;
+        }
 
-  // Convert data for chart display with fallback for empty data
-  const chartData = progressData && progressData.length > 0 
-    ? convertProgressDataToChartData(progressData)
-    : [];
+        // Transform the data to match DetailProgressData interface
+        const transformedData: DetailProgressData[] = (data || []).map((item: any) => ({
+          month: item.month || 0,
+          padi_count: item.padi_count || 0,
+          palawija_count: item.palawija_count || 0,
+          pending_verification: item.pending_verification || 0,
+          verified: item.verified || 0,
+          rejected: item.rejected || 0,
+          padi_target: 100, // Default target - should be fetched from database
+          palawija_target: 100, // Default target - should be fetched from database
+          padi_percentage: item.padi_count ? Math.round((item.padi_count / 100) * 100) : 0,
+          palawija_percentage: item.palawija_count ? Math.round((item.palawija_count / 100) * 100) : 0,
+          // Legacy properties for backward compatibility
+          totalPadi: item.padi_count || 0,
+          totalPalawija: item.palawija_count || 0,
+          pendingVerification: item.pending_verification || 0,
+          padiTarget: 100,
+          palawijaTarget: 100
+        }));
+
+        setProgressData(transformedData);
+      } catch (error) {
+        console.error("Error in fetchProgressData:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProgressData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  const renderUserRoleBadge = (role: string) => {
+    const roleColors = {
+      [UserRole.ADMIN]: "bg-red-100 text-red-800",
+      [UserRole.PML]: "bg-blue-100 text-blue-800", 
+      [UserRole.PPL]: "bg-green-100 text-green-800",
+      [UserRole.VIEWER]: "bg-gray-100 text-gray-800"
+    };
+
+    const roleLabels = {
+      [UserRole.ADMIN]: "Administrator",
+      [UserRole.PML]: "Pengawas Mitra Lapangan",
+      [UserRole.PPL]: "Petugas Pencacah Lapangan", 
+      [UserRole.VIEWER]: "Viewer"
+    };
+
+    return (
+      <Badge className={roleColors[role as UserRole] || "bg-gray-100 text-gray-800"}>
+        {roleLabels[role as UserRole] || role}
+      </Badge>
+    );
+  };
 
   return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Total Progres</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totalProgress}%
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {totals ? `${totals.total_padi + totals.total_palawija}/${totals.padi_target + totals.palawija_target}` : '0/0'}
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full mt-2">
-              <div 
-                className="h-2 bg-green-500 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, totalProgress)}%`
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Progres Pendataan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pendataanProgress}%
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {progressSummary ? `${progressSummary.selesai}/${progressSummary.total}` : '0/0'}
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full mt-2">
-              <div 
-                className="h-2 bg-green-500 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, pendataanProgress)}%`
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Progres Palawija</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {palawijaPercentage}%
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {totals ? `${totals.total_palawija}/${totals.palawija_target}` : '0/0'}
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full mt-2">
-              <div 
-                className="h-2 bg-green-500 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, palawijaPercentage)}%`
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Progres Bulanan</CardTitle>
-              <p className="text-sm text-muted-foreground">Persentase pencapaian target bulanan</p>
-            </div>
-            <div className="flex gap-2">
-              <Select value={selectedYear.toString()} onValueChange={handleChangeYear}>
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue placeholder="Tahun" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map(year => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select value={selectedSubround.toString()} onValueChange={handleChangeSubround}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Subround" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Subround 1</SelectItem>
-                  <SelectItem value="2">Subround 2</SelectItem>
-                  <SelectItem value="3">Subround 3</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <ProgressChart 
-              title="" 
-              data={chartData}
-              loading={isLoadingProgress} 
-            />
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Detail Progres Ubinan</CardTitle>
-            <p className="text-sm text-muted-foreground">Pencapaian target entri data ubinan berdasarkan subround</p>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <ProgressTable
-              title=""
-              description=""
-              data={progressData}
-              loading={isLoadingProgress}
-              selectedYear={selectedYear}
-              selectedSubround={selectedSubround}
-            />
-          </CardContent>
-        </Card>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard Ubinan</h1>
+          <p className="text-muted-foreground">
+            Selamat datang, {user?.name} {renderUserRoleBadge(user?.role || '')}
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Padi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {progressData.reduce((sum, item) => sum + item.padi_count, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                sampel ubinan
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Palawija</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {progressData.reduce((sum, item) => sum + item.palawija_count, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                sampel ubinan
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Menunggu Verifikasi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {progressData.reduce((sum, item) => sum + item.pending_verification, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                sampel pending
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Terverifikasi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {progressData.reduce((sum, item) => sum + item.verified, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                sampel verified
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="chart" className="w-full">
+          <TabsList>
+            <TabsTrigger value="chart">Grafik Progress</TabsTrigger>
+            <TabsTrigger value="table">Tabel Detail</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="chart" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Progress Ubinan per Bulan</CardTitle>
+                <CardDescription>
+                  Grafik progress pengumpulan data ubinan
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProgressChart data={progressData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="table" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Detail Progress</CardTitle>
+                <CardDescription>
+                  Tabel detail progress per bulan
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProgressTable data={progressData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
