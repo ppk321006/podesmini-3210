@@ -117,11 +117,14 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
     }
     
     // Transform the data to our expected format
-    const processedData = data.map(item => ({
-      desa_id: item.desa_id,
-      desa_name: item.desa?.name || 'Unknown',
-      kecamatan_name: item.desa?.kecamatan?.name || 'Unknown'
-    }));
+    const processedData = data.map(item => {
+      // Fix: Correctly access the nested object properties
+      return {
+        desa_id: item.desa_id,
+        desa_name: item.desa ? item.desa.name : 'Unknown',
+        kecamatan_name: item.desa && item.desa.kecamatan ? item.desa.kecamatan.name : 'Unknown'
+      };
+    });
     
     return processedData;
   } catch (error) {
