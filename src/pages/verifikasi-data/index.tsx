@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,91 +13,86 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VerificationDialog } from '@/components/verification/verification-dialog';
-import { UbinanData } from '@/types/database-schema';
-import { ArrowUpDown } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import { PendataanDataItem, VerificationStatus } from '@/types/pendataan-types';
+import { getPendataanByUserRole } from '@/services/pendataan-service';
+import { UserRole } from '@/types/user';
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { verifyPendataanData } from '@/services/verification-service';
+import { Loader2, ArrowUpDown, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
-  const [selectedUbinan, setSelectedUbinan] = useState<UbinanData | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [pendataanData, setPendataanData] = useState<PendataanDataItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Filtering and sorting states
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Verification dialog states
+  const [selectedData, setSelectedData] = useState<PendataanDataItem | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('belum_verifikasi');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: ubinanData = [], isLoading, refetch } = useQuery({
-    queryKey: ['ubinan_verification', user?.id, filterStatus],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      let query = supabase
-        .from('ubinan_data')
-        .select(`
-          *,
-          nks:nks_id(
-            id, code,
-            desa:desa_id(
-              id, name,
-              kecamatan:kecamatan_id(id, name)
-            )
-          ),
-          segmen:segmen_id(
-            id, code,
-            desa:desa_id(
-              id, name,
-              kecamatan:kecamatan_id(id, name)
-            )
-          ),
-          ppl:ppl_id(id, name, username)
-        `)
-        .eq('pml_id', user.id);
-
-      // Apply status filter if not 'all'
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
+  useEffect(() => {
+    if (user?.id && user.role === UserRole.PML) {
+      fetchData();
+    } else {
+      setIsLoading(false);
+      if (user?.role !== UserRole.PML) {
+        setError("Anda tidak memiliki akses ke halaman ini. Silakan login sebagai PML.");
+      } else {
+        setError("User ID tidak ditemukan. Silakan login kembali.");
       }
+    }
+  }, [user?.id, user?.role]);
 
-      const { data, error } = await query.order('tanggal_ubinan', { ascending: false });
-        
-      if (error) {
-        console.error("Error fetching ubinan data:", error);
-        throw error;
-      }
-      
-      const processedData = (data || []).map((item: any) => {
-        const desa = item.nks?.desa || item.segmen?.desa;
-        
-        let pplName = "Unknown";
-        if (item.ppl && typeof item.ppl === 'object' && item.ppl !== null) {
-          const pplObj = item.ppl as any;
-          if (pplObj && pplObj.name) {
-            pplName = pplObj.name;
-          }
-        }
-          
-        return {
-          ...item,
-          desa_name: desa?.name || '-',
-          kecamatan_name: desa?.kecamatan?.name || '-',
-          ppl_name: pplName
-        };
+  const fetchData = async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      setError("User ID tidak ditemukan");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Get data for this PML - only data that needs verification
+      const data = await getPendataanByUserRole({
+        userRole: user.role,
+        userId: user.id,
+        status: 'selesai'
       });
       
-      return processedData as unknown as UbinanData[];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Calculate progress data from actual ubinan data
-  const progressData = {
-    totalPadi: ubinanData.filter(item => item.komoditas === 'padi' && item.status === 'dikonfirmasi').length,
-    totalPalawija: ubinanData.filter(item => item.komoditas !== 'padi' && item.status === 'dikonfirmasi').length,
-    pendingVerification: ubinanData.filter(item => item.status === 'sudah_diisi').length,
-    verified: ubinanData.filter(item => item.status === 'dikonfirmasi').length,
-    rejected: ubinanData.filter(item => item.status === 'ditolak').length
+      setPendataanData(data);
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      setError(error.message || "Gagal memuat data");
+      toast.error(error.message || "Gagal memuat data");
+    } finally {
+      setIsLoading(false);
+    }
   };
-
+  
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -106,50 +101,98 @@ export default function VerifikasiPage() {
       setSortDirection('asc');
     }
   };
-
-  // ... keep existing code (sorting logic in sortedData is retained)
-
-  const sortedData = [...ubinanData].sort((a, b) => {
+  
+  const handleVerifyClick = (data: PendataanDataItem) => {
+    setSelectedData(data);
+    setVerificationStatus('belum_verifikasi');
+    setRejectionReason('');
+    setIsDialogOpen(true);
+  };
+  
+  const handleVerifySubmit = async () => {
+    if (!selectedData) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      await verifyPendataanData(
+        selectedData.id,
+        verificationStatus,
+        verificationStatus === 'ditolak' ? rejectionReason : undefined
+      );
+      
+      toast.success(
+        verificationStatus === 'approved' 
+          ? "Data berhasil diverifikasi dan disetujui" 
+          : "Data ditolak dan dikembalikan untuk perbaikan"
+      );
+      
+      setIsDialogOpen(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error("Error verifying data:", error);
+      toast.error("Gagal memverifikasi data");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Filter data based on search term and status filter
+  const filteredData = pendataanData.filter(item => {
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'belum_verifikasi' && item.verification_status !== 'belum_verifikasi') {
+        return false;
+      } else if (filterStatus === 'approved' && item.verification_status !== 'approved') {
+        return false;
+      } else if (filterStatus === 'ditolak' && item.verification_status !== 'ditolak') {
+        return false;
+      }
+    }
+    
+    // Apply search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const desaName = item.desa?.name || '';
+      const kecamatanName = item.desa?.kecamatan?.name || '';
+      const pplName = item.ppl?.name || '';
+      
+      return (
+        desaName.toLowerCase().includes(searchLower) ||
+        kecamatanName.toLowerCase().includes(searchLower) ||
+        pplName.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return true;
+  });
+  
+  // Sort the filtered data based on sort column and direction
+  const sortedData = [...filteredData].sort((a, b) => {
     if (!sortColumn) return 0;
     
     let valueA, valueB;
     
     switch (sortColumn) {
-      case 'kode':
-        valueA = (a.nks?.code || a.segmen?.code || '').toLowerCase();
-        valueB = (b.nks?.code || b.segmen?.code || '').toLowerCase();
+      case 'desa':
+        valueA = a.desa?.name || '';
+        valueB = b.desa?.name || '';
         break;
-      case 'responden':
-        valueA = a.responden_name.toLowerCase();
-        valueB = b.responden_name.toLowerCase();
-        break;
-      case 'komoditas':
-        valueA = a.komoditas.toLowerCase();
-        valueB = b.komoditas.toLowerCase();
-        break;
-      case 'tanggal':
-        valueA = new Date(a.tanggal_ubinan).getTime();
-        valueB = new Date(b.tanggal_ubinan).getTime();
-        break;
-      case 'berat':
-        valueA = a.berat_hasil;
-        valueB = b.berat_hasil;
+      case 'kecamatan':
+        valueA = a.desa?.kecamatan?.name || '';
+        valueB = b.desa?.kecamatan?.name || '';
         break;
       case 'ppl':
-        valueA = (a.ppl_name || '').toLowerCase();
-        valueB = (b.ppl_name || '').toLowerCase();
+        valueA = a.ppl?.name || '';
+        valueB = b.ppl?.name || '';
         break;
-      case 'lokasi':
-        valueA = `${a.kecamatan_name || ''} ${a.desa_name || ''}`.toLowerCase();
-        valueB = `${b.kecamatan_name || ''} ${b.desa_name || ''}`.toLowerCase();
-        break;
-      case 'komentar':
-        valueA = (a.komentar || '').toLowerCase();
-        valueB = (b.komentar || '').toLowerCase();
+      case 'tanggal':
+        valueA = a.tanggal_selesai ? new Date(a.tanggal_selesai).getTime() : 0;
+        valueB = b.tanggal_selesai ? new Date(b.tanggal_selesai).getTime() : 0;
         break;
       case 'status':
-        valueA = a.status;
-        valueB = b.status;
+        valueA = a.verification_status;
+        valueB = b.verification_status;
         break;
       default:
         return 0;
@@ -159,121 +202,144 @@ export default function VerifikasiPage() {
     if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
     return 0;
   });
-
-  const handleVerify = (ubinan: UbinanData) => {
-    setSelectedUbinan(ubinan);
-    setIsDialogOpen(true);
+  
+  const renderVerificationStatus = (status: VerificationStatus) => {
+    switch (status) {
+      case 'belum_verifikasi':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">Menunggu Verifikasi</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Disetujui</Badge>;
+      case 'ditolak':
+        return <Badge variant="destructive">Ditolak</Badge>;
+      default:
+        return null;
+    }
   };
-
-  const handleDialogClose = (updatedData?: UbinanData) => {
-    setIsDialogOpen(false);
-    setSelectedUbinan(null);
-    refetch();
-  };
+  
+  if (!user) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-64">
+            <p className="text-gray-500">Silakan login terlebih dahulu</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (user.role !== UserRole.PML) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Akses Ditolak</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
+            <p className="text-red-500 mb-4 text-center">
+              Anda tidak memiliki akses ke halaman ini. Halaman ini hanya dapat diakses oleh petugas dengan peran PML.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6 flex items-center justify-center h-64">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="mt-2 text-gray-500">Memuat data pendataan...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <p className="text-red-500 mb-4">{error}</p>
+            <Button onClick={() => fetchData()}>Coba Lagi</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Verifikasi Data Ubinan</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-orange-50 border-orange-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-orange-800">Total Data</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-orange-800">{ubinanData.length}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-yellow-50 border-yellow-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-yellow-700">Menunggu Verifikasi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-yellow-700">{progressData.pendingVerification}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-green-50 border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-green-700">Terverifikasi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-700">{progressData.verified}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-red-50 border-red-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-red-700">Ditolak</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-red-700">{progressData.rejected}</p>
-          </CardContent>
-        </Card>
+      <h1 className="text-3xl font-bold mb-6">Verifikasi Data Pendataan</h1>
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+        <div className="w-full md:w-64">
+          <Label htmlFor="filter-status">Filter Status</Label>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger id="filter-status">
+              <SelectValue placeholder="Filter status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="belum_verifikasi">Menunggu Verifikasi</SelectItem>
+              <SelectItem value="approved">Disetujui</SelectItem>
+              <SelectItem value="ditolak">Ditolak</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="w-full md:w-auto flex-1">
+          <Label htmlFor="search">Cari</Label>
+          <Input
+            id="search"
+            placeholder="Cari berdasarkan desa, kecamatan, atau nama PPL"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <Button variant="outline" onClick={fetchData}>
+          Refresh Data
+        </Button>
       </div>
-
-      <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Data Ubinan</h2>
-          
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Filter Status:</label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="sudah_diisi">Menunggu Verifikasi</SelectItem>
-                <SelectItem value="dikonfirmasi">Terverifikasi</SelectItem>
-                <SelectItem value="ditolak">Ditolak</SelectItem>
-                <SelectItem value="belum_diisi">Belum Diisi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2">Loading...</p>
-        </div>
-      ) : sortedData.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-lg text-gray-500">Tidak ada data yang tersedia</p>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Pendataan Desa</CardTitle>
+          <CardDescription>
+            Verifikasi data pendataan yang telah diselesaikan oleh PPL
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {sortedData.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                {pendataanData.length === 0 
+                  ? "Tidak ada data pendataan yang perlu diverifikasi" 
+                  : "Tidak ada data yang sesuai filter"}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-secondary text-secondary-foreground">
-                    <TableHead onClick={() => handleSort('kode')} className="cursor-pointer">
-                      Kode {sortColumn === 'kode' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                  <TableRow>
+                    <TableHead onClick={() => handleSort('desa')} className="cursor-pointer">
+                      Desa {sortColumn === 'desa' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
-                    <TableHead onClick={() => handleSort('responden')} className="cursor-pointer">
-                      Responden {sortColumn === 'responden' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('komoditas')} className="cursor-pointer">
-                      Komoditas {sortColumn === 'komoditas' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('lokasi')} className="cursor-pointer">
-                      Kecamatan/Desa {sortColumn === 'lokasi' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
-                      Tanggal {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
-                    </TableHead>
-                    <TableHead onClick={() => handleSort('berat')} className="cursor-pointer">
-                      Berat Hasil {sortColumn === 'berat' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    <TableHead onClick={() => handleSort('kecamatan')} className="cursor-pointer">
+                      Kecamatan {sortColumn === 'kecamatan' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
                     <TableHead onClick={() => handleSort('ppl')} className="cursor-pointer">
                       PPL {sortColumn === 'ppl' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
-                    <TableHead onClick={() => handleSort('komentar')} className="cursor-pointer">
-                      Komentar {sortColumn === 'komentar' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
+                    <TableHead onClick={() => handleSort('tanggal')} className="cursor-pointer">
+                      Tgl Selesai {sortColumn === 'tanggal' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
                     </TableHead>
                     <TableHead onClick={() => handleSort('status')} className="cursor-pointer">
                       Status {sortColumn === 'status' && <ArrowUpDown className="inline h-4 w-4 ml-1" />}
@@ -282,59 +348,27 @@ export default function VerifikasiPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedData.map((ubinan) => (
-                    <TableRow key={ubinan.id}>
-                      <TableCell className="font-medium">
-                        {ubinan.nks?.code || ubinan.segmen?.code || '-'}
-                      </TableCell>
+                  {sortedData.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.desa?.name || '-'}</TableCell>
+                      <TableCell>{item.desa?.kecamatan?.name || '-'}</TableCell>
+                      <TableCell>{item.ppl?.name || '-'}</TableCell>
                       <TableCell>
-                        {ubinan.responden_name}
-                        {ubinan.sample_status && (
-                          <Badge variant="outline" className="ml-2">
-                            {ubinan.sample_status}
-                          </Badge>
-                        )}
+                        {item.tanggal_selesai 
+                          ? format(new Date(item.tanggal_selesai), 'dd MMM yyyy', { locale: id })
+                          : '-'}
                       </TableCell>
-                      <TableCell className="capitalize">{ubinan.komoditas.replace('_', ' ')}</TableCell>
-                      <TableCell>
-                        {ubinan.kecamatan_name} / {ubinan.desa_name}
-                      </TableCell>
-                      <TableCell>{new Date(ubinan.tanggal_ubinan).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{ubinan.berat_hasil} kg</TableCell>
-                      <TableCell>{ubinan.ppl_name}</TableCell>
-                      <TableCell>
-                        <span className="line-clamp-2">{ubinan.komentar || '-'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            ubinan.status === 'dikonfirmasi'
-                              ? 'bg-green-100 text-green-800 border-green-200'
-                              : ubinan.status === 'ditolak'
-                              ? 'bg-red-100 text-red-800 border-red-200'
-                              : ubinan.status === 'sudah_diisi'
-                              ? 'bg-orange-100 text-orange-800 border-orange-200'
-                              : 'bg-gray-100 text-gray-800 border-gray-200'
-                          }
-                        >
-                          {ubinan.status === 'dikonfirmasi'
-                            ? 'Terverifikasi'
-                            : ubinan.status === 'ditolak'
-                            ? 'Ditolak'
-                            : ubinan.status === 'sudah_diisi'
-                            ? 'Menunggu Verifikasi'
-                            : 'Belum Diisi'}
-                        </Badge>
-                      </TableCell>
+                      <TableCell>{renderVerificationStatus(item.verification_status)}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant={ubinan.status === 'sudah_diisi' ? 'default' : 'outline'}
-                          size="sm" 
-                          disabled={ubinan.status !== 'sudah_diisi'}
-                          onClick={() => handleVerify(ubinan)}
-                          className={ubinan.status === 'sudah_diisi' ? 'bg-primary hover:bg-primary/90' : ''}
+                        <Button
+                          variant={item.verification_status === 'belum_verifikasi' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleVerifyClick(item)}
+                          disabled={false}
                         >
-                          Verifikasi
+                          {item.verification_status === 'belum_verifikasi' 
+                            ? 'Verifikasi' 
+                            : 'Lihat Detail'}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -342,17 +376,139 @@ export default function VerifikasiPage() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {selectedUbinan && (
-        <VerificationDialog 
-          data={selectedUbinan}
-          isOpen={isDialogOpen}
-          onClose={() => setIsDialogOpen(false)}
-          onComplete={handleDialogClose}
-        />
+          )}
+        </CardContent>
+      </Card>
+      
+      {selectedData && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Verifikasi Data Pendataan</DialogTitle>
+              <DialogDescription>
+                {selectedData.verification_status === 'belum_verifikasi'
+                  ? "Verifikasi data pendataan desa yang telah diselesaikan oleh PPL"
+                  : "Detail data pendataan desa"}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Desa</Label>
+                  <p className="font-medium">{selectedData.desa?.name || '-'}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Kecamatan</Label>
+                  <p className="font-medium">{selectedData.desa?.kecamatan?.name || '-'}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">PPL</Label>
+                  <p className="font-medium">{selectedData.ppl?.name || '-'}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Tanggal Selesai</Label>
+                  <p className="font-medium">
+                    {selectedData.tanggal_selesai 
+                      ? format(new Date(selectedData.tanggal_selesai), 'dd MMM yyyy', { locale: id })
+                      : '-'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Jumlah Keluarga</Label>
+                  <p className="font-medium">{selectedData.jumlah_keluarga || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Luas Lahan Pertanian (Ha)</Label>
+                  <p className="font-medium">{selectedData.jumlah_lahan_pertanian || '-'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Status Infrastruktur</Label>
+                <p className="font-medium">{selectedData.status_infrastruktur || '-'}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Potensi Ekonomi</Label>
+                <p className="font-medium">{selectedData.potensi_ekonomi || '-'}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Catatan Khusus</Label>
+                <p className="font-medium">{selectedData.catatan_khusus || '-'}</p>
+              </div>
+              
+              {selectedData.verification_status === 'belum_verifikasi' && (
+                <div className="space-y-2">
+                  <Label>Status Verifikasi</Label>
+                  <div className="flex gap-4">
+                    <div className="flex items-center">
+                      <Button
+                        type="button"
+                        variant={verificationStatus === 'approved' ? 'default' : 'outline'}
+                        className={verificationStatus === 'approved' ? 'bg-green-600 hover:bg-green-700' : ''}
+                        onClick={() => setVerificationStatus('approved')}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Setujui
+                      </Button>
+                    </div>
+                    <div className="flex items-center">
+                      <Button
+                        type="button"
+                        variant={verificationStatus === 'ditolak' ? 'destructive' : 'outline'}
+                        onClick={() => setVerificationStatus('ditolak')}
+                      >
+                        <AlertCircle className="mr-2 h-4 w-4" />
+                        Tolak
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {verificationStatus === 'ditolak' && selectedData.verification_status === 'belum_verifikasi' && (
+                <div className="space-y-2">
+                  <Label>Alasan Penolakan</Label>
+                  <Textarea
+                    placeholder="Masukkan alasan penolakan data ini"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                  />
+                </div>
+              )}
+              
+              {selectedData.verification_status === 'ditolak' && selectedData.rejection_reason && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Alasan Penolakan</Label>
+                  <p className="font-medium text-red-600">{selectedData.rejection_reason}</p>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                {selectedData.verification_status === 'belum_verifikasi' ? 'Batal' : 'Tutup'}
+              </Button>
+              {selectedData.verification_status === 'belum_verifikasi' && (
+                <Button 
+                  onClick={handleVerifySubmit} 
+                  disabled={isSubmitting || (verificationStatus === 'ditolak' && !rejectionReason)}
+                >
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {verificationStatus === 'approved' ? 'Setujui Data' : 'Tolak Data'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

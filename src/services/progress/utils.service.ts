@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DetailProgressData } from "@/types/database-schema";
 
@@ -8,16 +7,15 @@ import { DetailProgressData } from "@/types/database-schema";
  * Subround 2: May-Aug (months 5-8)
  * Subround 3: Sep-Dec (months 9-12)
  */
-export function getSubroundFromMonth(month: number): number {
+export const getSubroundFromMonth = (month: number): number => {
   if (month >= 1 && month <= 4) {
     return 1;
   } else if (month >= 5 && month <= 8) {
     return 2;
-  } else if (month >= 9 && month <= 12) {
+  } else {
     return 3;
   }
-  return 0; // Invalid month
-}
+};
 
 /**
  * Returns the month range for a specified subround
