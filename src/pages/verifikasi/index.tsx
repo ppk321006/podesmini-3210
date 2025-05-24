@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -11,13 +12,14 @@ import { Search, CheckCircle, XCircle, FileText, Eye, X, AlertCircle, Loader2 } 
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getVerificationDataForPML, approveDataPendataan, rejectDataPendataan } from "@/services/verification-service";
+import { PendataanDataItem } from "@/types/pendataan-types";
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<PendataanDataItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);

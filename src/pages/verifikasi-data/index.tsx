@@ -19,11 +19,12 @@ import { Input } from "@/components/ui/input";
 import { ArrowUpDown, Loader2, AlertCircle, CheckCircle, XCircle, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { PendataanDataItem } from '@/types/pendataan-types';
 
 export default function VerifikasiDataPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [selectedData, setSelectedData] = useState<any | null>(null);
+  const [selectedData, setSelectedData] = useState<PendataanDataItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
