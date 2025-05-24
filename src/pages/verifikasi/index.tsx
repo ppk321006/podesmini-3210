@@ -83,9 +83,9 @@ export default function VerifikasiPage() {
       filtered = filtered.filter(item => item.verification_status === "rejected");
     }
     
-    // Apply search filter with fixed property access
+    // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter((item: any) => 
+      filtered = filtered.filter((item) => 
         (item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.ppl?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.desa?.kecamatan?.name?.toLowerCase().includes(searchTerm.toLowerCase()))

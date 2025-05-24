@@ -52,8 +52,39 @@ export async function getVerificationDataForPML(pmlId: string): Promise<Pendataa
     
     if (error) throw error;
     
-    // Ensure type compatibility by explicit casting after validation
-    return (data as unknown as PendataanDataItem[]) || [];
+    // Transform the data to match our PendataanDataItem interface
+    const transformedData = data?.map(item => {
+      // Transform nested desa array to object
+      const desa = Array.isArray(item.desa) && item.desa.length > 0 
+        ? {
+            id: item.desa[0].id,
+            name: item.desa[0].name,
+            kecamatan: item.desa[0].kecamatan && item.desa[0].kecamatan.length > 0 
+              ? {
+                  id: item.desa[0].kecamatan[0].id,
+                  name: item.desa[0].kecamatan[0].name
+                }
+              : undefined
+          }
+        : undefined;
+        
+      // Transform nested ppl array to object  
+      const ppl = Array.isArray(item.ppl) && item.ppl.length > 0
+        ? {
+            id: item.ppl[0].id,
+            name: item.ppl[0].name,
+            username: item.ppl[0].username
+          }
+        : undefined;
+        
+      return {
+        ...item,
+        desa,
+        ppl
+      } as PendataanDataItem;
+    }) || [];
+    
+    return transformedData;
   } catch (error) {
     console.error('Error fetching verification data:', error);
     throw error;
