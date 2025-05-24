@@ -421,7 +421,7 @@ export const createUbinanData = async (data: {
   return result as UbinanData;
 };
 
-export const updateUbinanData = async (id: string, updateData: Partial<UbinanData>): Promise<boolean> {
+export const updateUbinanData = async (id: string, updateData: Partial<UbinanData>) => {
   try {
     // Ensure status is properly typed
     const validStatuses = ['ditolak', 'belum_diisi', 'sudah_diisi', 'dikonfirmasi'];
@@ -449,9 +449,12 @@ export const updateUbinanData = async (id: string, updateData: Partial<UbinanDat
 };
 
 export const updateUbinanVerification = async (id: string, status: string, komentar?: string) => {
+  const validStatuses = ['ditolak', 'belum_diisi', 'sudah_diisi', 'dikonfirmasi'];
+  const validatedStatus = validStatuses.includes(status) ? status : 'belum_diisi';
+
   const { data, error } = await supabase
     .from('ubinan_data')
-    .update({ status, komentar })
+    .update({ status: validatedStatus, komentar })
     .eq('id', id)
     .select()
     .single();
@@ -503,15 +506,17 @@ export const getSubround = async () => {
 
 export const getUbinanProgressBySubround = async (subround: number) => {
   try {
-    const { data, error } = await supabase.rpc('get_ubinan_progress_detail_by_subround', { 
-      subround_param: subround 
-    });
+    // Query the ubinan_data table directly instead of using non-existent RPC
+    const { data, error } = await supabase
+      .from('ubinan_data')
+      .select('*')
+      .order('created_at');
     
     if (error) {
       throw error;
     }
     
-    return data;
+    return data || [];
   } catch (error) {
     console.error("Error in getUbinanProgressBySubround:", error);
     return [];
@@ -542,7 +547,7 @@ export const getNKSByKomoditas = async (komoditas: string) => {
 };
 
 // Add the deletePetugas function
-export async function deletePetugas(petugasId: string): Promise<void> {
+export async function deletePetugas(petugasId: string) {
   try {
     const { error } = await supabase
       .from('users')
@@ -565,7 +570,7 @@ export async function createPetugas(
   name: string,
   role: "admin" | "pml" | "ppl" | "viewer",
   pmlId?: string
-): Promise<Petugas> {
+) {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -585,7 +590,7 @@ export async function createPetugas(
   }
 }
 
-export async function getPetugasList(role?: "admin" | "pml" | "ppl" | "viewer"): Promise<Petugas[]> {
+export async function getPetugasList(role?: "admin" | "pml" | "ppl" | "viewer") {
   try {
     let query = supabase
       .from('users')
@@ -609,7 +614,7 @@ export async function getPetugasList(role?: "admin" | "pml" | "ppl" | "viewer"):
   }
 }
 
-export async function getPPLList(): Promise<Petugas[]> {
+export async function getPPLList() {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -628,7 +633,7 @@ export async function getPPLList(): Promise<Petugas[]> {
   }
 }
 
-export async function getPMLList(): Promise<Petugas[]> {
+export async function getPMLList() {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -647,7 +652,7 @@ export async function getPMLList(): Promise<Petugas[]> {
   }
 }
 
-export async function getAllocationStatus(): Promise<AllocationStatus[]> {
+export async function getAllocationStatus() {
   try {
     // Query NKS allocations directly from tables
     const { data: nksData, error: nksError } = await supabase
@@ -745,27 +750,16 @@ export async function getAllocationStatus(): Promise<AllocationStatus[]> {
 }
 
 // Fix the implementation of assignPPLToNKS
-export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId: string): Promise<any> {
+export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId: string) {
   try {
-    // Determine the type of allocation (nks or segmen)
-    const { data: allocation, error: allocationError } = await supabase
-      .from('allocation_status')
-      .select('type')
+    // Check if it's an NKS allocation first
+    const { data: nksData } = await supabase
+      .from('nks')
+      .select('id')
       .eq('id', allocationId)
       .single();
-      
-    if (allocationError) {
-      console.error("Error fetching allocation type:", allocationError);
-      throw new Error(allocationError.message);
-    }
     
-    if (!allocation) {
-      throw new Error("Allocation not found");
-    }
-    
-    let result;
-    
-    if (allocation.type === 'nks') {
+    if (nksData) {
       const { data, error } = await supabase
         .from('wilayah_tugas')
         .insert({
@@ -780,8 +774,17 @@ export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId:
         throw new Error(error.message);
       }
       
-      result = data;
-    } else if (allocation.type === 'segmen') {
+      return data;
+    }
+
+    // Check if it's a Segmen allocation
+    const { data: segmenData } = await supabase
+      .from('segmen')
+      .select('id')
+      .eq('id', allocationId)
+      .single();
+    
+    if (segmenData) {
       const { data, error } = await supabase
         .from('wilayah_tugas_segmen')
         .insert({
@@ -796,12 +799,10 @@ export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId:
         throw new Error(error.message);
       }
       
-      result = data;
-    } else {
-      throw new Error("Unknown allocation type");
+      return data;
     }
-    
-    return result;
+
+    throw new Error("Allocation not found");
   } catch (error) {
     console.error("Error in assignPPLToNKS:", error);
     throw error;
@@ -809,48 +810,29 @@ export async function assignPPLToNKS(allocationId: string, pplId: string, pmlId:
 }
 
 // Fix the implementation of removePPLAssignment
-export async function removePPLAssignment(allocationId: string, pplId: string): Promise<void> {
+export async function removePPLAssignment(allocationId: string, pplId: string) {
   try {
-    // Determine the type of allocation (nks or segmen)
-    const { data: allocation, error: allocationError } = await supabase
-      .from('allocation_status')
-      .select('type')
-      .eq('id', allocationId)
-      .single();
+    // Try removing from NKS first
+    const { error: nksError } = await supabase
+      .from('wilayah_tugas')
+      .delete()
+      .eq('nks_id', allocationId)
+      .eq('ppl_id', pplId);
       
-    if (allocationError) {
-      console.error("Error fetching allocation type:", allocationError);
-      throw new Error(allocationError.message);
+    if (!nksError) {
+      return; // Successfully removed from NKS
     }
-    
-    if (!allocation) {
-      throw new Error("Allocation not found");
-    }
-    
-    if (allocation.type === 'nks') {
-      const { error } = await supabase
-        .from('wilayah_tugas')
-        .delete()
-        .eq('nks_id', allocationId)
-        .eq('ppl_id', pplId);
-        
-      if (error) {
-        console.error("Error removing PPL assignment from NKS:", error);
-        throw new Error(error.message);
-      }
-    } else if (allocation.type === 'segmen') {
-      const { error } = await supabase
-        .from('wilayah_tugas_segmen')
-        .delete()
-        .eq('segmen_id', allocationId)
-        .eq('ppl_id', pplId);
-        
-      if (error) {
-        console.error("Error removing PPL assignment from Segmen:", error);
-        throw new Error(error.message);
-      }
-    } else {
-      throw new Error("Unknown allocation type");
+
+    // Try removing from Segmen
+    const { error: segmenError } = await supabase
+      .from('wilayah_tugas_segmen')
+      .delete()
+      .eq('segmen_id', allocationId)
+      .eq('ppl_id', pplId);
+      
+    if (segmenError) {
+      console.error("Error removing PPL assignment:", segmenError);
+      throw new Error(segmenError.message);
     }
   } catch (error) {
     console.error("Error in removePPLAssignment:", error);
