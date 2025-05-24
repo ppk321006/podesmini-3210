@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -158,8 +157,8 @@ export default function PendataanPage() {
     return alokasiData.filter((desa: any) => {
       if (!searchTerm) return true;
       
-      const desaName = desa.desa?.name?.toLowerCase() || '';
-      const kecamatanName = desa.desa?.kecamatan?.name?.toLowerCase() || '';
+      const desaName = desa.desa && desa.desa.name || "Desa tidak diketahui";
+      const kecamatanName = desa.desa && desa.desa.kecamatan && desa.desa.kecamatan.name || "-";
       const searchLower = searchTerm.toLowerCase();
       
       return desaName.includes(searchLower) || kecamatanName.includes(searchLower);
@@ -333,8 +332,8 @@ export default function PendataanPage() {
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <div className="font-medium">{desa.desa?.name}</div>
-                            <div className="text-sm opacity-80">{desa.desa?.kecamatan?.name}</div>
+                            <div className="font-medium">{desa.desa && desa.desa.name || "Desa tidak diketahui"}</div>
+                            <div className="text-sm opacity-80">{desa.desa && desa.desa.kecamatan && desa.desa.kecamatan.name || "-"}</div>
                           </div>
                           {statusIcon}
                         </div>

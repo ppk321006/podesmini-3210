@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -187,9 +186,9 @@ export default function VerifikasiDataPage() {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(item => {
         return (
-          item.desa?.name?.toLowerCase().includes(searchLower) ||
-          item.desa?.kecamatan?.name?.toLowerCase().includes(searchLower) ||
-          item.ppl?.name?.toLowerCase().includes(searchLower) ||
+          item.desa && item.desa.name?.toLowerCase().includes(searchLower) ||
+          item.desa && item.desa.kecamatan && item.desa.kecamatan.name?.toLowerCase().includes(searchLower) ||
+          item.ppl && item.ppl.name?.toLowerCase().includes(searchLower) ||
           (item.status_infrastruktur && item.status_infrastruktur.toLowerCase().includes(searchLower)) ||
           (item.potensi_ekonomi && item.potensi_ekonomi.toLowerCase().includes(searchLower)) ||
           (item.catatan_khusus && item.catatan_khusus.toLowerCase().includes(searchLower))
@@ -204,16 +203,16 @@ export default function VerifikasiDataPage() {
         
         switch (sortColumn) {
           case 'desa':
-            valueA = a.desa?.name?.toLowerCase() || '';
-            valueB = b.desa?.name?.toLowerCase() || '';
+            valueA = a.desa && a.desa.name || '';
+            valueB = b.desa && b.desa.name || '';
             break;
           case 'kecamatan':
-            valueA = a.desa?.kecamatan?.name?.toLowerCase() || '';
-            valueB = b.desa?.kecamatan?.name?.toLowerCase() || '';
+            valueA = a.desa && a.desa.kecamatan && a.desa.kecamatan.name || '';
+            valueB = b.desa && b.desa.kecamatan && b.desa.kecamatan.name || '';
             break;
           case 'ppl':
-            valueA = a.ppl?.name?.toLowerCase() || '';
-            valueB = b.ppl?.name?.toLowerCase() || '';
+            valueA = a.ppl && a.ppl.name || '';
+            valueB = b.ppl && b.ppl.name || '';
             break;
           case 'tanggal':
             valueA = a.tanggal_selesai ? new Date(a.tanggal_selesai).getTime() : 0;
@@ -441,12 +440,12 @@ export default function VerifikasiDataPage() {
                   {sortedData.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        {item.desa?.name || '-'}
+                        {item.desa && item.desa.name || '-'}
                       </TableCell>
                       <TableCell>
-                        {item.desa?.kecamatan?.name || '-'}
+                        {item.desa && item.desa.kecamatan && item.desa.kecamatan.name || '-'}
                       </TableCell>
-                      <TableCell>{item.ppl?.name || '-'}</TableCell>
+                      <TableCell>{item.ppl && item.ppl.name || '-'}</TableCell>
                       <TableCell>{formatDate(item.tanggal_selesai)}</TableCell>
                       <TableCell>
                         {getStatusBadge(item.status, item.verification_status)}

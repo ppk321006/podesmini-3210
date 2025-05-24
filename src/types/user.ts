@@ -2,7 +2,8 @@
 export enum UserRole {
   ADMIN = 'admin',
   PML = 'pml',
-  PPL = 'ppl'
+  PPL = 'ppl',
+  VIEWER = 'viewer'
 }
 
 export interface User {

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -73,9 +72,9 @@ export default function VerifikasiPage() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(item => 
-        item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.ppl?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.desa?.kecamatan?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        item.desa && item.desa.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.ppl && item.ppl.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.desa && item.desa.kecamatan && item.desa.kecamatan.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -247,14 +246,14 @@ export default function VerifikasiPage() {
                 >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                      <CardTitle>{item.desa?.name || "Desa tidak diketahui"}</CardTitle>
+                      <CardTitle>{item.desa && item.desa.name || "Desa tidak diketahui"}</CardTitle>
                       {getStatusBadge(item.status, item.verification_status)}
                     </div>
                     <CardDescription className="flex items-center gap-1">
-                      <span>Kecamatan: {item.desa?.kecamatan?.name || "-"}</span>
+                      <span>Kecamatan: {item.desa && item.desa.kecamatan && item.desa.kecamatan.name || "-"}</span>
                     </CardDescription>
                     <CardDescription className="flex items-center gap-1">
-                      <span>Petugas: {item.ppl?.name || "-"}</span>
+                      <span>Petugas: {item.ppl && item.ppl.name || "-"}</span>
                     </CardDescription>
                   </CardHeader>
                   
@@ -380,15 +379,15 @@ export default function VerifikasiPage() {
             <div className="space-y-4">
               <div>
                 <h3 className="font-medium">Desa</h3>
-                <p>{selectedItem.desa?.name}</p>
+                <p>{selectedItem.desa && selectedItem.desa.name}</p>
               </div>
               <div>
                 <h3 className="font-medium">Kecamatan</h3>
-                <p>{selectedItem.desa?.kecamatan?.name}</p>
+                <p>{selectedItem.desa && selectedItem.desa.kecamatan && selectedItem.desa.kecamatan.name}</p>
               </div>
               <div>
                 <h3 className="font-medium">Petugas</h3>
-                <p>{selectedItem.ppl?.name}</p>
+                <p>{selectedItem.ppl && selectedItem.ppl.name}</p>
               </div>
             </div>
           )}
