@@ -281,7 +281,7 @@ export default function VerifikasiDataPage() {
   };
   
   // Open verification dialog
-  const openVerificationDialog = (data: any, mode: 'approve' | 'reject') => {
+  const openVerificationDialog = (data: PendataanDataItem, mode: 'approve' | 'reject') => {
     setSelectedData(data);
     setDialogMode(mode);
     setIsDialogOpen(true);

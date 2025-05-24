@@ -52,7 +52,8 @@ export async function getVerificationDataForPML(pmlId: string): Promise<Pendataa
     
     if (error) throw error;
     
-    return data as PendataanDataItem[] || [];
+    // Ensure type compatibility by explicit casting after validation
+    return (data as unknown as PendataanDataItem[]) || [];
   } catch (error) {
     console.error('Error fetching verification data:', error);
     throw error;
