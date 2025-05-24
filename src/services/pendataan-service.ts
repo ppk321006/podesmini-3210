@@ -172,9 +172,26 @@ export async function submitOrUpdatePendataanData(
     let result;
     
     if (isNew) {
+      // Ensure required fields are present for insert
+      if (!pendataanData.desa_id || !pendataanData.ppl_id) {
+        throw new Error("desa_id and ppl_id are required for new records");
+      }
+
+      const insertData = {
+        desa_id: pendataanData.desa_id,
+        ppl_id: pendataanData.ppl_id,
+        catatan_khusus: pendataanData.catatan_khusus,
+        status: pendataanData.status,
+        tanggal_mulai: pendataanData.tanggal_mulai,
+        tanggal_selesai: pendataanData.tanggal_selesai,
+        persentase_selesai: pendataanData.persentase_selesai,
+        verification_status: pendataanData.verification_status,
+        rejection_reason: pendataanData.rejection_reason
+      };
+
       const { data, error } = await supabase
         .from('data_pendataan_desa')
-        .insert(pendataanData)
+        .insert(insertData)
         .select();
         
       if (error) {
@@ -216,13 +233,24 @@ export async function submitOrUpdatePendataanData(
 
 export async function getProgressSummary(filter: PendataanFilter): Promise<ProgressSummary> {
   try {
-    // Based on user role, we'll call a different function or filter differently
-    let query = supabase.rpc('get_pendataan_progress');
+    // Query the data_pendataan_desa table directly instead of using non-existent functions
+    let query = supabase
+      .from('data_pendataan_desa')
+      .select('status');
     
     if (filter.userRole === UserRole.PPL) {
-      query = supabase.rpc('get_pendataan_progress', { ppl_id: filter.userId });
+      query = query.eq('ppl_id', filter.userId);
     } else if (filter.userRole === UserRole.PML && filter.kecamatanId) {
-      query = supabase.rpc('get_pendataan_progress', { kecamatan_id: filter.kecamatanId });
+      // For PML, get data from PPLs under their supervision
+      const { data: pplIds } = await supabase
+        .from('users')
+        .select('id')
+        .eq('pml_id', filter.userId);
+        
+      if (pplIds && pplIds.length > 0) {
+        const ids = pplIds.map(item => item.id);
+        query = query.in('ppl_id', ids);
+      }
     }
     
     const { data, error } = await query;
@@ -232,17 +260,22 @@ export async function getProgressSummary(filter: PendataanFilter): Promise<Progr
       throw error;
     }
     
-    // Default values if no data
-    const defaultSummary: ProgressSummary = {
-      total: 0,
-      belum: 0,
-      proses: 0,
-      selesai: 0,
-      ditolak: 0,
+    // Calculate summary from the data
+    const summary = {
+      total: data?.length || 0,
+      belum: data?.filter(item => item.status === 'belum').length || 0,
+      proses: data?.filter(item => item.status === 'proses').length || 0,
+      selesai: data?.filter(item => item.status === 'selesai').length || 0,
+      ditolak: data?.filter(item => item.status === 'ditolak').length || 0,
       persentase_selesai: 0
     };
     
-    return data?.[0] || defaultSummary;
+    // Calculate percentage
+    if (summary.total > 0) {
+      summary.persentase_selesai = Math.round((summary.selesai / summary.total) * 100);
+    }
+    
+    return summary;
   } catch (error) {
     console.error("Error in getProgressSummary:", error);
     return {
