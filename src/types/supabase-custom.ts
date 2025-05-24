@@ -1,6 +1,7 @@
+
 import { Database } from '@/integrations/supabase/types';
 
-// Type definitions for tables that don't exist in the default Database type
+// Type definitions for tables that exist in the Supabase database
 export interface CustomTables {
   ubinan_data: {
     Row: {
@@ -8,7 +9,7 @@ export interface CustomTables {
       nks_id: string | null;
       segmen_id: string | null;
       ppl_id: string;
-      pml_id: string | null; // Add the pml_id field here
+      pml_id: string | null;
       responden_name: string;
       komoditas: string;
       tanggal_ubinan: string;
@@ -27,6 +28,22 @@ export interface CustomTables {
     };
     Update: Partial<CustomTables['ubinan_data']['Row']>;
   };
+  users: {
+    Row: {
+      id: string;
+      username: string;
+      password: string;
+      name: string;
+      role: string;
+      pml_id: string | null;
+      created_at: string;
+    };
+    Insert: Omit<CustomTables['users']['Row'], 'id' | 'created_at'> & {
+      id?: string;
+      created_at?: string;
+    };
+    Update: Partial<CustomTables['users']['Row']>;
+  };
   wilayah_tugas: {
     Row: {
       id: string;
@@ -35,6 +52,11 @@ export interface CustomTables {
       ppl_id: string;
       created_at: string;
     };
+    Insert: Omit<CustomTables['wilayah_tugas']['Row'], 'id' | 'created_at'> & {
+      id?: string;
+      created_at?: string;
+    };
+    Update: Partial<CustomTables['wilayah_tugas']['Row']>;
   };
   wilayah_tugas_segmen: {
     Row: {
@@ -44,6 +66,11 @@ export interface CustomTables {
       ppl_id: string;
       created_at: string;
     };
+    Insert: Omit<CustomTables['wilayah_tugas_segmen']['Row'], 'id' | 'created_at'> & {
+      id?: string;
+      created_at?: string;
+    };
+    Update: Partial<CustomTables['wilayah_tugas_segmen']['Row']>;
   };
   nks: {
     Row: {
@@ -52,8 +79,14 @@ export interface CustomTables {
       desa_id: string;
       target_padi: number;
       target_palawija: number;
+      subround: number | null;
       created_at: string;
     };
+    Insert: Omit<CustomTables['nks']['Row'], 'id' | 'created_at'> & {
+      id?: string;
+      created_at?: string;
+    };
+    Update: Partial<CustomTables['nks']['Row']>;
   };
   segmen: {
     Row: {
@@ -61,8 +94,14 @@ export interface CustomTables {
       code: string;
       desa_id: string;
       target_padi: number;
+      bulan: number | null;
       created_at: string;
     };
+    Insert: Omit<CustomTables['segmen']['Row'], 'id' | 'created_at'> & {
+      id?: string;
+      created_at?: string;
+    };
+    Update: Partial<CustomTables['segmen']['Row']>;
   };
   sampel_krt: {
     Row: {
@@ -73,6 +112,11 @@ export interface CustomTables {
       segmen_id: string | null;
       created_at: string;
     };
+    Insert: Omit<CustomTables['sampel_krt']['Row'], 'id' | 'created_at'> & {
+      id?: string;
+      created_at?: string;
+    };
+    Update: Partial<CustomTables['sampel_krt']['Row']>;
   };
   alokasi_petugas: {
     Row: {
@@ -130,6 +174,8 @@ export interface CustomTables {
       tanggal_mulai: string | null;
       tanggal_selesai: string | null;
       status: 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved' | null;
+      verification_status: 'belum_verifikasi' | 'approved' | 'ditolak' | null;
+      rejection_reason: string | null;
       updated_at: string | null;
     };
     Insert: {
@@ -145,6 +191,8 @@ export interface CustomTables {
       tanggal_mulai?: string | null;
       tanggal_selesai?: string | null;
       status?: 'belum' | 'proses' | 'selesai' | 'ditolak' | 'approved' | null;
+      verification_status?: 'belum_verifikasi' | 'approved' | 'ditolak' | null;
+      rejection_reason?: string | null;
       updated_at?: string | null;
     };
     Update: Partial<CustomTables['data_pendataan_desa']['Row']>;
@@ -186,6 +234,16 @@ export interface CustomTables {
       details: any | null;
       created_at: string | null;
     };
+    Insert: {
+      id?: string;
+      user_id?: string | null;
+      action: string;
+      entity_type: string;
+      entity_id: string;
+      details?: any | null;
+      created_at?: string | null;
+    };
+    Update: Partial<CustomTables['activity_log']['Row']>;
   };
   notifikasi: {
     Row: {
@@ -198,13 +256,55 @@ export interface CustomTables {
       created_at: string | null;
       data: any | null;
     };
+    Insert: {
+      id?: string;
+      user_id: string;
+      judul: string;
+      pesan: string;
+      tipe: string;
+      dibaca?: boolean | null;
+      created_at?: string | null;
+      data?: any | null;
+    };
+    Update: Partial<CustomTables['notifikasi']['Row']>;
+  };
+  ubinan_progress_monthly: {
+    Row: {
+      month: number | null;
+      year: number | null;
+      subround: number | null;
+      ppl_id: string | null;
+      padi_count: number | null;
+      palawija_count: number | null;
+      pending_verification: number | null;
+      verified: number | null;
+      rejected: number | null;
+    };
+  };
+  ubinan_totals: {
+    Row: {
+      subround: number | null;
+      year: number | null;
+      ppl_id: string | null;
+      total_padi: number | null;
+      total_palawija: number | null;
+      padi_target: number | null;
+      palawija_target: number | null;
+    };
   };
 }
 
 // Create a type safe schema accessor for use with supabase.from() calls
-export type ExtendedDatabase = Database & {
-  public: Database['public'] & {
+export type ExtendedDatabase = {
+  public: {
     Tables: Database['public']['Tables'] & CustomTables;
+    Views: Database['public']['Views'] & {
+      ubinan_progress_monthly: CustomTables['ubinan_progress_monthly'];
+      ubinan_totals: CustomTables['ubinan_totals'];
+    };
+    Functions: Database['public']['Functions'];
+    Enums: Database['public']['Enums'];
+    CompositeTypes: Database['public']['CompositeTypes'];
   };
 };
 
