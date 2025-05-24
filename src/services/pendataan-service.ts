@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { AlokasiBertugas, PendataanDataItem, PendataanFilter, PendataanStatus, ProgressSummary, VerificationStatus } from "@/types/pendataan-types";
 import { UserRole } from "@/types/user";
@@ -125,13 +126,13 @@ export async function getAlokasiBertugasByPplId(pplId: string): Promise<AlokasiB
         };
       }
       
-      // Extract the desa data safely
-      const desa = item.desa as any; // Use any temporarily to avoid type errors
+      // Make sure to treat desa as a single object, not an array
+      const desaData = item.desa as any;
       
       return {
         desa_id: item.desa_id,
-        desa_name: desa.name || 'Unknown',
-        kecamatan_name: desa.kecamatan?.name || 'Unknown'
+        desa_name: desaData.name || 'Unknown',
+        kecamatan_name: desaData.kecamatan?.name || 'Unknown'
       };
     });
     
