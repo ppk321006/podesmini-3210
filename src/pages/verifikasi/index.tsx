@@ -57,6 +57,18 @@ export default function VerifikasiPage() {
     }
   });
   
+  const getStatusBadge = (status: string, verificationStatus: string) => {
+    if (verificationStatus === "approved") {
+      return <Badge className="bg-green-500">Disetujui</Badge>;
+    } else if (verificationStatus === "rejected") {
+      return <Badge className="bg-red-500">Ditolak</Badge>;
+    } else if (status === "selesai") {
+      return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
+    } else {
+      return <Badge className="bg-gray-500">Draft</Badge>;
+    }
+  };
+  
   const getFilteredList = () => {
     let filtered = pendataanList;
     
@@ -72,25 +84,13 @@ export default function VerifikasiPage() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter((item: any) => 
-        item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.ppl?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.desa?.kecamatan?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.desa?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.ppl?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.desa?.kecamatan?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
     
     return filtered;
-  };
-  
-  const getStatusBadge = (status: string, verificationStatus: string) => {
-    if (verificationStatus === "approved") {
-      return <Badge className="bg-green-500">Disetujui</Badge>;
-    } else if (verificationStatus === "rejected") {
-      return <Badge className="bg-red-500">Ditolak</Badge>;
-    } else if (status === "selesai") {
-      return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
-    } else {
-      return <Badge className="bg-gray-500">Draft</Badge>;
-    }
   };
   
   const formatDate = (dateString: string) => {

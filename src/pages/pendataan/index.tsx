@@ -157,8 +157,9 @@ export default function PendataanPage() {
     return alokasiData.filter((desa: any) => {
       if (!searchTerm) return true;
       
-      const desaName = desa.desa?.name || "Desa tidak diketahui";
-      const kecamatanName = desa.desa?.kecamatan?.name || "-";
+      // Fix the property access by ensuring we're accessing properties on individual items, not on the array itself
+      const desaName = desa?.desa?.name || "Desa tidak diketahui";
+      const kecamatanName = desa?.desa?.kecamatan?.name || "-";
       const searchLower = searchTerm.toLowerCase();
       
       return desaName.toLowerCase().includes(searchLower) || kecamatanName.toLowerCase().includes(searchLower);

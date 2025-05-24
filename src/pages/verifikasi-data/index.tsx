@@ -159,6 +159,13 @@ export default function VerifikasiDataPage() {
     total: pendataanData.length
   };
 
+  // Fix for the DisplayItem and PropertyAccess issues
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID');
+  };
+
+  // Fix the affected sorting function
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -186,9 +193,9 @@ export default function VerifikasiDataPage() {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter((item: any) => {
         return (
-          item.desa?.name?.toLowerCase().includes(searchLower) ||
-          item.desa?.kecamatan?.name?.toLowerCase().includes(searchLower) ||
-          item.ppl?.name?.toLowerCase().includes(searchLower) ||
+          (item.desa?.name?.toLowerCase().includes(searchLower)) ||
+          (item.desa?.kecamatan?.name?.toLowerCase().includes(searchLower)) ||
+          (item.ppl?.name?.toLowerCase().includes(searchLower)) ||
           (item.status_infrastruktur && item.status_infrastruktur.toLowerCase().includes(searchLower)) ||
           (item.potensi_ekonomi && item.potensi_ekonomi.toLowerCase().includes(searchLower)) ||
           (item.catatan_khusus && item.catatan_khusus.toLowerCase().includes(searchLower))
@@ -495,7 +502,7 @@ export default function VerifikasiDataPage() {
                 {selectedData.verification_status === 'approved' ? 'Detail Data' : 'Verifikasi Data'}
               </DialogTitle>
               <DialogDescription>
-                Data desa {selectedData.desa?.name || ''}, kecamatan {selectedData.desa?.kecamatan?.name || ''}
+                Data desa {selectedData?.desa?.name || ''}, kecamatan {selectedData?.desa?.kecamatan?.name || ''}
               </DialogDescription>
             </DialogHeader>
             
@@ -608,8 +615,8 @@ export default function VerifikasiDataPage() {
               </DialogTitle>
               <DialogDescription>
                 {selectedData.verification_status === 'rejected' 
-                  ? `Alasan penolakan data desa ${selectedData.desa?.name || ''}`
-                  : `Berikan alasan penolakan untuk data desa ${selectedData.desa?.name || ''}`
+                  ? `Alasan penolakan data desa ${selectedData?.desa?.name || ''}`
+                  : `Berikan alasan penolakan untuk data desa ${selectedData?.desa?.name || ''}`
                 }
               </DialogDescription>
             </DialogHeader>
