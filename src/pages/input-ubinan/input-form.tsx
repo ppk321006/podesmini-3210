@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -31,31 +30,26 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   
-  // Extract data from initialData if available
   const [status, setStatus] = useState<PendataanStatus>(initialData?.status || "belum");
   const [catatanKhusus, setCatatanKhusus] = useState<string>(initialData?.catatan_khusus || "");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  // For dates, we'll use the existing ones or null
   const [tanggalMulai, setTanggalMulai] = useState<Date | undefined>(
     initialData?.tanggal_mulai ? new Date(initialData.tanggal_mulai) : undefined
   );
   
   const [tanggalSelesai, setTanggalSelesai] = useState<Date | undefined>(
-    initialData?.tanggal_selesai ? new Date(initialData.tanggal_selesai) : undefined
+    initialData?.tanggal_selesai ? new Date(initialData?.tanggal_selesai) : undefined
   );
 
-  // Set default dates based on status when initialData changes
   useEffect(() => {
     if (initialData) {
       setStatus(initialData.status || "belum");
       setCatatanKhusus(initialData.catatan_khusus || "");
-      
       if (initialData.tanggal_mulai) {
         setTanggalMulai(new Date(initialData.tanggal_mulai));
       }
-      
       if (initialData.tanggal_selesai) {
         setTanggalSelesai(new Date(initialData.tanggal_selesai));
       }
@@ -64,21 +58,12 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!initialData?.desa_id || !user?.id) {
       toast.error("Data desa tidak ditemukan");
       return;
     }
-    
-    console.log('Form submission started with:', {
-      status,
-      tanggalMulai,
-      tanggalSelesai,
-      uploadedFiles,
-      selectedFiles
-    });
-    
-    // Validate dates based on status
+
+    // Validasi
     if (status === "selesai") {
       if (!tanggalMulai) {
         toast.error("Tanggal mulai harus diisi untuk status Selesai");
@@ -92,8 +77,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         toast.error("Tanggal selesai tidak boleh sebelum tanggal mulai");
         return;
       }
-      
-      // For status "selesai", require uploaded files (not just selected)
       if (uploadedFiles.length === 0) {
         if (selectedFiles.length > 0) {
           toast.error("Silakan upload file terlebih dahulu dengan menekan tombol 'Upload ke Google Drive'");
@@ -108,7 +91,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
     }
 
     setIsLoading(true);
-
     try {
       const pendataanData: Partial<PendataanDataItem> = {
         desa_id: initialData.desa_id,
@@ -119,32 +101,23 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         tanggal_selesai: tanggalSelesai ? tanggalSelesai.toISOString() : null,
         persentase_selesai: status === 'selesai' ? 100 : status === 'proses' ? 50 : 0,
       };
-      
-      // If we're resubmitting after a rejection, reset verification status
+
       if (initialData.verification_status === 'ditolak') {
         pendataanData.verification_status = 'belum_verifikasi';
         pendataanData.rejection_reason = null;
       }
-      
-      console.log('Submitting pendataan data:', pendataanData);
-      
-      // Always use false for isNew since the function will handle existing records properly
+
       const result = await submitOrUpdatePendataanData(pendataanData, false);
       
-      console.log('Submission result:', result);
-      
-      // TODO: Save uploaded file URLs to database
-      // This would involve creating a dokumen_pendataan table and saving the file references
+      // Simpan referensi file nanti ke database (placeholder)
       if (uploadedFiles.length > 0) {
-        console.log('Uploaded files to be saved:', uploadedFiles);
-        // Here you would save the file references to the database
-        // For now, we just log them
+        console.log('Uploaded files:', uploadedFiles);
       }
-      
+
       toast.success("Data berhasil disimpan");
       onSuccess();
     } catch (error) {
-      console.error("Error saving data:", error);
+      console.error("Error:", error);
       toast.error("Gagal menyimpan data");
     } finally {
       setIsLoading(false);
@@ -153,137 +126,135 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
 
   return (
     <Card className="border-0 shadow-none">
-      <CardContent className="pt-0">
+      <CardContent className="pt-2 pb-2">
+        {/* Alert data ditolak */}
         {initialData?.verification_status === 'ditolak' && initialData.rejection_reason && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Data Ditolak</AlertTitle>
-            <AlertDescription>
-              {initialData.rejection_reason}
-            </AlertDescription>
+          <Alert variant="destructive" className="mb-3 text-sm">
+            <AlertCircle className="h-3 w-3" />
+            <AlertTitle className="ml-2 text-sm">Data Ditolak</AlertTitle>
+            <AlertDescription className="ml-2 text-xs">{initialData.rejection_reason}</AlertDescription>
           </Alert>
         )}
-        
+        {/* Alert disetujui */}
         {initialData?.verification_status === 'approved' && (
-          <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertTitle>Data Disetujui</AlertTitle>
-            <AlertDescription>
+          <Alert className="mb-3 bg-green-50 border-green-200 text-green-800 text-sm">
+            <CheckCircle className="h-3 w-3" />
+            <AlertTitle className="ml-2">Data Disetujui</AlertTitle>
+            <AlertDescription className="ml-2 text-xs">
               Data ini telah diverifikasi dan disetujui oleh PML.
             </AlertDescription>
           </Alert>
         )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="grid gap-4">
-            <div>
-              <Label htmlFor="status">Status Pendataan</Label>
-              <Select
-                value={status}
-                onValueChange={(value: PendataanStatus) => {
-                  setStatus(value);
-                  
-                  // Set default dates based on status
-                  if (value === "proses" && !tanggalMulai) {
-                    setTanggalMulai(new Date());
-                    setTanggalSelesai(undefined);
-                  } else if (value === "selesai") {
-                    if (!tanggalMulai) setTanggalMulai(new Date());
-                    if (!tanggalSelesai) setTanggalSelesai(new Date());
-                  }
-                }}
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Pilih Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="belum">Belum Dikerjakan</SelectItem>
-                  <SelectItem value="proses">Sedang Dikerjakan</SelectItem>
-                  <SelectItem value="selesai">Selesai</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {(status === "proses" || status === "selesai") && (
-              <div>
-                <Label htmlFor="tanggal-mulai">Tanggal Mulai</Label>
-                <div className="mt-1">
-                  <DatePicker
-                    date={tanggalMulai}
-                    onSelect={setTanggalMulai}
-                    disabled={isLoading || initialData?.verification_status === 'approved'}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Wajib diisi untuk status Sedang Dikerjakan dan Selesai
-                </p>
-              </div>
-            )}
-            
-            {status === "selesai" && (
-              <div>
-                <Label htmlFor="tanggal-selesai">Tanggal Selesai</Label>
-                <div className="mt-1">
-                  <DatePicker
-                    date={tanggalSelesai}
-                    onSelect={setTanggalSelesai}
-                    disabled={isLoading || initialData?.verification_status === 'approved' || !tanggalMulai}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Wajib diisi untuk status Selesai
-                </p>
-              </div>
-            )}
-            
-            {status === "selesai" && (
-              <div>
-                <FileUpload
-                  onFileSelect={setSelectedFiles}
-                  onUploadComplete={setUploadedFiles}
-                  disabled={isLoading || initialData?.verification_status === 'approved'}
-                  maxFiles={5}
-                  pplName={initialData?.ppl?.name || user?.name || ''}
-                  kecamatanName={initialData?.desa?.kecamatan?.name || ''}
-                  desaName={initialData?.desa?.name || ''}
-                />
-                {uploadedFiles.length === 0 && selectedFiles.length === 0 && (
-                  <p className="text-xs text-red-600 mt-1">
-                    Upload dokumentasi/foto wajib untuk status Selesai
-                  </p>
-                )}
-                {selectedFiles.length > 0 && uploadedFiles.length === 0 && (
-                  <p className="text-xs text-orange-600 mt-1">
-                    Silakan upload file terlebih dahulu dengan menekan tombol "Upload ke Google Drive"
-                  </p>
-                )}
-              </div>
-            )}
-            
-            <div>
-              <Label htmlFor="catatanKhusus">Catatan Khusus</Label>
-              <Input
-                id="catatanKhusus"
-                value={catatanKhusus}
-                onChange={(e) => setCatatanKhusus(e.target.value)}
-                placeholder="Catatan khusus/tambahan untuk desa ini"
+
+        {/* Form utama */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Status */}
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="status" className="w-20 text-sm">Status</Label>
+            <Select
+              value={status}
+              onValueChange={(value: PendataanStatus) => {
+                setStatus(value);
+                if (value === "proses" && !tanggalMulai) {
+                  setTanggalMulai(new Date());
+                  setTanggalSelesai(undefined);
+                } else if (value === "selesai") {
+                  if (!tanggalMulai) setTanggalMulai(new Date());
+                  if (!tanggalSelesai) setTanggalSelesai(new Date());
+                }
+              }}
+              disabled={isLoading || initialData?.verification_status === 'approved'}
+              className="flex-1"
+            >
+              <SelectTrigger className="w-full text-sm border rounded px-2 py-1">
+                <SelectValue placeholder="Pilih Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="belum">Belum Dikerjakan</SelectItem>
+                <SelectItem value="proses">Sedang Dikerjakan</SelectItem>
+                <SelectItem value="selesai">Selesai</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tanggal Mulai */}
+          {(status === "proses" || status === "selesai") && (
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="tanggal-mulai" className="w-20 text-sm">Mulai</Label>
+              <DatePicker
+                date={tanggalMulai}
+                onSelect={setTanggalMulai}
                 disabled={isLoading || initialData?.verification_status === 'approved'}
               />
             </div>
+          )}
+
+          {/* Tanggal Selesai */}
+          {status === "selesai" && (
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="tanggal-selesai" className="w-20 text-sm">Selesai</Label>
+              <DatePicker
+                date={tanggalSelesai}
+                onSelect={setTanggalSelesai}
+                disabled={
+                  isLoading || 
+                  initialData?.verification_status === 'approved' || 
+                  !tanggalMulai
+                }
+              />
+            </div>
+          )}
+
+          {/* Upload File */}
+          {status === "selesai" && (
+            <div className="mt-2">
+              <FileUpload
+                onFileSelect={setSelectedFiles}
+                onUploadComplete={setUploadedFiles}
+                disabled={isLoading || initialData?.verification_status === 'approved'}
+                maxFiles={5}
+                pplName={initialData?.ppl?.name || user?.name || ''}
+                kecamatanName={initialData?.desa?.kecamatan?.name || ''}
+                desaName={initialData?.desa?.name || ''}
+              />
+              {uploadedFiles.length === 0 && selectedFiles.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">Upload dokumentasi wajib</p>
+              )}
+              {selectedFiles.length > 0 && uploadedFiles.length === 0 && (
+                <p className="text-xs text-orange-600 mt-1">
+                  Tekan "Upload" untuk menyimpan file
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Catatan */}
+          <div>
+            <Label htmlFor="catatanKhusus" className="text-sm">Catatan</Label>
+            <Input
+              id="catatanKhusus"
+              value={catatanKhusus}
+              onChange={(e) => setCatatanKhusus(e.target.value)}
+              placeholder="Catatan tambahan"
+              disabled={isLoading || initialData?.verification_status === 'approved'}
+              className="text-sm"
+            />
           </div>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-between pt-2">
-        <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+
+      {/* Buttons */}
+      <CardFooter className="flex justify-end space-x-2 pt-2">
+        <Button variant="outline" onClick={onCancel} disabled={isLoading} size="sm">
           Batal
         </Button>
-        <Button 
-          onClick={handleSubmit} 
+        <Button
+          onClick={handleSubmit}
           disabled={isLoading || initialData?.verification_status === 'approved'}
+          size="sm"
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {initialData?.verification_status === 'ditolak' ? "Kirim Ulang Data" : "Simpan Data"}
+          {initialData?.verification_status === 'ditolak' ? "Kirim Ulang" : "Simpan"}
         </Button>
       </CardFooter>
     </Card>
