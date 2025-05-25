@@ -174,13 +174,18 @@ export async function submitOrUpdatePendataanData(
       throw new Error("desa_id and ppl_id are required");
     }
 
-    // Always check if record exists first to avoid duplicates
-    const { data: existingRecord } = await supabase
+    // Always check if record exists first to prevent duplicates
+    const { data: existingRecord, error: checkError } = await supabase
       .from('data_pendataan_desa')
-      .select('id')
+      .select('*')
       .eq('desa_id', pendataanData.desa_id)
       .eq('ppl_id', pendataanData.ppl_id)
       .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error("Error checking existing record:", checkError);
+      throw checkError;
+    }
 
     console.log('Existing record check:', existingRecord);
 
@@ -204,13 +209,14 @@ export async function submitOrUpdatePendataanData(
     let result;
 
     if (existingRecord) {
-      // Update existing record - prevent duplicates
+      // Update existing record using the unique constraint (desa_id + ppl_id)
       console.log('Updating existing record with id:', existingRecord.id);
       
       const { data, error } = await supabase
         .from('data_pendataan_desa')
         .update(updateData)
-        .eq('id', existingRecord.id)
+        .eq('desa_id', pendataanData.desa_id)
+        .eq('ppl_id', pendataanData.ppl_id)
         .select()
         .single();
         
@@ -221,7 +227,7 @@ export async function submitOrUpdatePendataanData(
       
       result = data;
     } else {
-      // Insert new record
+      // Insert new record only if none exists
       console.log('Inserting new record');
       
       const { data, error } = await supabase

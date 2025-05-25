@@ -93,15 +93,13 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         return;
       }
       
-      // Check if there are uploaded files OR selected files ready to upload
-      if (uploadedFiles.length === 0 && selectedFiles.length === 0) {
-        toast.error("Upload dokumentasi/foto wajib untuk status Selesai");
-        return;
-      }
-      
-      // If there are selected files but not uploaded yet, show error
-      if (selectedFiles.length > 0 && uploadedFiles.length === 0) {
-        toast.error("Silakan upload file terlebih dahulu sebelum menyimpan");
+      // For status "selesai", require uploaded files (not just selected)
+      if (uploadedFiles.length === 0) {
+        if (selectedFiles.length > 0) {
+          toast.error("Silakan upload file terlebih dahulu dengan menekan tombol 'Upload ke Google Drive'");
+        } else {
+          toast.error("Upload dokumentasi/foto wajib untuk status Selesai");
+        }
         return;
       }
     } else if (status === "proses" && !tanggalMulai) {
@@ -130,7 +128,7 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
       
       console.log('Submitting pendataan data:', pendataanData);
       
-      // Use false for isNew since we always want to update existing or create new properly
+      // Always use false for isNew since the function will handle existing records properly
       const result = await submitOrUpdatePendataanData(pendataanData, false);
       
       console.log('Submission result:', result);
@@ -139,6 +137,8 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
       // This would involve creating a dokumen_pendataan table and saving the file references
       if (uploadedFiles.length > 0) {
         console.log('Uploaded files to be saved:', uploadedFiles);
+        // Here you would save the file references to the database
+        // For now, we just log them
       }
       
       toast.success("Data berhasil disimpan");
@@ -238,12 +238,24 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
             )}
             
             {status === "selesai" && (
-              <FileUpload
-                onFileSelect={setSelectedFiles}
-                onUploadComplete={setUploadedFiles}
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-                maxFiles={5}
-              />
+              <div>
+                <FileUpload
+                  onFileSelect={setSelectedFiles}
+                  onUploadComplete={setUploadedFiles}
+                  disabled={isLoading || initialData?.verification_status === 'approved'}
+                  maxFiles={5}
+                />
+                {uploadedFiles.length === 0 && selectedFiles.length === 0 && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Upload dokumentasi/foto wajib untuk status Selesai
+                  </p>
+                )}
+                {selectedFiles.length > 0 && uploadedFiles.length === 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Silakan upload file terlebih dahulu dengan menekan tombol "Upload ke Google Drive"
+                  </p>
+                )}
+              </div>
             )}
             
             <div>
