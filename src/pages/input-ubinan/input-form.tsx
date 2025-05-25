@@ -70,6 +70,14 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
       return;
     }
     
+    console.log('Form submission started with:', {
+      status,
+      tanggalMulai,
+      tanggalSelesai,
+      uploadedFiles,
+      selectedFiles
+    });
+    
     // Validate dates based on status
     if (status === "selesai") {
       if (!tanggalMulai) {
@@ -85,9 +93,15 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         return;
       }
       
-      // Validate file upload for completed status
-      if (uploadedFiles.length === 0) {
+      // Check if there are uploaded files OR selected files ready to upload
+      if (uploadedFiles.length === 0 && selectedFiles.length === 0) {
         toast.error("Upload dokumentasi/foto wajib untuk status Selesai");
+        return;
+      }
+      
+      // If there are selected files but not uploaded yet, show error
+      if (selectedFiles.length > 0 && uploadedFiles.length === 0) {
+        toast.error("Silakan upload file terlebih dahulu sebelum menyimpan");
         return;
       }
     } else if (status === "proses" && !tanggalMulai) {
@@ -114,14 +128,18 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
         pendataanData.rejection_reason = null;
       }
       
-      await submitOrUpdatePendataanData(
-        pendataanData, 
-        !initialData.id // isNew if no id exists
-      );
+      console.log('Submitting pendataan data:', pendataanData);
+      
+      // Use false for isNew since we always want to update existing or create new properly
+      const result = await submitOrUpdatePendataanData(pendataanData, false);
+      
+      console.log('Submission result:', result);
       
       // TODO: Save uploaded file URLs to database
       // This would involve creating a dokumen_pendataan table and saving the file references
-      console.log('Uploaded files to be saved:', uploadedFiles);
+      if (uploadedFiles.length > 0) {
+        console.log('Uploaded files to be saved:', uploadedFiles);
+      }
       
       toast.success("Data berhasil disimpan");
       onSuccess();

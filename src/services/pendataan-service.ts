@@ -168,106 +168,78 @@ export async function submitOrUpdatePendataanData(
   isNew: boolean
 ): Promise<PendataanDataItem | null> {
   try {
-    let result;
+    console.log('submitOrUpdatePendataanData called with:', { pendataanData, isNew });
     
-    if (isNew) {
-      // Ensure required fields are present for insert
-      if (!pendataanData.desa_id || !pendataanData.ppl_id) {
-        throw new Error("desa_id and ppl_id are required for new records");
-      }
+    if (!pendataanData.desa_id || !pendataanData.ppl_id) {
+      throw new Error("desa_id and ppl_id are required");
+    }
 
-      const insertData = {
-        desa_id: pendataanData.desa_id,
-        ppl_id: pendataanData.ppl_id,
-        catatan_khusus: pendataanData.catatan_khusus,
-        status: pendataanData.status,
-        tanggal_mulai: pendataanData.tanggal_mulai,
-        tanggal_selesai: pendataanData.tanggal_selesai,
-        persentase_selesai: pendataanData.persentase_selesai,
-        verification_status: pendataanData.verification_status,
-        rejection_reason: pendataanData.rejection_reason,
-        jumlah_keluarga: pendataanData.jumlah_keluarga,
-        jumlah_lahan_pertanian: pendataanData.jumlah_lahan_pertanian,
-        status_infrastruktur: pendataanData.status_infrastruktur,
-        potensi_ekonomi: pendataanData.potensi_ekonomi
-      };
+    // Always check if record exists first to avoid duplicates
+    const { data: existingRecord } = await supabase
+      .from('data_pendataan_desa')
+      .select('id')
+      .eq('desa_id', pendataanData.desa_id)
+      .eq('ppl_id', pendataanData.ppl_id)
+      .maybeSingle();
 
+    console.log('Existing record check:', existingRecord);
+
+    const updateData = {
+      desa_id: pendataanData.desa_id,
+      ppl_id: pendataanData.ppl_id,
+      catatan_khusus: pendataanData.catatan_khusus,
+      status: pendataanData.status,
+      tanggal_mulai: pendataanData.tanggal_mulai,
+      tanggal_selesai: pendataanData.tanggal_selesai,
+      persentase_selesai: pendataanData.persentase_selesai,
+      verification_status: pendataanData.verification_status || 'belum_verifikasi',
+      rejection_reason: pendataanData.rejection_reason,
+      jumlah_keluarga: pendataanData.jumlah_keluarga,
+      jumlah_lahan_pertanian: pendataanData.jumlah_lahan_pertanian,
+      status_infrastruktur: pendataanData.status_infrastruktur,
+      potensi_ekonomi: pendataanData.potensi_ekonomi,
+      updated_at: new Date().toISOString()
+    };
+
+    let result;
+
+    if (existingRecord) {
+      // Update existing record - prevent duplicates
+      console.log('Updating existing record with id:', existingRecord.id);
+      
       const { data, error } = await supabase
         .from('data_pendataan_desa')
-        .insert(insertData)
-        .select();
+        .update(updateData)
+        .eq('id', existingRecord.id)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error("Error updating pendataan data:", error);
+        throw error;
+      }
+      
+      result = data;
+    } else {
+      // Insert new record
+      console.log('Inserting new record');
+      
+      const { data, error } = await supabase
+        .from('data_pendataan_desa')
+        .insert(updateData)
+        .select()
+        .single();
         
       if (error) {
         console.error("Error inserting pendataan data:", error);
         throw error;
       }
       
-      result = data?.[0];
-    } else {
-      // For updates, check if there's existing data to update
-      const { data: existingData } = await supabase
-        .from('data_pendataan_desa')
-        .select('id')
-        .eq('desa_id', pendataanData.desa_id as string)
-        .eq('ppl_id', pendataanData.ppl_id as string)
-        .single();
-
-      let updateData = { ...pendataanData };
-      
-      // If status is changing to 'selesai', reset verification status
-      if (pendataanData.status === 'selesai') {
-        updateData.verification_status = 'belum_verifikasi';
-        updateData.rejection_reason = null; // Clear rejection reason when resubmitting
-      }
-
-      if (existingData) {
-        // Update existing record
-        const { data, error } = await supabase
-          .from('data_pendataan_desa')
-          .update(updateData)
-          .eq('desa_id', pendataanData.desa_id as string)
-          .eq('ppl_id', pendataanData.ppl_id as string)
-          .select();
-          
-        if (error) {
-          console.error("Error updating pendataan data:", error);
-          throw error;
-        }
-        
-        result = data?.[0];
-      } else {
-        // Insert new record if not exists
-        const insertData = {
-          desa_id: pendataanData.desa_id,
-          ppl_id: pendataanData.ppl_id,
-          catatan_khusus: pendataanData.catatan_khusus,
-          status: pendataanData.status,
-          tanggal_mulai: pendataanData.tanggal_mulai,
-          tanggal_selesai: pendataanData.tanggal_selesai,
-          persentase_selesai: pendataanData.persentase_selesai,
-          verification_status: pendataanData.verification_status,
-          rejection_reason: pendataanData.rejection_reason,
-          jumlah_keluarga: pendataanData.jumlah_keluarga,
-          jumlah_lahan_pertanian: pendataanData.jumlah_lahan_pertanian,
-          status_infrastruktur: pendataanData.status_infrastruktur,
-          potensi_ekonomi: pendataanData.potensi_ekonomi
-        };
-
-        const { data, error } = await supabase
-          .from('data_pendataan_desa')
-          .insert(insertData)
-          .select();
-          
-        if (error) {
-          console.error("Error inserting new pendataan data:", error);
-          throw error;
-        }
-        
-        result = data?.[0];
-      }
+      result = data;
     }
     
-    return result as PendataanDataItem || null;
+    console.log('Operation successful, result:', result);
+    return result as PendataanDataItem;
   } catch (error) {
     console.error("Error in submitOrUpdatePendataanData:", error);
     throw error;
