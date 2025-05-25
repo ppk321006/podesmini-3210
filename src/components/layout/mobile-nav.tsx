@@ -44,7 +44,7 @@ export function MobileNav() {
       allowedRoles: [UserRole.ADMIN, UserRole.VIEWER],
     },
     {
-      title: "Progres Ubinan",
+      title: "Progres",
       icon: BarChart3,
       href: "/progres",
       allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
@@ -56,7 +56,7 @@ export function MobileNav() {
       allowedRoles: [UserRole.ADMIN],
     },
     {
-      title: "Input Data Ubinan",
+      title: "Input Data",
       icon: ClipboardList,
       href: "/input-data",
       allowedRoles: [UserRole.PPL],

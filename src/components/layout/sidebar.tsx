@@ -52,13 +52,13 @@ export function Sidebar({ isOpen }: SidebarProps) {
       allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
     },
     {
-      title: "Progress Ubinan",
+      title: "Progress",
       icon: BarChart3,
       href: "/progress-ubinan",
       allowedRoles: [UserRole.ADMIN, UserRole.PML, UserRole.PPL, UserRole.VIEWER],
     },
     {
-      title: "Input Data Ubinan",
+      title: "Input Data",
       icon: FileText,
       href: "/input-ubinan",
       allowedRoles: [UserRole.PPL],

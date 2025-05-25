@@ -143,7 +143,7 @@ export async function exportUbinanReportToJpeg(startDate: string, endDate: strin
     // Build the report HTML
     reportElement.innerHTML = `
       <div style="border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px;">
-        <h1 style="color: #333; font-size: 24px; margin-bottom: 5px;">Laporan Data Ubinan</h1>
+        <h1 style="color: #333; font-size: 24px; margin-bottom: 5px;">Laporan Data</h1>
         <p style="color: #666; margin: 0;">Periode: ${new Date(startDate).toLocaleDateString('id-ID')} - ${new Date(endDate).toLocaleDateString('id-ID')}</p>
       </div>
       
@@ -185,7 +185,7 @@ export async function exportUbinanReportToJpeg(startDate: string, endDate: strin
         </div>
       </div>
       
-      <h3 style="color: #333; font-size: 18px; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">Data Ubinan Terakhir</h3>
+      <h3 style="color: #333; font-size: 18px; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">Data Terakhir</h3>
       <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
         <thead>
           <tr style="background-color: #f3f4f6;">

@@ -161,14 +161,14 @@ export function VerificationDialog({
         <DialogHeader>
           <DialogTitle>
             {isPPL && mode === 'edit' 
-              ? "Edit Data Ubinan" 
-              : "Verifikasi Data Ubinan"
+              ? "Edit Data" 
+              : "Verifikasi Data"
             }
           </DialogTitle>
           <DialogDescription>
             {isPPL && mode === 'edit'
-              ? "Edit data ubinan yang telah disimpan"
-              : "Verifikasi data ubinan yang telah diinput oleh PPL"
+              ? "Edit data yang telah disimpan"
+              : "Verifikasi data yang telah diinput oleh PPL"
             }
           </DialogDescription>
         </DialogHeader>
