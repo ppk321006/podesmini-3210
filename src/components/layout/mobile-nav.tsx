@@ -111,11 +111,11 @@ export function MobileNav() {
             <div className="flex items-center mb-6">
               <img 
                 src="/lovable-uploads/6faa01a9-cc07-4092-89f3-a6c83a2690d0.png" 
-                alt="Si Monita Logo" 
+                alt="Podes Mini 3210 Logo" 
                 className="h-10 w-10 mr-3"
               />
               <h1 className="text-xl font-semibold text-simonita-brown">
-                Si Monita
+                Podes Mini 3210
               </h1>
             </div>
             <nav className="space-y-1">

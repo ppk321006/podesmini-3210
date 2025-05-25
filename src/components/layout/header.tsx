@@ -53,14 +53,14 @@ export function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
       <div className="flex items-center">
         <img 
           src="/lovable-uploads/6faa01a9-cc07-4092-89f3-a6c83a2690d0.png" 
-          alt="Si Monita Logo" 
+          alt="Podes Mini 3210 Logo" 
           className="h-10 w-10 mr-3"
         />
         <h1 className={cn(
           "text-xl font-semibold text-simonita-brown transition-all duration-300", 
           isSidebarOpen ? "md:hidden" : "hidden md:block"
         )}>
-          Si Monita
+          Podes Mini 3210
         </h1>
       </div>
       
