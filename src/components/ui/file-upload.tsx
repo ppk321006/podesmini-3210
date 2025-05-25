@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Upload, File, X, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-
 interface FileUploadProps {
   onFileSelect: (files: File[]) => void;
   accept?: Record<string, string[]>;
@@ -17,16 +16,14 @@ interface FileUploadProps {
   kecamatanName?: string;
   desaName?: string;
 }
-
 interface UploadedFile {
   name: string;
   url: string;
   fileId: string;
   mimeType: string;
 }
-
-export function FileUpload({ 
-  onFileSelect, 
+export function FileUpload({
+  onFileSelect,
   accept = {
     'image/*': ['.jpeg', '.jpg', '.png'],
     'application/pdf': ['.pdf']
@@ -41,7 +38,6 @@ export function FileUpload({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
-
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > maxFiles) {
       toast.error(`Maksimal ${maxFiles} file dapat dipilih`);
@@ -54,22 +50,23 @@ export function FileUpload({
       toast.error('Ukuran file tidak boleh lebih dari 10MB');
       return;
     }
-
     setSelectedFiles(acceptedFiles);
     onFileSelect(acceptedFiles);
   }, [onFileSelect, maxFiles]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive
+  } = useDropzone({
     onDrop,
     accept,
     maxFiles,
     disabled
   });
-
   const generateCustomFileName = (originalName: string, index: number = 0): string => {
     // Get file extension
     const extension = originalName.split('.').pop() || '';
-    
+
     // Create custom name: ppl - kecamatan - desa
     let customName = '';
     if (pplName && kecamatanName && desaName) {
@@ -83,18 +80,16 @@ export function FileUpload({
       // Fallback to original name if data is missing
       customName = originalName;
     }
-    
     return customName;
   };
-
   const uploadToGoogleDrive = async (file: File, index: number): Promise<UploadedFile> => {
     const folderId = '1hv-RZ1JvRSPgQmbRUUNTngNVQhiQCZaB'; // Target folder ID
-    
+
     // Generate custom file name
     const customFileName = generateCustomFileName(file.name, index);
-    
+
     // Convert file to base64
-    const fileContent = await new Promise<string>((resolve) => {
+    const fileContent = await new Promise<string>(resolve => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
@@ -102,8 +97,10 @@ export function FileUpload({
       };
       reader.readAsDataURL(file);
     });
-
-    const { data, error } = await supabase.functions.invoke('upload-to-drive', {
+    const {
+      data,
+      error
+    } = await supabase.functions.invoke('upload-to-drive', {
       body: {
         fileName: customFileName,
         fileContent,
@@ -111,15 +108,12 @@ export function FileUpload({
         folderId
       }
     });
-
     if (error) {
       throw new Error(error.message);
     }
-
     if (!data.success) {
       throw new Error(data.error || 'Upload failed');
     }
-
     return {
       name: data.fileName,
       url: data.webViewLink,
@@ -127,41 +121,41 @@ export function FileUpload({
       mimeType: file.type
     };
   };
-
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
       toast.error('Pilih file terlebih dahulu');
       return;
     }
-
     const newUploadProgress: Record<string, boolean> = {};
     selectedFiles.forEach(file => {
       newUploadProgress[file.name] = true;
     });
     setUploadProgress(newUploadProgress);
-
     try {
       const uploadPromises = selectedFiles.map(async (file, index) => {
         try {
           const uploadedFile = await uploadToGoogleDrive(file, index);
-          setUploadProgress(prev => ({ ...prev, [file.name]: false }));
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: false
+          }));
           return uploadedFile;
         } catch (error) {
-          setUploadProgress(prev => ({ ...prev, [file.name]: false }));
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: false
+          }));
           console.error(`Error uploading ${file.name}:`, error);
           toast.error(`Gagal mengupload ${file.name}`);
           throw error;
         }
       });
-
       const results = await Promise.all(uploadPromises);
       const newUploadedFiles = [...uploadedFiles, ...results];
       setUploadedFiles(newUploadedFiles);
       setSelectedFiles([]);
       setUploadProgress({});
-      
       toast.success(`${results.length} file berhasil diupload ke Google Drive`);
-      
       if (onUploadComplete) {
         onUploadComplete(newUploadedFiles);
       }
@@ -170,13 +164,11 @@ export function FileUpload({
       setUploadProgress({});
     }
   };
-
   const removeSelectedFile = (index: number) => {
     const newFiles = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(newFiles);
     onFileSelect(newFiles);
   };
-
   const removeUploadedFile = (index: number) => {
     const newUploadedFiles = uploadedFiles.filter((_, i) => i !== index);
     setUploadedFiles(newUploadedFiles);
@@ -184,7 +176,6 @@ export function FileUpload({
       onUploadComplete(newUploadedFiles);
     }
   };
-
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -192,123 +183,74 @@ export function FileUpload({
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
   const isUploading = Object.values(uploadProgress).some(Boolean);
-
-  return (
-    <div className="space-y-4">
+  return <div className="space-y-4">
       <Label>Upload Dokumentasi/Foto</Label>
-      {pplName && kecamatanName && desaName && (
-        <p className="text-sm text-gray-600">
+      {pplName && kecamatanName && desaName && <p className="text-sm text-gray-600">
           File akan disimpan dengan nama: {pplName} - {kecamatanName} - {desaName}
-        </p>
-      )}
+        </p>}
       <Card>
-        <CardContent className="p-4">
-          <div
-            {...getRootProps()}
-            className={`
+        <CardContent className="p-4 px-0 py-0">
+          <div {...getRootProps()} className={`
               border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
               ${isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}
               ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-blue-50'}
-            `}
-          >
+            `}>
             <input {...getInputProps()} />
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            {isDragActive ? (
-              <p className="text-blue-600">Lepaskan file di sini...</p>
-            ) : (
-              <div>
-                <p className="text-gray-600 mb-2">
+            {isDragActive ? <p className="text-blue-600">Lepaskan file di sini...</p> : <div>
+                <p className="text-gray-600 mb-2 text-xs">
                   Drag & drop file atau klik untuk memilih
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-gray-500 text-xs">
                   Mendukung JPG, PNG, PDF (Maks. 10MB per file)
                 </p>
-              </div>
-            )}
+              </div>}
           </div>
 
-          {selectedFiles.length > 0 && (
-            <div className="mt-4 space-y-2">
+          {selectedFiles.length > 0 && <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">File yang dipilih:</Label>
-                <Button
-                  type="button"
-                  onClick={handleUpload}
-                  disabled={disabled || isUploading}
-                  size="sm"
-                >
+                <Button type="button" onClick={handleUpload} disabled={disabled || isUploading} size="sm">
                   {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isUploading ? 'Mengupload...' : 'Upload ke Google Drive'}
                 </Button>
               </div>
-              {selectedFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              {selectedFiles.map((file, index) => <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <div className="flex items-center space-x-2">
-                    {uploadProgress[file.name] ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                    ) : (
-                      <File className="h-4 w-4 text-gray-500" />
-                    )}
+                    {uploadProgress[file.name] ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <File className="h-4 w-4 text-gray-500" />}
                     <div>
                       <p className="text-sm font-medium">{file.name}</p>
-                      {pplName && kecamatanName && desaName && (
-                        <p className="text-xs text-blue-600">
+                      {pplName && kecamatanName && desaName && <p className="text-xs text-blue-600">
                           Akan disimpan sebagai: {generateCustomFileName(file.name, index)}
-                        </p>
-                      )}
+                        </p>}
                       <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeSelectedFile(index)}
-                    disabled={disabled || uploadProgress[file.name]}
-                  >
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeSelectedFile(index)} disabled={disabled || uploadProgress[file.name]}>
                     <X className="h-4 w-4" />
                   </Button>
-                </div>
-              ))}
-            </div>
-          )}
+                </div>)}
+            </div>}
 
-          {uploadedFiles.length > 0 && (
-            <div className="mt-4 space-y-2">
+          {uploadedFiles.length > 0 && <div className="mt-4 space-y-2">
               <Label className="text-sm font-medium text-green-700">File berhasil diupload:</Label>
-              {uploadedFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
+              {uploadedFiles.map((file, index) => <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <div>
                       <p className="text-sm font-medium text-green-800">{file.name}</p>
-                      <a 
-                        href={file.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
-                      >
+                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                         Lihat di Google Drive
                       </a>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeUploadedFile(index)}
-                    disabled={disabled}
-                  >
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeUploadedFile(index)} disabled={disabled}>
                     <X className="h-4 w-4" />
                   </Button>
-                </div>
-              ))}
-            </div>
-          )}
+                </div>)}
+            </div>}
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
