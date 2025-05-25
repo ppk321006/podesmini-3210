@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,9 @@ interface FileUploadProps {
   maxFiles?: number;
   disabled?: boolean;
   onUploadComplete?: (uploadedFiles: UploadedFile[]) => void;
+  pplName?: string;
+  kecamatanName?: string;
+  desaName?: string;
 }
 
 interface UploadedFile {
@@ -31,7 +33,10 @@ export function FileUpload({
   },
   maxFiles = 5,
   disabled = false,
-  onUploadComplete
+  onUploadComplete,
+  pplName = '',
+  kecamatanName = '',
+  desaName = ''
 }: FileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -61,8 +66,32 @@ export function FileUpload({
     disabled
   });
 
-  const uploadToGoogleDrive = async (file: File): Promise<UploadedFile> => {
+  const generateCustomFileName = (originalName: string, index: number = 0): string => {
+    // Get file extension
+    const extension = originalName.split('.').pop() || '';
+    
+    // Create custom name: ppl - kecamatan - desa
+    let customName = '';
+    if (pplName && kecamatanName && desaName) {
+      customName = `${pplName} - ${kecamatanName} - ${desaName}`;
+      // Add index if there are multiple files
+      if (selectedFiles.length > 1) {
+        customName += ` (${index + 1})`;
+      }
+      customName += `.${extension}`;
+    } else {
+      // Fallback to original name if data is missing
+      customName = originalName;
+    }
+    
+    return customName;
+  };
+
+  const uploadToGoogleDrive = async (file: File, index: number): Promise<UploadedFile> => {
     const folderId = '1hv-RZ1JvRSPgQmbRUUNTngNVQhiQCZaB'; // Target folder ID
+    
+    // Generate custom file name
+    const customFileName = generateCustomFileName(file.name, index);
     
     // Convert file to base64
     const fileContent = await new Promise<string>((resolve) => {
@@ -76,7 +105,7 @@ export function FileUpload({
 
     const { data, error } = await supabase.functions.invoke('upload-to-drive', {
       body: {
-        fileName: file.name,
+        fileName: customFileName,
         fileContent,
         mimeType: file.type,
         folderId
@@ -112,9 +141,9 @@ export function FileUpload({
     setUploadProgress(newUploadProgress);
 
     try {
-      const uploadPromises = selectedFiles.map(async (file) => {
+      const uploadPromises = selectedFiles.map(async (file, index) => {
         try {
-          const uploadedFile = await uploadToGoogleDrive(file);
+          const uploadedFile = await uploadToGoogleDrive(file, index);
           setUploadProgress(prev => ({ ...prev, [file.name]: false }));
           return uploadedFile;
         } catch (error) {
@@ -169,6 +198,11 @@ export function FileUpload({
   return (
     <div className="space-y-4">
       <Label>Upload Dokumentasi/Foto</Label>
+      {pplName && kecamatanName && desaName && (
+        <p className="text-sm text-gray-600">
+          File akan disimpan dengan nama: {pplName} - {kecamatanName} - {desaName}
+        </p>
+      )}
       <Card>
         <CardContent className="p-4">
           <div
@@ -219,6 +253,11 @@ export function FileUpload({
                     )}
                     <div>
                       <p className="text-sm font-medium">{file.name}</p>
+                      {pplName && kecamatanName && desaName && (
+                        <p className="text-xs text-blue-600">
+                          Akan disimpan sebagai: {generateCustomFileName(file.name, index)}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                     </div>
                   </div>

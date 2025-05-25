@@ -244,6 +244,9 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
                   onUploadComplete={setUploadedFiles}
                   disabled={isLoading || initialData?.verification_status === 'approved'}
                   maxFiles={5}
+                  pplName={initialData?.ppl?.name || user?.name || ''}
+                  kecamatanName={initialData?.desa?.kecamatan?.name || ''}
+                  desaName={initialData?.desa?.name || ''}
                 />
                 {uploadedFiles.length === 0 && selectedFiles.length === 0 && (
                   <p className="text-xs text-red-600 mt-1">
