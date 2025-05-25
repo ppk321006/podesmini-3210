@@ -151,7 +151,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       <div className="flex flex-shrink-0 justify-center p-4">
         {(isOpen || isMobile) && (
           <span className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} BPS Kab. Majalengka
+            &copy; {new Date().getFullYear()} Sosial - BPS3210
           </span>
         )}
       </div>

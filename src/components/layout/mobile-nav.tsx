@@ -140,7 +140,7 @@ export function MobileNav() {
           </div>
           <div className="absolute bottom-4 w-full pr-6">
             <div className="text-xs text-center text-muted-foreground">
-              &copy; {new Date().getFullYear()} BPS Kab. Majalengka
+              &copy; {new Date().getFullYear()} Sosial - BPS3210
             </div>
           </div>
         </SheetContent>
