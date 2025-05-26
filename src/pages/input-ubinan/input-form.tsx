@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -125,7 +126,6 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
   };
 
   return (
-    // Container utama dengan batas tinggi dan scroll jika overflow
     <div className="max-h-screen overflow-y-auto p-4">
       <Card className="border-0 shadow-none">
         <CardContent className="pt-2 pb-2">

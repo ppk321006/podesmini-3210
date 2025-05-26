@@ -1,357 +1,287 @@
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  Table, TableBody, TableCell, TableHead, 
-  TableHeader, TableRow 
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/context/auth-context";
-import { UserRole } from "@/types/user";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { Loader2, AlertCircle } from "lucide-react";
-
-interface PendataanProgress {
-  id: string;
-  desa_id: string;
-  ppl_id: string;
-  desa_name: string;
-  kecamatan_name: string;
-  ppl_name: string;
-  status: string;
-  verification_status: string;
-  persentase_selesai: number;
-  tanggal_mulai: string | null;
-  tanggal_selesai: string | null;
-}
-
-// Fetch progress data for PPL role
-const fetchPendataanProgressForPPL = async (pplId: string): Promise<PendataanProgress[]> => {
-  console.log("Fetching pendataan progress for PPL:", pplId);
-  
-  // Get allocated desa for this PPL
-  const { data: alokasiData, error: alokasiError } = await supabase
-    .from('alokasi_petugas')
-    .select(`
-      desa_id,
-      desa:desa_id (
-        id,
-        name,
-        kecamatan:kecamatan_id (
-          id,
-          name
-        )
-      )
-    `)
-    .eq('ppl_id', pplId);
-
-  if (alokasiError) {
-    console.error('Error fetching alokasi:', alokasiError);
-    throw alokasiError;
-  }
-
-  if (!alokasiData || alokasiData.length === 0) {
-    return [];
-  }
-
-  const desaIds = alokasiData.map(item => item.desa_id);
-
-  // Get pendataan data for allocated desa
-  const { data: pendataanData, error: pendataanError } = await supabase
-    .from('data_pendataan_desa')
-    .select(`
-      *,
-      ppl:ppl_id (
-        id,
-        name
-      )
-    `)
-    .in('desa_id', desaIds)
-    .eq('ppl_id', pplId);
-
-  if (pendataanError) {
-    console.error('Error fetching pendataan data:', pendataanError);
-    throw pendataanError;
-  }
-
-  // Combine data
-  const progressData = alokasiData.map((alokasi: any) => {
-    const pendataan = pendataanData?.find(p => p.desa_id === alokasi.desa_id);
-    
-    return {
-      id: pendataan?.id || alokasi.desa_id,
-      desa_id: alokasi.desa_id,
-      ppl_id: pplId,
-      desa_name: alokasi.desa?.name || 'Unknown',
-      kecamatan_name: alokasi.desa?.kecamatan?.name || 'Unknown',
-      ppl_name: pendataan?.ppl?.name || 'Unknown',
-      status: pendataan?.status || 'belum',
-      verification_status: pendataan?.verification_status || 'belum_verifikasi',
-      persentase_selesai: pendataan?.persentase_selesai || 0,
-      tanggal_mulai: pendataan?.tanggal_mulai || null,
-      tanggal_selesai: pendataan?.tanggal_selesai || null
-    };
-  });
-
-  return progressData;
-};
-
-// Fetch progress data for PML role
-const fetchPendataanProgressForPML = async (pmlId: string): Promise<PendataanProgress[]> => {
-  // Get PPLs under this PML
-  const { data: pplData, error: pplError } = await supabase
-    .from('users')
-    .select('id, name')
-    .eq('pml_id', pmlId)
-    .eq('role', 'ppl');
-
-  if (pplError) {
-    console.error('Error fetching PPLs:', pplError);
-    throw pplError;
-  }
-
-  if (!pplData || pplData.length === 0) {
-    return [];
-  }
-
-  const pplIds = pplData.map(ppl => ppl.id);
-
-  // Get pendataan data for all PPLs under this PML
-  const { data: pendataanData, error: pendataanError } = await supabase
-    .from('data_pendataan_desa')
-    .select(`
-      *,
-      desa:desa_id (
-        id,
-        name,
-        kecamatan:kecamatan_id (
-          id,
-          name
-        )
-      ),
-      ppl:ppl_id (
-        id,
-        name
-      )
-    `)
-    .in('ppl_id', pplIds);
-
-  if (pendataanError) {
-    console.error('Error fetching pendataan data:', pendataanError);
-    throw pendataanError;
-  }
-
-  // Transform data
-  const progressData = pendataanData?.map((item: any) => ({
-    id: item.id,
-    desa_id: item.desa_id,
-    ppl_id: item.ppl_id,
-    desa_name: item.desa?.name || 'Unknown',
-    kecamatan_name: item.desa?.kecamatan?.name || 'Unknown',
-    ppl_name: item.ppl?.name || 'Unknown',
-    status: item.status || 'belum',
-    verification_status: item.verification_status || 'belum_verifikasi',
-    persentase_selesai: item.persentase_selesai || 0,
-    tanggal_mulai: item.tanggal_mulai,
-    tanggal_selesai: item.tanggal_selesai
-  })) || [];
-
-  return progressData;
-};
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/auth-context';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { ProgressTableSimplified } from './components/progress-table-simplified';
+import { PendataanDataItem } from '@/types/pendataan-types';
+import { UserRole } from '@/types/user';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ProgressUbinanPage() {
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [progressData, setProgressData] = useState<PendataanDataItem[]>([]);
+  const [filteredData, setFilteredData] = useState<PendataanDataItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [kecamatanFilter, setKecamatanFilter] = useState<string>('all');
+  const [kecamatanList, setKecamatanList] = useState<{id: string, name: string}[]>([]);
+  
+  useEffect(() => {
+    if (user?.id) {
+      fetchProgressData();
+    }
+  }, [user?.id]);
+  
+  useEffect(() => {
+    filterData();
+  }, [progressData, searchTerm, statusFilter, kecamatanFilter]);
+  
+  const fetchProgressData = async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
 
-  // Fetch data based on user role
-  const { data: progressData = [], isLoading, error } = useQuery({
-    queryKey: ['pendataan_progress', user?.id, user?.role],
-    queryFn: async () => {
-      if (!user?.id || !user?.role) return [];
-      
+    setIsLoading(true);
+    
+    try {
+      let query = supabase
+        .from('data_pendataan_desa')
+        .select(`
+          *,
+          desa:desa_id (
+            id,
+            name,
+            kecamatan:kecamatan_id (
+              id,
+              name
+            )
+          ),
+          ppl:ppl_id (
+            id,
+            name
+          )
+        `);
+
+      // Apply role-based filtering
       if (user.role === UserRole.PPL) {
-        return fetchPendataanProgressForPPL(user.id);
+        query = query.eq('ppl_id', user.id);
       } else if (user.role === UserRole.PML) {
-        return fetchPendataanProgressForPML(user.id);
+        // Get PPL IDs under this PML
+        const { data: pplData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('pml_id', user.id)
+          .eq('role', 'ppl');
+        
+        if (pplData && pplData.length > 0) {
+          const pplIds = pplData.map(ppl => ppl.id);
+          query = query.in('ppl_id', pplIds);
+        }
+      }
+      // For ADMIN role, no additional filtering is applied (fetch all data)
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching progress data:', error);
+        toast.error('Gagal memuat data progress');
+        return;
       }
       
-      return [];
-    },
-    enabled: !!user?.id && !!user?.role
-  });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "belum":
-        return <Badge variant="outline">Belum Dikerjakan</Badge>;
-      case "proses":
-        return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
-      case "selesai":
-        return <Badge className="bg-green-500 hover:bg-green-600">Selesai</Badge>;
-      case "approved":
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Disetujui</Badge>;
-      case "ditolak":
-        return <Badge className="bg-red-500 hover:bg-red-600">Ditolak</Badge>;
-      default:
-        return <Badge variant="outline">Belum Dikerjakan</Badge>;
+      setProgressData(data || []);
+      
+      // Extract unique kecamatan for filter
+      const uniqueKecamatan = [...new Map(
+        (data || [])
+          .filter(item => item.desa?.kecamatan)
+          .map(item => [item.desa.kecamatan.id, {
+            id: item.desa.kecamatan.id,
+            name: item.desa.kecamatan.name
+          }])
+      ).values()];
+      
+      setKecamatanList(uniqueKecamatan);
+      
+    } catch (error) {
+      console.error('Error in fetchProgressData:', error);
+      toast.error('Terjadi kesalahan saat memuat data');
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const getVerificationBadge = (verificationStatus: string) => {
-    switch (verificationStatus) {
-      case "belum_verifikasi":
-        return <Badge className="bg-orange-500">Menunggu Verifikasi</Badge>;
-      case "approved":
-        return <Badge className="bg-green-500">Disetujui</Badge>;
-      case "ditolak":
-        return <Badge className="bg-red-500">Ditolak</Badge>;
-      default:
-        return <Badge className="bg-gray-500">-</Badge>;
-    }
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long", 
-      year: "numeric"
-    });
-  };
-
-  const filteredData = progressData.filter((item) => {
-    if (statusFilter !== "all" && item.status !== statusFilter) {
-      return false;
-    }
-
+  
+  const filterData = () => {
+    let filtered = progressData;
+    
+    // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      return (
-        item.desa_name.toLowerCase().includes(searchLower) ||
-        item.kecamatan_name.toLowerCase().includes(searchLower) ||
-        item.ppl_name.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(item => 
+        item.desa?.name?.toLowerCase().includes(searchLower) ||
+        item.desa?.kecamatan?.name?.toLowerCase().includes(searchLower) ||
+        item.ppl?.name?.toLowerCase().includes(searchLower)
       );
     }
-
-    return true;
-  });
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Memuat data...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center justify-center h-64">
-          <AlertCircle className="h-8 w-8 text-red-500 mr-2" />
-          <span>Gagal memuat data. Silakan coba lagi.</span>
-        </div>
-      </div>
-    );
-  }
-
+    
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(item => item.status === statusFilter);
+    }
+    
+    // Kecamatan filter
+    if (kecamatanFilter !== 'all') {
+      filtered = filtered.filter(item => item.desa?.kecamatan?.id === kecamatanFilter);
+    }
+    
+    setFilteredData(filtered);
+  };
+  
+  const getProgressSummary = () => {
+    const total = progressData.length;
+    const selesai = progressData.filter(item => item.status === 'selesai').length;
+    const proses = progressData.filter(item => item.status === 'proses').length;
+    const belum = progressData.filter(item => item.status === 'belum').length;
+    
+    return { total, selesai, proses, belum };
+  };
+  
+  const summary = getProgressSummary();
+  
   return (
     <div className="container mx-auto py-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Progress Pendataan Desa</h1>
-          <p className="text-gray-500">Pantau progress pendataan potensi desa</p>
+          <p className="text-gray-500">Pantau progress pendataan desa secara real-time</p>
         </div>
+        <Button 
+          onClick={fetchProgressData}
+          disabled={isLoading}
+          variant="outline"
+          size="sm"
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Refresh
+        </Button>
       </div>
-
-      <Card>
+      
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Desa</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.total}</div>
+            <p className="text-xs text-gray-500">100%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Selesai</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{summary.selesai}</div>
+            <p className="text-xs text-gray-500">
+              {summary.total > 0 ? `${Math.round((summary.selesai / summary.total) * 100)}%` : '0%'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Sedang Proses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{summary.proses}</div>
+            <p className="text-xs text-gray-500">
+              {summary.total > 0 ? `${Math.round((summary.proses / summary.total) * 100)}%` : '0%'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Belum Dimulai</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-600">{summary.belum}</div>
+            <p className="text-xs text-gray-500">
+              {summary.total > 0 ? `${Math.round((summary.belum / summary.total) * 100)}%` : '0%'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Filters */}
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Data Progress Pendataan</CardTitle>
-          <CardDescription>
-            {user?.role === UserRole.PPL 
-              ? "Daftar desa yang menjadi tanggung jawab Anda" 
-              : "Daftar progress pendataan dari semua PPL"
-            }
-          </CardDescription>
+          <CardTitle>Filter Data</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
               <Label htmlFor="search">Cari</Label>
               <Input
                 id="search"
-                placeholder="Cari berdasarkan desa, kecamatan, atau PPL..."
+                placeholder="Cari desa, kecamatan, atau PPL..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="w-full md:w-64">
+            <div>
               <Label htmlFor="status">Status</Label>
-              <select
-                id="status"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">Semua Status</option>
-                <option value="belum">Belum Dikerjakan</option>
-                <option value="proses">Sedang Dikerjakan</option>
-                <option value="selesai">Selesai</option>
-                <option value="approved">Disetujui</option>
-                <option value="ditolak">Ditolak</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="belum">Belum Dikerjakan</SelectItem>
+                  <SelectItem value="proses">Sedang Dikerjakan</SelectItem>
+                  <SelectItem value="selesai">Selesai</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Desa</TableHead>
-                  <TableHead>Kecamatan</TableHead>
-                  <TableHead>PPL</TableHead>
-                  <TableHead>Status Pendataan</TableHead>
-                  <TableHead>Status Verifikasi</TableHead>
-                  <TableHead>Progress (%)</TableHead>
-                  <TableHead>Tanggal Mulai</TableHead>
-                  <TableHead>Tanggal Selesai</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      {progressData.length === 0 ? "Tidak ada data pendataan" : "Tidak ada data yang sesuai filter"}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredData.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.desa_name}</TableCell>
-                      <TableCell>{item.kecamatan_name}</TableCell>
-                      <TableCell>{item.ppl_name}</TableCell>
-                      <TableCell>{getStatusBadge(item.status)}</TableCell>
-                      <TableCell>{getVerificationBadge(item.verification_status)}</TableCell>
-                      <TableCell>{item.persentase_selesai}%</TableCell>
-                      <TableCell>{formatDate(item.tanggal_mulai)}</TableCell>
-                      <TableCell>{formatDate(item.tanggal_selesai)}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <div>
+              <Label htmlFor="kecamatan">Kecamatan</Label>
+              <Select value={kecamatanFilter} onValueChange={setKecamatanFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Kecamatan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kecamatan</SelectItem>
+                  {kecamatanList.map((kecamatan) => (
+                    <SelectItem key={kecamatan.id} value={kecamatan.id}>
+                      {kecamatan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setKecamatanFilter('all');
+                }}
+                className="w-full"
+              >
+                Reset Filter
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+      
+      {/* Progress Table */}
+      <ProgressTableSimplified 
+        data={filteredData}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

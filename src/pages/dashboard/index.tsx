@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +26,14 @@ interface VerificationStats {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Set initial tab based on user role
+    if (user?.role === UserRole.ADMIN) {
+      return "overview";
+    } else {
+      return "progress";
+    }
+  });
   
   // Calculate the days remaining until deadline (June 30, 2025)
   const today = new Date();
@@ -203,313 +209,321 @@ export default function DashboardPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-          <TabsTrigger value="progress">Progress</TabsTrigger>
+          {user?.role === UserRole.ADMIN && (
+            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
+          )}
+          {(user?.role === UserRole.PML || user?.role === UserRole.PPL) && (
+            <TabsTrigger value="progress">Progress</TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          {/* Status Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Desa</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoadingStats ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold">
-                      {(pendataanStats as PendataanStats)?.total || 0}
+        {user?.role === UserRole.ADMIN && (
+          <TabsContent value="overview" className="space-y-4">
+            {/* Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Desa</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingStats ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">100%</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Selesai</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                {isLoadingStats ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold">
-                      {(pendataanStats as PendataanStats)?.selesai || 0}
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {(pendataanStats as PendataanStats)?.total || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">100%</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Selesai</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingStats ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
-                        ? `${Math.round(((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100)}% dari total`
-                        : '0%'
-                      }
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Dalam Proses</CardTitle>
-                <CalendarClock className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                {isLoadingStats ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold">
-                      {(pendataanStats as PendataanStats)?.proses || 0}
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {(pendataanStats as PendataanStats)?.selesai || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                          ? `${Math.round(((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100)}% dari total`
+                          : '0%'
+                        }
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Dalam Proses</CardTitle>
+                  <CalendarClock className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingStats ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
-                        ? `${Math.round(((pendataanStats as PendataanStats).proses / (pendataanStats as PendataanStats).total) * 100)}% dari total`
-                        : '0%'
-                      }
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Belum Dimulai</CardTitle>
-                <XCircle className="h-4 w-4 text-gray-500" />
-              </CardHeader>
-              <CardContent>
-                {isLoadingStats ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold">
-                      {(pendataanStats as PendataanStats)?.belum || 0}
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {(pendataanStats as PendataanStats)?.proses || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                          ? `${Math.round(((pendataanStats as PendataanStats).proses / (pendataanStats as PendataanStats).total) * 100)}% dari total`
+                          : '0%'
+                        }
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Belum Dimulai</CardTitle>
+                  <XCircle className="h-4 w-4 text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingStats ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
-                        ? `${Math.round(((pendataanStats as PendataanStats).belum / (pendataanStats as PendataanStats).total) * 100)}% dari total`
-                        : '0%'
-                      }
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {(pendataanStats as PendataanStats)?.belum || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                          ? `${Math.round(((pendataanStats as PendataanStats).belum / (pendataanStats as PendataanStats).total) * 100)}% dari total`
+                          : '0%'
+                        }
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Verification Status Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Menunggu Verifikasi</CardTitle>
-                <Clock className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                {isLoadingVerification ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {verificationStats?.menunggu_verifikasi || 0}
+            {/* Verification Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Menunggu Verifikasi</CardTitle>
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingVerification ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">data menunggu verifikasi</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Disetujui</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                {isLoadingVerification ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold text-green-600">
-                      {verificationStats?.approved || 0}
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {verificationStats?.menunggu_verifikasi || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">data menunggu verifikasi</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Disetujui</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingVerification ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">data disetujui</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Ditolak</CardTitle>
-                <XCircle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                {isLoadingVerification ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Memuat...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold text-red-600">
-                      {verificationStats?.ditolak || 0}
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-green-600">
+                        {verificationStats?.approved || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">data disetujui</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Ditolak</CardTitle>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingVerification ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
                     </div>
-                    <p className="text-xs text-gray-500">data ditolak</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-red-600">
+                        {verificationStats?.ditolak || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">data ditolak</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Pie Chart and Deadline */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="lg:col-span-2">
+            {/* Pie Chart and Deadline */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Status Pendataan</CardTitle>
+                  <CardDescription>Distribusi status pendataan desa</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                  {isLoadingStats ? (
+                    <div className="flex justify-center items-center h-[300px]">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    </div>
+                  ) : pieData.length > 0 ? (
+                    <div className="w-full h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => [`${value} desa`, 'Jumlah']} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="flex justify-center items-center h-[300px]">
+                      <p className="text-lg text-gray-500">Tidak ada data</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Deadline</CardTitle>
+                  <CardDescription>Batas waktu pendataan</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium">Progress Keseluruhan</span>
+                      <span className="text-sm font-medium">
+                        {pendataanStats && (pendataanStats as PendataanStats).total > 0
+                          ? `${Math.round(((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100)}%`
+                          : '0%'
+                        }
+                      </span>
+                    </div>
+                    <Progress 
+                      value={pendataanStats && (pendataanStats as PendataanStats).total > 0
+                        ? ((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100
+                        : 0
+                      } 
+                      className="h-2" 
+                    />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <CalendarClock className="h-5 w-5 text-orange-500" />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {deadline.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Tanggal Deadline</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-5 w-5 text-orange-500" />
+                      <div>
+                        <p className="text-sm font-medium text-orange-800">Sisa Waktu</p>
+                        <p className="text-sm text-orange-700">
+                          {daysRemaining} hari ({Math.ceil(daysRemaining/7)} minggu)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
+
+        {(user?.role === UserRole.PML || user?.role === UserRole.PPL) && (
+          <TabsContent value="progress" className="space-y-4">
+            <Card>
               <CardHeader>
-                <CardTitle>Status Pendataan</CardTitle>
-                <CardDescription>Distribusi status pendataan desa</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                {isLoadingStats ? (
-                  <div className="flex justify-center items-center h-[300px]">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                  </div>
-                ) : pieData.length > 0 ? (
-                  <div className="w-full h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value) => [`${value} desa`, 'Jumlah']} />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex justify-center items-center h-[300px]">
-                    <p className="text-lg text-gray-500">Tidak ada data</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Deadline</CardTitle>
-                <CardDescription>Batas waktu pendataan</CardDescription>
+                <CardTitle>Progress Per Kecamatan</CardTitle>
+                <CardDescription>Perbandingan target dan realisasi per kecamatan</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">Progress Keseluruhan</span>
-                    <span className="text-sm font-medium">
-                      {pendataanStats && (pendataanStats as PendataanStats).total > 0
-                        ? `${Math.round(((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100)}%`
-                        : '0%'
-                      }
-                    </span>
+                {isLoadingDashboard ? (
+                  <div className="flex justify-center items-center h-40">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
-                  <Progress 
-                    value={pendataanStats && (pendataanStats as PendataanStats).total > 0
-                      ? ((pendataanStats as PendataanStats).selesai / (pendataanStats as PendataanStats).total) * 100
-                      : 0
-                    } 
-                    className="h-2" 
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <CalendarClock className="h-5 w-5 text-orange-500" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {deadline.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Tanggal Deadline</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className="h-5 w-5 text-orange-500" />
-                    <div>
-                      <p className="text-sm font-medium text-orange-800">Sisa Waktu</p>
-                      <p className="text-sm text-orange-700">
-                        {daysRemaining} hari ({Math.ceil(daysRemaining/7)} minggu)
+                ) : kecamatanData.length > 0 ? (
+                  kecamatanData.map((kecamatan, index) => (
+                    <div key={kecamatan.id || index} className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">{kecamatan.name}</span>
+                        <span className="text-sm font-medium">{kecamatan.realisasi}/{kecamatan.target} desa</span>
+                      </div>
+                      <div className="relative">
+                        <Progress 
+                          value={kecamatan.target > 0 ? (kecamatan.realisasi / kecamatan.target) * 100 : 0} 
+                          className="h-2" 
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {kecamatan.target > 0 ? ((kecamatan.realisasi / kecamatan.target) * 100).toFixed(0) : 0}% selesai
                       </p>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-lg text-gray-500">Tidak ada data kecamatan</p>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="progress" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Progress Per Kecamatan</CardTitle>
-              <CardDescription>Perbandingan target dan realisasi per kecamatan</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoadingDashboard ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : kecamatanData.length > 0 ? (
-                kecamatanData.map((kecamatan, index) => (
-                  <div key={kecamatan.id || index} className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">{kecamatan.name}</span>
-                      <span className="text-sm font-medium">{kecamatan.realisasi}/{kecamatan.target} desa</span>
-                    </div>
-                    <div className="relative">
-                      <Progress 
-                        value={kecamatan.target > 0 ? (kecamatan.realisasi / kecamatan.target) * 100 : 0} 
-                        className="h-2" 
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {kecamatan.target > 0 ? ((kecamatan.realisasi / kecamatan.target) * 100).toFixed(0) : 0}% selesai
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-lg text-gray-500">Tidak ada data kecamatan</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

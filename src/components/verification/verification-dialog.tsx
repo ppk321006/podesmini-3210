@@ -1,284 +1,247 @@
 
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { DatePicker } from "@/components/ui/date-picker";
-import { UbinanData } from "@/types/database-schema";
-import { formatDateToLocale } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/auth-context";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
-import { UserRole } from "@/types/user";
-import { Loader2 } from "lucide-react";
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { PendataanDataItem } from '@/types/pendataan-types';
+import { toast } from 'sonner';
 
 interface VerificationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete: (updatedData?: UbinanData) => void;
-  data: UbinanData;
-  mode?: 'verify' | 'edit';
+  data: PendataanDataItem | null;
+  onVerificationComplete: () => void;
+  onApprove: (dataId: string) => Promise<void>;
+  onReject: (dataId: string, reason: string) => Promise<void>;
 }
 
 export function VerificationDialog({
   isOpen,
   onClose,
-  onComplete,
   data,
-  mode = 'verify'
+  onVerificationComplete,
+  onApprove,
+  onReject
 }: VerificationDialogProps) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const isPPL = user?.role === UserRole.PPL;
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
-  // Form state
-  const [responden, setResponden] = useState(data.responden_name || "");
-  const [tanggalUbinan, setTanggalUbinan] = useState<Date | undefined>(
-    data.tanggal_ubinan ? new Date(data.tanggal_ubinan) : undefined
-  );
-  const [beratHasil, setBeratHasil] = useState(data.berat_hasil?.toString() || "0");
-  const [komentar, setKomentar] = useState(data.komentar || "");
-  const [status, setStatus] = useState(data.status || "");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [verificationValue, setVerificationValue] = useState<string | null>(null);
+  if (!data) return null;
 
-  // Set default form values when dialog opens with new data
-  useEffect(() => {
-    if (isOpen && data) {
-      setResponden(data.responden_name || "");
-      setTanggalUbinan(data.tanggal_ubinan ? new Date(data.tanggal_ubinan) : undefined);
-      setBeratHasil(data.berat_hasil?.toString() || "0");
-      setKomentar(data.komentar || "");
-      setStatus(data.status || "");
-      setVerificationValue(null);
-    }
-  }, [isOpen, data]);
-
-  const handleSubmit = async () => {
-    if (!tanggalUbinan) {
-      toast.error("Tanggal ubinan harus diisi");
-      return;
-    }
-
-    if (!beratHasil || parseFloat(beratHasil) <= 0) {
-      toast.error("Berat hasil harus lebih dari 0");
-      return;
-    }
-
-    if (!responden.trim()) {
-      toast.error("Nama responden harus diisi");
-      return;
-    }
-
-    // For verification mode, ensure a verification decision was made
-    if (!isPPL && mode === 'verify' && !verificationValue) {
-      toast.error("Pilih hasil verifikasi (Konfirmasi atau Tolak)");
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  const handleApprove = async () => {
     try {
-      let newStatus = status;
-      
-      // If PPL is editing, set status to sudah_diisi
-      if (isPPL && mode === 'edit') {
-        newStatus = 'sudah_diisi';
-      } 
-      // If PML is verifying, set status based on the selected radio button
-      else if (!isPPL && mode === 'verify') {
-        newStatus = verificationValue || status;
-      }
-
-      const updateData = {
-        responden_name: responden,
-        tanggal_ubinan: tanggalUbinan.toISOString().split('T')[0],
-        berat_hasil: parseFloat(beratHasil),
-        komentar: komentar,
-        status: newStatus as "belum_diisi" | "sudah_diisi" | "dikonfirmasi" | "ditolak",
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: updatedData, error } = await supabase
-        .from('ubinan_data')
-        .update(updateData)
-        .eq('id', data.id)
-        .select('*')
-        .single();
-
-      if (error) {
-        console.error("Error updating data:", error);
-        toast.error("Gagal menyimpan data");
-        return;
-      }
-
-      // Refresh relevant queries
-      queryClient.invalidateQueries({ queryKey: ['ubinan_data'] });
-      
-      if (isPPL) {
-        queryClient.invalidateQueries({ queryKey: ['ppl_ubinan'] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['ubinan_verification'] });
-        queryClient.invalidateQueries({ queryKey: ['pml_progress'] });
-      }
-
-      // Also invalidate admin-related queries
-      queryClient.invalidateQueries({ queryKey: ['admin_verification'] });
-      queryClient.invalidateQueries({ queryKey: ['admin_progress'] });
-      queryClient.invalidateQueries({ queryKey: ['verification_status'] });
-
-      toast.success("Data berhasil disimpan");
-      onComplete(updatedData as unknown as UbinanData);
+      setIsApproving(true);
+      await onApprove(data.id);
+      toast.success('Data telah disetujui');
+      onVerificationComplete();
+      onClose();
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
-      toast.error("Terjadi kesalahan saat menyimpan data");
+      console.error('Error approving data:', error);
+      toast.error('Gagal menyetujui data');
     } finally {
-      setIsSubmitting(false);
+      setIsApproving(false);
     }
   };
 
-  const renderStatus = (status: string) => {
+  const handleReject = async () => {
+    if (!rejectionReason.trim()) {
+      toast.error('Alasan penolakan harus diisi');
+      return;
+    }
+
+    try {
+      setIsRejecting(true);
+      await onReject(data.id, rejectionReason);
+      toast.success('Data telah ditolak');
+      onVerificationComplete();
+      onClose();
+      setRejectionReason('');
+    } catch (error) {
+      console.error('Error rejecting data:', error);
+      toast.error('Gagal menolak data');
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case "belum_diisi":
-        return "Belum Diisi";
-      case "sudah_diisi":
-        return "Menunggu Verifikasi";
-      case "dikonfirmasi":
-        return "Terverifikasi";
-      case "ditolak":
-        return "Ditolak";
+      case 'belum':
+        return <Badge variant="outline">Belum Dikerjakan</Badge>;
+      case 'proses':
+        return <Badge variant="secondary">Sedang Dikerjakan</Badge>;
+      case 'selesai':
+        return <Badge className="bg-green-500 text-white">Selesai</Badge>;
       default:
-        return status;
+        return <Badge variant="outline">-</Badge>;
+    }
+  };
+
+  const getVerificationStatusBadge = (status: string) => {
+    switch (status) {
+      case 'belum_verifikasi':
+        return (
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
+            Menunggu Verifikasi
+          </Badge>
+        );
+      case 'approved':
+        return (
+          <Badge className="bg-green-500 text-white">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Disetujui
+          </Badge>
+        );
+      case 'ditolak':
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Ditolak
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">-</Badge>;
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {isPPL && mode === 'edit' 
-              ? "Edit Data" 
-              : "Verifikasi Data"
-            }
-          </DialogTitle>
-          <DialogDescription>
-            {isPPL && mode === 'edit'
-              ? "Edit data yang telah disimpan"
-              : "Verifikasi data yang telah diinput oleh PPL"
-            }
-          </DialogDescription>
+          <DialogTitle>Verifikasi Data Pendataan Desa</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          {/* Metadata */}
-          <div className="grid grid-cols-2 items-center gap-4">
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Komoditas:</span>
-              <p className="capitalize">{data.komoditas?.replace('_', ' ')}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Status:</span>
-              <p>{renderStatus(status)}</p>
-            </div>
-          </div>
-
-          {/* Form Fields */}
-          <div className="space-y-4">
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="responden">Nama Responden</Label>
-              <Input
-                id="responden"
-                value={responden}
-                onChange={(e) => setResponden(e.target.value)}
-                disabled={!isPPL || isSubmitting}
-              />
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="tanggal">Tanggal Ubinan</Label>
-              <DatePicker
-                date={tanggalUbinan}
-                onSelect={setTanggalUbinan}
-                disabled={!isPPL || isSubmitting}
-              />
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="berat">Berat Hasil (kg)</Label>
-              <Input
-                id="berat"
-                type="number"
-                step="0.01"
-                value={beratHasil}
-                onChange={(e) => setBeratHasil(e.target.value)}
-                disabled={!isPPL || isSubmitting}
-              />
-            </div>
-
-            <div className="grid w-full gap-1.5">
-              <Label htmlFor="komentar">Komentar</Label>
-              <Textarea
-                id="komentar"
-                value={komentar}
-                onChange={(e) => setKomentar(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            {!isPPL && mode === 'verify' && (
-              <div className="grid w-full gap-1.5">
-                <Label>Hasil Verifikasi</Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="konfirmasi"
-                      name="verification"
-                      value="dikonfirmasi"
-                      onChange={(e) => setVerificationValue(e.target.value)}
-                      className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <Label htmlFor="konfirmasi" className="text-sm font-normal">
-                      Konfirmasi
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="tolak"
-                      name="verification"
-                      value="ditolak"
-                      onChange={(e) => setVerificationValue(e.target.value)}
-                      className="h-4 w-4 border-gray-300 text-destructive focus:ring-destructive"
-                    />
-                    <Label htmlFor="tolak" className="text-sm font-normal">
-                      Tolak
-                    </Label>
+        <div className="space-y-6">
+          {/* Informasi Dasar */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Informasi Desa</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Nama Desa</Label>
+                  <p className="text-sm font-semibold">{data.desa?.name || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Kecamatan</Label>
+                  <p className="text-sm">{data.desa?.kecamatan?.name || '-'}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Petugas PPL</Label>
+                  <p className="text-sm">{data.ppl?.name || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Status</Label>
+                  <div className="mt-1">
+                    {getStatusBadge(data.status)}
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Batal
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...
-              </>
-            ) : (
-              "Simpan"
-            )}
-          </Button>
-        </DialogFooter>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Tanggal Mulai</Label>
+                  <p className="text-sm">
+                    {data.tanggal_mulai 
+                      ? new Date(data.tanggal_mulai).toLocaleDateString('id-ID')
+                      : '-'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Tanggal Selesai</Label>
+                  <p className="text-sm">
+                    {data.tanggal_selesai 
+                      ? new Date(data.tanggal_selesai).toLocaleDateString('id-ID')
+                      : '-'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-gray-600">Status Verifikasi</Label>
+                <div className="mt-1">
+                  {getVerificationStatusBadge(data.verification_status || 'belum_verifikasi')}
+                </div>
+              </div>
+
+              {data.catatan_khusus && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">Catatan Khusus</Label>
+                  <p className="text-sm bg-gray-50 p-3 rounded-md mt-1">
+                    {data.catatan_khusus}
+                  </p>
+                </div>
+              )}
+
+              {data.rejection_reason && (
+                <div>
+                  <Label className="text-sm font-medium text-red-600">Alasan Penolakan Sebelumnya</Label>
+                  <p className="text-sm bg-red-50 p-3 rounded-md mt-1 text-red-800">
+                    {data.rejection_reason}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Verifikasi Actions */}
+          {data.verification_status === 'belum_verifikasi' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Tindakan Verifikasi</CardTitle>
+                <CardDescription>
+                  Silakan review data di atas dan pilih tindakan yang sesuai
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="rejection-reason">Alasan Penolakan (opsional)</Label>
+                  <Textarea
+                    id="rejection-reason"
+                    placeholder="Masukkan alasan jika data ditolak..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <Button variant="outline" onClick={onClose}>
+                    Tutup
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleReject}
+                    disabled={isRejecting || isApproving}
+                  >
+                    {isRejecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Tolak
+                  </Button>
+                  <Button
+                    onClick={handleApprove}
+                    disabled={isApproving || isRejecting}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {isApproving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Setujui
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
