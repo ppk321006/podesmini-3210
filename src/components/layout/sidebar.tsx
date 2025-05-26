@@ -64,12 +64,6 @@ export function Sidebar({ isOpen }: SidebarProps) {
       allowedRoles: [UserRole.PPL],
     },
     {
-      title: "Data Pendataan Desa",
-      icon: ClipboardEdit,
-      href: "/pendataan",
-      allowedRoles: [UserRole.PPL],
-    },
-    {
       title: "Manajemen Petugas",
       icon: Users,
       href: "/petugas",
