@@ -79,7 +79,7 @@ export default function ProgressUbinanPage() {
       }
       // For ADMIN role, no additional filtering is applied (fetch all data)
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('updated_at', { ascending: false });
       
       if (error) {
         console.error('Error fetching progress data:', error);
