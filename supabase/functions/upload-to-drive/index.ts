@@ -11,6 +11,9 @@ interface UploadRequest {
   fileContent: string; // base64 encoded
   mimeType: string;
   folderId: string;
+  pplName?: string;
+  kecamatanName?: string;
+  desaName?: string;
 }
 
 serve(async (req) => {
@@ -20,9 +23,17 @@ serve(async (req) => {
   }
 
   try {
-    const { fileName, fileContent, mimeType, folderId }: UploadRequest = await req.json();
+    const { fileName, fileContent, mimeType, folderId, pplName, kecamatanName, desaName }: UploadRequest = await req.json();
     
-    console.log('Upload request received:', { fileName, mimeType, folderId });
+    console.log('Upload request received:', { fileName, mimeType, folderId, pplName, kecamatanName, desaName });
+    
+    // Create new filename format: PPL Name - Kecamatan - Desa
+    let newFileName = fileName;
+    if (pplName && kecamatanName && desaName) {
+      const fileExtension = fileName.split('.').pop();
+      newFileName = `${pplName} - ${kecamatanName} - ${desaName}.${fileExtension}`;
+      console.log('Renamed file to:', newFileName);
+    }
     
     // Get service account credentials from secrets
     const serviceAccountEmail = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_EMAIL');
@@ -134,7 +145,7 @@ serve(async (req) => {
     const closeDelimiter = `\r\n--${boundary}--`;
     
     const metadata = {
-      name: fileName,
+      name: newFileName, // Use the renamed file
       parents: [folderId]
     };
     
@@ -150,7 +161,7 @@ serve(async (req) => {
     combinedArray.set(fileBuffer, metadataBytes.length);
     combinedArray.set(encoder2.encode(closeDelimiter), metadataBytes.length + fileBuffer.length);
     
-    console.log('Uploading file to Google Drive...');
+    console.log('Uploading file to Google Drive with name:', newFileName);
     
     // Upload file to Google Drive
     const uploadResponse = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {

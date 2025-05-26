@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,34 +76,29 @@ export default function VerifikasiPage() {
     setError(null);
     
     try {
-      // Get desa IDs that are allocated to PPLs under this PML
-      const { data: alokasiData, error: alokasiError } = await supabase
-        .from('alokasi_petugas')
-        .select(`
-          desa_id,
-          ppl:ppl_id!inner(
-            id,
-            pml_id
-          )
-        `)
-        .eq('ppl.pml_id', user.id);
+      // First get PPLs under this PML
+      const { data: pplData, error: pplError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('pml_id', user.id)
+        .eq('role', 'ppl');
 
-      if (alokasiError) {
-        console.error('Error fetching alokasi data:', alokasiError);
-        setError("Gagal mengambil data alokasi");
+      if (pplError) {
+        console.error('Error fetching PPL data:', pplError);
+        setError("Gagal mengambil data PPL");
         return;
       }
 
-      if (!alokasiData || alokasiData.length === 0) {
+      if (!pplData || pplData.length === 0) {
         setPendataanData([]);
         setIsLoading(false);
         return;
       }
 
-      // Extract desa IDs that belong to this PML's area
-      const desaIds = alokasiData.map(item => item.desa_id);
+      // Extract PPL IDs
+      const pplIds = pplData.map(ppl => ppl.id);
 
-      // Get pendataan data only for desa in this PML's area - only completed data that needs verification
+      // Get pendataan data only for PPLs under this PML - only completed data that needs verification
       const { data, error } = await supabase
         .from('data_pendataan_desa')
         .select(`
@@ -121,7 +117,7 @@ export default function VerifikasiPage() {
             username
           )
         `)
-        .in('desa_id', desaIds)
+        .in('ppl_id', pplIds)
         .eq('status', 'selesai')
         .order('updated_at', { ascending: false });
       
