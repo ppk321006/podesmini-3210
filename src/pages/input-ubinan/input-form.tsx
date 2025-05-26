@@ -153,29 +153,31 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
             {/* Status */}
             <div className="flex items-center space-x-2">
               <Label htmlFor="status" className="w-20 text-sm">Status</Label>
-              <Select
-                value={status}
-                onValueChange={(value: PendataanStatus) => {
-                  setStatus(value);
-                  if (value === "proses" && !tanggalMulai) {
-                    setTanggalMulai(new Date());
-                    setTanggalSelesai(undefined);
-                  } else if (value === "selesai") {
-                    if (!tanggalMulai) setTanggalMulai(new Date());
-                    if (!tanggalSelesai) setTanggalSelesai(new Date());
-                  }
-                }}
-                disabled={isLoading || initialData?.verification_status === 'approved'}
-              >
-                <SelectTrigger className="flex-1 text-sm border rounded px-2 py-1">
-                  <SelectValue placeholder="Pilih Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="belum">Belum Dikerjakan</SelectItem>
-                  <SelectItem value="proses">Sedang Dikerjakan</SelectItem>
-                  <SelectItem value="selesai">Selesai</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex-1">
+                <Select
+                  value={status}
+                  onValueChange={(value: PendataanStatus) => {
+                    setStatus(value);
+                    if (value === "proses" && !tanggalMulai) {
+                      setTanggalMulai(new Date());
+                      setTanggalSelesai(undefined);
+                    } else if (value === "selesai") {
+                      if (!tanggalMulai) setTanggalMulai(new Date());
+                      if (!tanggalSelesai) setTanggalSelesai(new Date());
+                    }
+                  }}
+                  disabled={isLoading || initialData?.verification_status === 'approved'}
+                >
+                  <SelectTrigger className="text-sm border rounded px-2 py-1">
+                    <SelectValue placeholder="Pilih Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="belum">Belum Dikerjakan</SelectItem>
+                    <SelectItem value="proses">Sedang Dikerjakan</SelectItem>
+                    <SelectItem value="selesai">Selesai</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Tanggal Mulai */}
