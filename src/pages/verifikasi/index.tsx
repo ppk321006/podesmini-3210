@@ -306,23 +306,7 @@ export default function VerifikasiPage() {
                     </CardDescription>
                   </CardHeader>
                   
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="font-medium">Jumlah Keluarga</p>
-                        <p>{item.jumlah_keluarga?.toLocaleString() || 0} KK</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Luas Lahan</p>
-                        <p>{item.jumlah_lahan_pertanian || 0} Ha</p>
-                      </div>
-                    </div>
-                    
-                    <div className="text-sm">
-                      <p className="font-medium">Potensi Ekonomi</p>
-                      <p className="line-clamp-2">{item.potensi_ekonomi || "Belum diisi"}</p>
-                    </div>
-                    
+                  <CardContent className="space-y-4">                   
                     <div className="text-sm">
                       <p className="font-medium">Progress</p>
                       <p>{item.persentase_selesai || 0}% selesai</p>
