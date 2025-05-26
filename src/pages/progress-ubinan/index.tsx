@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,7 +56,8 @@ export default function ProgressUbinanPage() {
           ),
           ppl:ppl_id (
             id,
-            name
+            name,
+            username
           )
         `);
 

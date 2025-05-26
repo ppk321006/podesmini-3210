@@ -166,9 +166,8 @@ export function InputDataForm({ initialData, onCancel, onSuccess }: InputDataFor
                   }
                 }}
                 disabled={isLoading || initialData?.verification_status === 'approved'}
-                className="flex-1"
               >
-                <SelectTrigger className="w-full text-sm border rounded px-2 py-1">
+                <SelectTrigger className="flex-1 text-sm border rounded px-2 py-1">
                   <SelectValue placeholder="Pilih Status" />
                 </SelectTrigger>
                 <SelectContent>
