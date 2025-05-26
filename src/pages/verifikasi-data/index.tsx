@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { PendataanDataItem, VerificationStatus } from '@/types/pendataan-types';
-import { getPendataanByUserRole } from '@/services/pendataan-service';
 import { UserRole } from '@/types/user';
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -31,6 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { verifyPendataanData } from '@/services/verification-service';
 import { Loader2, ArrowUpDown, AlertCircle, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function VerifikasiPage() {
   const { user } = useAuth();
@@ -75,16 +75,54 @@ export default function VerifikasiPage() {
     setError(null);
     
     try {
-      // Get data for this PML - only data that needs verification
-      const data = await getPendataanByUserRole({
-        userRole: user.role,
-        userId: user.id,
-        status: 'selesai'
-      });
+      // Get PPL IDs under this PML
+      const { data: pplData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('pml_id', user.id)
+        .eq('role', 'ppl');
       
-      setPendataanData(data);
+      if (!pplData || pplData.length === 0) {
+        setPendataanData([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const pplIds = pplData.map(ppl => ppl.id);
+
+      // Get data for PPLs under this PML - only completed data that needs verification
+      const { data, error } = await supabase
+        .from('data_pendataan_desa')
+        .select(`
+          *,
+          desa:desa_id (
+            id,
+            name,
+            kecamatan:kecamatan_id (
+              id,
+              name
+            )
+          ),
+          ppl:ppl_id (
+            id,
+            name,
+            username
+          )
+        `)
+        .in('ppl_id', pplIds)
+        .eq('status', 'selesai')
+        .order('updated_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching progress data:', error);
+        toast.error('Gagal memuat data progress');
+        return;
+      }
+      
+      setPendataanData(data || []);
+      
     } catch (error: any) {
-      console.error('Error fetching data:', error);
+      console.error('Error in fetchData:', error);
       setError(error.message || "Gagal memuat data");
       toast.error(error.message || "Gagal memuat data");
     } finally {
@@ -424,27 +462,6 @@ export default function VerifikasiPage() {
                       : '-'}
                   </p>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Jumlah Keluarga</Label>
-                  <p className="font-medium">{selectedData.jumlah_keluarga || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Luas Lahan Pertanian (Ha)</Label>
-                  <p className="font-medium">{selectedData.jumlah_lahan_pertanian || '-'}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Status Infrastruktur</Label>
-                <p className="font-medium">{selectedData.status_infrastruktur || '-'}</p>
-              </div>
-              
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Potensi Ekonomi</Label>
-                <p className="font-medium">{selectedData.potensi_ekonomi || '-'}</p>
               </div>
               
               <div className="space-y-1">
