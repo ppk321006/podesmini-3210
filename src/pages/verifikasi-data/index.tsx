@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,7 +80,7 @@ export default function VerifikasiPage() {
         .from('alokasi_petugas')
         .select(`
           desa_id,
-          ppl:ppl_id(
+          ppl:ppl_id!inner(
             id,
             pml_id
           )
@@ -477,10 +476,12 @@ export default function VerifikasiPage() {
                 </div>
               </div>
               
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Catatan Khusus</Label>
-                <p className="font-medium">{selectedData.catatan_khusus || '-'}</p>
-              </div>
+              {selectedData.catatan_khusus && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Catatan Khusus</Label>
+                  <p className="font-medium">{selectedData.catatan_khusus}</p>
+                </div>
+              )}
               
               {selectedData.verification_status === 'belum_verifikasi' && (
                 <div className="space-y-2">
