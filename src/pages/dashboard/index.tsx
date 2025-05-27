@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -487,6 +488,73 @@ export default function DashboardPage() {
 
         {(user?.role === UserRole.PML || user?.role === UserRole.PPL) && (
           <TabsContent value="progress" className="space-y-4">
+            {/* Verification Status Cards for PPL and PML */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Menunggu Verifikasi</CardTitle>
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingVerification ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {verificationStats?.menunggu_verifikasi || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">data menunggu verifikasi</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Disetujui</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingVerification ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-green-600">
+                        {verificationStats?.approved || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">data disetujui</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Ditolak</CardTitle>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  {isLoadingVerification ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Memuat...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-red-600">
+                        {verificationStats?.ditolak || 0}
+                      </div>
+                      <p className="text-xs text-gray-500">data ditolak</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle>Progress Per Kecamatan</CardTitle>
